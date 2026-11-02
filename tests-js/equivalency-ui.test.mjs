@@ -526,6 +526,12 @@ test('polling retries temporary overload without repeating a submitted compariso
   context.calls=[];
   await assert.rejects(vm.runInContext('api("/api/jobs",{source_id:"s",target_id:"t"})',context),/busy/);
   assert.equal(context.calls.length,1);
+  context.calls=[];
+  vm.runInContext('fetch=async(route,options)=>{calls.push({route,options});return calls.length===1?{ok:false,status:530,headers:{get:()=>null},json:async()=>({error:"tunnel propagation"})}:{ok:true,status:200,json:async()=>({status:"done"})};};',context);
+  assert.equal((await vm.runInContext('api("/api/operations/abc")',context)).status,'done');assert.equal(context.calls.length,2);
+  context.calls=[];await assert.rejects(vm.runInContext('api("/api/sources",{name:"مقرر"})',context),/tunnel propagation/);assert.equal(context.calls.length,1);
+  context.calls=[];vm.runInContext('fetch=async()=>{calls.push(1);return {ok:false,status:530,headers:{get:()=>null},json:async()=>({error:"still unavailable"})};};',context);
+  await assert.rejects(vm.runInContext('api("/api/operations/abc")',context),/still unavailable/);assert.equal(context.calls.length,7);
 });
 
 test('a brief lost connection resumes GET polling and never resubmits a POST',async()=>{
