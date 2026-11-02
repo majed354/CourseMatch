@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "root": "catalog",
+  "definitions": {
+    "catalog": {
+      "schema_version": "scalar", "scope": "scalar", "college": "scalar", "catalog_id": "scalar",
+      "contexts": ["context"], "courses": ["course"], "library_sources": ["course"], "policy": "policy"
+    },
+    "context": {
+      "id": "scalar", "program": "scalar", "degree": "scalar", "plan_type": "scalar", "version": "scalar",
+      "total": "scalar", "with_pdf": "scalar", "with_topics": "scalar"
+    },
+    "course": {
+      "id": "scalar", "code": "scalar", "name": "scalar", "hours": "scalar",
+      "context": {"ref": "context", "nullable": true}, "context_id": "scalar", "library_only": "scalar", "source_context": "scalar",
+      "status": "scalar", "reviewed": "scalar", "fixed_topic_curriculum": "scalar", "match_status": "scalar",
+      "source_pdf": "scalar", "source_sha256": "scalar", "catalog_course_id": "scalar", "upload_pdf": "scalar",
+      "university": "scalar", "institution": "scalar", "extraction_method": "scalar", "transcription_model": "scalar",
+      "topics": ["topic"], "warnings": ["scalar"], "excluded_rows": ["excluded_count_only"], "reference_quality": "quality"
+    },
+    "topic": {
+      "id": "scalar", "text": "scalar", "corrected_text": "scalar", "effective_text": "scalar",
+      "page": "scalar", "end_page": "scalar", "origin": "scalar", "unresolved": "scalar", "scope_status": "scalar", "source_sha256": "scalar"
+    },
+    "quality": {"state": "scalar", "reason": "scalar", "source_sha256": "scalar", "topics_sha256": "scalar"},
+    "excluded_count_only": {},
+    "policy": {
+      "coverage_threshold": "scalar", "strict_topic_threshold": "scalar", "lenient_topic_threshold": "scalar", "weighting": "scalar", "direction": "scalar"
+    }
+  }
+}

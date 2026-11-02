@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from scripts.cloud_worker import atomic_json, private_directory, singleton_lock
+from scripts.public_catalog import matches_public_catalog
 
 LOG = logging.getLogger('coursematch.service')
 TUNNEL = re.compile(r'https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.trycloudflare\.com')
@@ -103,7 +104,7 @@ def file_hash(path):
 
 
 def validate_publish(root=ROOT, expected_redirects=None):
-    """Exact public allowlist and source-byte verification, before every deploy."""
+    """Exact public allowlist, projected catalog and asset verification before deploy."""
     root = Path(root).resolve()
     public = root / 'dist'
     config = tomllib.loads((root / 'netlify.toml').read_text())
@@ -146,7 +147,8 @@ def validate_publish(root=ROOT, expected_redirects=None):
         source = root / 'equivalency-pilot' / name
         if source.is_symlink() or not source.is_file() or file_hash(source) != file_hash(public / name):
             raise ValueError('published_font_differs_from_licensed_source')
-    if file_hash(root / 'equivalency-pilot/catalog.json') != file_hash(public / 'catalog.json'):
+    published_catalog = json.loads((public / 'catalog.json').read_text())
+    if not matches_public_catalog(catalog, published_catalog):
         raise ValueError('published_catalog_is_stale')
     info = json.loads((public / 'build-info.json').read_text())
     if info.get('project') != 'CourseMatch' or info.get('catalog_id') != catalog['catalog_id'] or not isinstance(info.get('commit'), str):

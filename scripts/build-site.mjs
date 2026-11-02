@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
+import {projectPublicCatalog} from './public_catalog.mjs';
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const output=path.join(root,'dist');
 // A static package only. The Python API/model service is a separate runtime;
@@ -13,7 +14,8 @@ const fontAssets=['IBMPlexSansArabic-Regular.ttf','IBMPlexSansArabic-SemiBold.tt
 await fs.mkdir(path.join(output,'fonts'),{recursive:true});
 for(const name of fontAssets)await fs.copyFile(path.join(root,'equivalency-pilot/fonts',name),path.join(output,'fonts',name));
 const catalog=JSON.parse(await fs.readFile(path.join(root,'equivalency-pilot/catalog.json'),'utf8'));
-await fs.copyFile(path.join(root,'equivalency-pilot/catalog.json'),path.join(output,'catalog.json'));
+const publicCatalog=projectPublicCatalog(catalog);
+await fs.writeFile(path.join(output,'catalog.json'),JSON.stringify(publicCatalog));
 let commit;try{commit=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim()}catch{commit='uncommitted'}
 await fs.writeFile(path.join(output,'build-info.json'),JSON.stringify({project:'CourseMatch',commit,catalog_id:catalog.catalog_id,built_at:new Date().toISOString()}));
 await fs.writeFile(path.join(output,'404.html'),'<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>CourseMatch</title><p>الصفحة غير موجودة.</p></html>');

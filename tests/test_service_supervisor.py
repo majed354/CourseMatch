@@ -13,6 +13,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from scripts import service_supervisor as service
+from scripts.public_catalog import project_public_catalog
 
 
 class HostingFixture(unittest.TestCase):
@@ -26,7 +27,7 @@ class HostingFixture(unittest.TestCase):
         (self.root / 'assets/course-specifications').mkdir(parents=True)
         self.pdf = 'assets/course-specifications/source.pdf'
         (self.root / self.pdf).write_bytes(b'%PDF-sample-public-source')
-        self.catalog = {'catalog_id': 'test-version', 'courses': [{'id': 'a' * 20, 'source_pdf': self.pdf}], 'library_sources': []}
+        self.catalog = {'catalog_id': 'test-version', 'courses': [{'id': 'a' * 20, 'source_pdf': self.pdf, 'context': {'program':'الأنظمة','version':'47'}, 'topics':[{'id':'t1','text':'موضوع','corrected_text':'موضوع مصحح','page':6,'bbox':[0,0,1,1]}], 'reference_quality':{'state':'ready_visual','reason':'مكتمل'}, 'original_extracted_topics':[{'text':'PRIVATE RAW'}]}], 'library_sources': []}
         for name, text in [('index.html', '<html>CourseMatch</html>'), ('app.js', 'window.CourseMatch=true;'), ('style.css', 'body{color:#123}')]:
             (self.root / 'equivalency-pilot' / name).write_text(text)
             (self.dist / name).write_text(text)
@@ -36,7 +37,7 @@ class HostingFixture(unittest.TestCase):
                 (folder / name).write_bytes(b'public font fixture')
         catalog_text = json.dumps(self.catalog)
         (self.root / 'equivalency-pilot/catalog.json').write_text(catalog_text)
-        (self.dist / 'catalog.json').write_text(catalog_text)
+        (self.dist / 'catalog.json').write_text(json.dumps(project_public_catalog(self.catalog)))
         (self.dist / '404.html').write_text('<h1>404</h1>')
         (self.dist / 'build-info.json').write_text(json.dumps({'project': 'CourseMatch', 'catalog_id': self.catalog['catalog_id'], 'commit': 'test-commit'}))
         (self.dist / self.pdf).parent.mkdir(parents=True)
@@ -94,6 +95,31 @@ class PublishGuardTests(HostingFixture):
             with self.subTest(path=path), self.assertRaises(ValueError):
                 service.validate_publish(self.root)
             (self.dist / path).write_bytes(original)
+
+    def test_projected_catalog_accepts_formatting_changes_and_omits_audit(self):
+        expected = project_public_catalog(self.catalog)
+        (self.dist / 'catalog.json').write_text(json.dumps(expected, ensure_ascii=False, sort_keys=True, indent=3))
+        self.assertNotIn('original_extracted_topics', expected['courses'][0])
+        self.assertEqual(service.validate_publish(self.root)['catalog_id'], self.catalog['catalog_id'])
+
+    def test_topic_readiness_identity_and_extra_field_mutations_stop_publication(self):
+        expected = project_public_catalog(self.catalog)
+        mutations = [
+            lambda v: v['courses'][0]['topics'][0].update(text='غير مطابق'),
+            lambda v: v['courses'][0]['topics'][0].update(corrected_text='تغيير'),
+            lambda v: v['courses'][0]['topics'][0].update(id='different'),
+            lambda v: v['courses'][0]['topics'][0].update(page=7),
+            lambda v: v['courses'][0]['reference_quality'].update(state='needs_review'),
+            lambda v: v['courses'][0]['reference_quality'].update(reason='تغيير'),
+            lambda v: v['courses'][0]['context'].update(version='38'),
+            lambda v: v.update(catalog_id='stale'),
+            lambda v: v['courses'][0].update(original_extracted_topics=[{'private':'secret'}]),
+        ]
+        for mutate in mutations:
+            candidate = copy.deepcopy(expected); mutate(candidate)
+            (self.dist / 'catalog.json').write_text(json.dumps(candidate))
+            with self.subTest(candidate=candidate), self.assertRaisesRegex(ValueError, 'published_catalog_is_stale'):
+                service.validate_publish(self.root)
 
     def test_guard_failure_precedes_any_deploy_process(self):
         instance = self.supervisor()
