@@ -131,7 +131,7 @@ class ConfigurationTests(HostingFixture):
 
 class ProcessTests(HostingFixture):
     def active_children(self, instance):
-        for index, name in enumerate(('awake', 'api', 'worker', 'tunnel')):
+        for index, name in enumerate(('awake', 'api', 'worker', 'interactive', 'tunnel')):
             process = SimpleNamespace(pid=100 + index, returncode=None)
             process.poll = lambda p=process: p.returncode
             instance.children[name] = process
@@ -140,12 +140,34 @@ class ProcessTests(HostingFixture):
         instance.api_healthy = True
         instance.healthy = Mock(return_value=True)
 
+    def test_core_spawns_disjoint_worker_lanes_and_requires_both_for_ready(self):
+        instance = self.supervisor()
+        self.active_children(instance)
+        instance.children.pop('worker')
+        instance.children.pop('interactive')
+        def spawn(name, command):
+            self.assertIn(name, ('worker', 'interactive'))
+            expected = 'compare' if name == 'worker' else 'interactive'
+            self.assertEqual(command[-2:], ['--lane', expected])
+            self.assertIn(str(self.root / '.env.worker'), command)
+            instance.children[name] = SimpleNamespace(pid=600 if name == 'worker' else 601, poll=lambda: None)
+        instance.spawn = Mock(side_effect=spawn)
+        instance.maintain_core()
+        saved = json.loads((instance.runtime / 'status.json').read_text())
+        self.assertEqual(saved['state'], 'ready')
+        self.assertEqual(saved['pids']['worker'], 600)
+        self.assertEqual(saved['pids']['interactive'], 601)
+        self.assertEqual(instance.spawn.call_count, 2)
+        instance.children['interactive'] = SimpleNamespace(pid=601, poll=lambda: 1)
+        instance.refresh_status()
+        self.assertEqual(json.loads((instance.runtime / 'status.json').read_text())['state'], 'recovering')
+
     def test_core_api_respawn_updates_status_pid_without_restarting_worker_or_tunnel(self):
         instance = self.supervisor()
         self.active_children(instance)
         instance.status('ready')
         old_api = instance.children['api']
-        unchanged = {name: instance.children[name] for name in ('worker', 'tunnel', 'awake')}
+        unchanged = {name: instance.children[name] for name in ('worker', 'interactive', 'tunnel', 'awake')}
         old_api.returncode = 1
         new_api = SimpleNamespace(pid=999, poll=lambda: None)
         instance.stop_child = Mock(side_effect=lambda name: instance.children.pop(name, None))
@@ -204,7 +226,7 @@ class ProcessTests(HostingFixture):
 
     def test_tunnel_reconnect_keeps_api_worker_and_awake_processes_intact(self):
         instance = self.supervisor()
-        core = {name: SimpleNamespace(pid=100 + i, poll=lambda: None) for i, name in enumerate(('api', 'worker', 'awake'))}
+        core = {name: SimpleNamespace(pid=100 + i, poll=lambda: None) for i, name in enumerate(('api', 'worker', 'interactive', 'awake'))}
         instance.children.update(core)
         old_tunnel = SimpleNamespace(pid=200, poll=lambda: None)
         instance.children['tunnel'] = old_tunnel

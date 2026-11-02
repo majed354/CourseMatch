@@ -235,3 +235,24 @@ test('worker completion cannot publish a report with a changed reference denomin
   assert.equal(current.status,'running');assert.equal(current.result,undefined);
   assert.equal(s.repository.artifacts.size,1);
 });
+
+test('protected claim lanes filter source/search and comparison while default all stays compatible',async()=>{
+  const s=setup(),session=await s.bootstrap(),src=await s.source(session);
+  const comparison=await s.post('/api/jobs',{source_id:src.id,target_id:course.id,reviewed:true},session);
+  const comparisonId=(await comparison.json()).id;
+  const source=await s.post('/api/sources',{topics:course.topics},session),sourceId=(await source.json()).operation_id;
+  const search=await s.post('/api/search',{source_id:src.id,all_contexts:true},session),searchId=(await search.json()).operation_id;
+  const running=(await(await s.worker('claim',{worker_id:'mac-compare',lane:'compare'})).json()).task;
+  assert.equal(running.id,comparisonId);assert.equal(running.kind,'compare');
+  const interactive=(await(await s.worker('claim',{worker_id:'mac-interactive',lane:'interactive'})).json()).task;
+  assert.equal(interactive.id,sourceId);assert.equal(interactive.kind,'source');
+  const repeat=(await(await s.worker('claim',{worker_id:'mac-interactive',lane:'interactive'})).json()).task;
+  assert.equal(repeat.lease_token,interactive.lease_token);
+  assert.equal((await s.worker('tasks/'+interactive.id+'/complete',{lease_token:interactive.lease_token,result:{topics:course.topics}})).status,200);
+  const next=(await(await s.worker('claim',{worker_id:'mac-interactive',lane:'interactive'})).json()).task;
+  assert.equal(next.id,searchId);assert.equal(next.kind,'search');
+  const same=(await(await s.worker('claim',{worker_id:'mac-compare'})).json()).task;
+  assert.equal(same.id,running.id);assert.equal(same.lease_token,running.lease_token);
+  for(const lane of ['source','COMPARE','',[],{}])assert.equal((await s.worker('claim',{worker_id:'bad',lane})).status,400);
+  assert.equal((await s.request('/api/worker/claim',{method:'POST',data:{worker_id:'browser',lane:'interactive'},cookie:session.cookie,token:session.token})).status,403);
+});

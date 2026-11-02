@@ -32,12 +32,12 @@ export class MemoryRepository {
     return [...this.garbage.values()].filter(g => g.scope === scope && g.not_before <= now).map(g => g.key);
   }
   async ackPdfDeletion(scope,key) { this.garbage.delete(this.key(scope,key)); }
-  async claim(scope,worker,now) {
+  async claim(scope,worker,now,kinds) {
     await this.workerHeartbeat(scope,worker,now);
     const current = [...this.tasks.values()].find(t => t.scope === scope && t.worker_id === worker && t.status === 'running' && t.lease_expires_at > now && t.expires_at > now);
     if (current) return current;
     for (const t of this.tasks.values()) if (t.scope === scope && t.status === 'running' && t.lease_expires_at <= now && t.attempts >= 3) {t.status='error';t.lease_token=null;}
-    const t = [...this.tasks.values()].find(t => t.scope === scope && t.expires_at > now && t.attempts < 3 && (t.status === 'queued' || t.status === 'running' && t.lease_expires_at <= now));
+    const t = [...this.tasks.values()].find(t => t.scope === scope && t.expires_at > now && t.attempts < 3 && (t.status === 'queued' || t.status === 'running' && t.lease_expires_at <= now) && (!kinds || kinds.includes(t.kind)));
     if (!t) return null;
     Object.assign(t,{status:'running',worker_id:worker,lease_token:newLease(),lease_expires_at:now + 900_000,attempts:t.attempts+1});return t;
   }

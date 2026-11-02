@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Private, outbound-only CourseMatch worker for the user's always-on Mac."""
+"""Private outbound worker for the user's always-on Mac.
+
+--lane all preserves the original queue. --lane compare runs only comparisons;
+--lane interactive handles source extraction and search without waiting for Qwen.
+Specialized lanes append their role to the configured worker ID. The interactive
+lane has its own runtime, lock and checkpoints; compare keeps the original lock
+so it cannot overlap a legacy all-lane worker during a supervised replacement.
+The lane is sent only to the authenticated worker claim endpoint.
+"""
 from __future__ import annotations
 
 import argparse
@@ -19,7 +27,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,6 +40,7 @@ from scripts.equivalency.extract import apply_readings, digest, extract_cached
 from scripts.equivalency.server import clean_beneficiary, clean_topics
 
 LOGGER = logging.getLogger('coursematch.worker')
+LANES = {'all': ('source','search','compare'), 'interactive': ('source','search'), 'compare': ('compare',)}
 TASK_ID = re.compile(r'^[a-f0-9]{32}$')
 SESSION_ID = re.compile(r'^[a-f0-9]{64}$')
 LEASE_TOKEN = re.compile(r'^[a-f0-9]{48}$')
@@ -151,7 +160,10 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class CloudClient:
-    def __init__(self, config, opener=None):
+    def __init__(self, config, opener=None, lane='all'):
+        if lane not in LANES:
+            raise ValueError('invalid_worker_lane')
+        self.lane = lane
         self.config = config
         self.opener = opener or urllib.request.build_opener(NoRedirect())
 
@@ -189,7 +201,7 @@ class CloudClient:
             raise CloudError() from None
 
     def claim(self):
-        reply = self.request('POST', '/api/worker/claim', {'worker_id': self.config.worker_id})
+        reply = self.request('POST', '/api/worker/claim', {'worker_id': self.config.worker_id, **({'lane': self.lane} if self.lane != 'all' else {})})
         if not isinstance(reply, dict) or 'task' not in reply:
             raise CloudError()
         return reply['task']
@@ -503,10 +515,20 @@ class Processor:
 
 
 class Worker:
-    def __init__(self, config, root=ROOT, runtime=None, cloud=None, processor=None, heartbeat_interval=20):
+    def __init__(self, config, root=ROOT, runtime=None, cloud=None, processor=None, heartbeat_interval=20, lane='all'):
+        if lane not in LANES:
+            raise ValueError('invalid_worker_lane')
+        self.lane = lane
+        if lane != 'all':
+            suffix = '-' + lane
+            base = config.worker_id
+            if len(base) + len(suffix) > 64:
+                base = base[:64-len(suffix)-9] + '-' + hashlib.sha256(base.encode()).hexdigest()[:8]
+            config = replace(config, worker_id=base + suffix)
         self.config = config
-        self.runtime = private_directory(runtime or Path(root) / 'runtime/cloud-worker').resolve()
-        self.cloud = cloud or CloudClient(config)
+        directory = 'cloud-worker-interactive' if lane == 'interactive' else 'cloud-worker'
+        self.runtime = private_directory(runtime or Path(root) / 'runtime' / directory).resolve()
+        self.cloud = cloud or CloudClient(config, lane=lane)
         self.processor = processor or Processor(root, self.runtime, config.model)
         self.checkpoints = Checkpoints(self.runtime / 'checkpoints', config.worker_id)
         self.heartbeat_interval = heartbeat_interval
@@ -546,6 +568,8 @@ class Worker:
 
     def process_task(self, task):
         validate_task(task)
+        if task['kind'] not in LANES[self.lane]:
+            raise TaskInputError('نوع المهمة لا يطابق مسار العامل.')
         with LeaseHeartbeat(self.cloud, task, self.heartbeat_interval) as heartbeat:
             value = self.checkpoints.find(task, self.processor.catalog['catalog_id'])
             if value is None:
@@ -652,6 +676,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description='CourseMatch outbound-only cloud worker')
     parser.add_argument('--env-file', type=Path, default=ROOT / '.env.worker')
     parser.add_argument('--once', action='store_true')
+    parser.add_argument('--lane', choices=tuple(LANES), default='all')
     parser.add_argument('--poll', type=float, default=4)
     arguments = parser.parse_args(argv)
     if not 3 <= arguments.poll <= 5:
@@ -659,7 +684,7 @@ def main(argv=None):
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
     try:
         config = Config.from_file(arguments.env_file)
-        worker = Worker(config)
+        worker = Worker(config, lane=arguments.lane)
         with singleton_lock(worker.runtime / 'worker.lock'):
             if arguments.once:
                 worker.run_once()

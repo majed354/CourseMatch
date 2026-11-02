@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS cm_tasks (
   PRIMARY KEY(scope,id), FOREIGN KEY(scope,session_id) REFERENCES cm_sessions(scope,id)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS cm_tasks_claim ON cm_tasks(scope,status,created_at);
+CREATE INDEX IF NOT EXISTS cm_tasks_claim_lane ON cm_tasks(scope,kind,status,created_at);
 CREATE INDEX IF NOT EXISTS cm_tasks_owner ON cm_tasks(scope,session_id,expires_at);
 CREATE INDEX IF NOT EXISTS cm_tasks_rate ON cm_tasks(scope,session_id,kind,created_at);
 CREATE TABLE IF NOT EXISTS cm_artifacts (
@@ -137,7 +138,13 @@ export class SQLiteRepository {
     this.db.prepare('INSERT INTO cm_pdf_gc(scope,pdf_key,created_at,not_before) VALUES(?,?,?,?) ON CONFLICT(scope,pdf_key) DO NOTHING').run(scope,key,now,now + DAY);
   }
   async ackPdfDeletion(scope, key) { this.db.prepare('DELETE FROM cm_pdf_gc WHERE scope=? AND pdf_key=?').run(scope,key); }
-  async claim(scope, worker, now) {
+  // Optional kinds are server-selected worker lanes, not browser input. Keep
+  // active-lease reuse unfiltered: changing a worker role must not give that
+  // same identity a second simultaneous task. Candidates are filtered inside
+  // the same write transaction that assigns their lease.
+  async claim(scope, worker, now, kinds) {
+    if (kinds !== undefined && (!Array.isArray(kinds) || !kinds.length || kinds.length > 3 || new Set(kinds).size !== kinds.length || kinds.some(kind => !Object.hasOwn(QUOTAS,kind)))) throw new HttpError(400,'مسار العامل غير صالح');
+    const filter = kinds === undefined ? '' : ` AND kind IN (${kinds.map(() => '?').join(',')})`;
     return this.transaction(() => {
       this.workerSeen(scope,worker,now);
       const current = this.db.prepare("SELECT * FROM cm_tasks WHERE scope=? AND worker_id=? AND status='running' AND lease_expires_at>? AND expires_at>? ORDER BY created_at,id LIMIT 1").get(scope,worker,now,now);
@@ -145,7 +152,7 @@ export class SQLiteRepository {
       this.db.prepare(`UPDATE cm_tasks SET status='error',error='تعذر إكمال الطلب بعد ثلاث محاولات',lease_token=NULL,lease_expires_at=NULL,updated_at=?
         WHERE scope=? AND status='running' AND lease_expires_at<=? AND expires_at>? AND attempts>=3`).run(now,scope,now,now);
       const candidate = this.db.prepare(`SELECT * FROM cm_tasks WHERE scope=? AND expires_at>? AND attempts<3
-        AND (status='queued' OR (status='running' AND lease_expires_at<=?)) ORDER BY created_at,id LIMIT 1`).get(scope,now,now);
+        AND (status='queued' OR (status='running' AND lease_expires_at<=?))${filter} ORDER BY created_at,id LIMIT 1`).get(scope,now,now,...(kinds || []));
       if (!candidate) return null;
       this.db.prepare("UPDATE cm_tasks SET status='running',attempts=attempts+1,worker_id=?,lease_token=?,lease_expires_at=min(?,expires_at),updated_at=? WHERE scope=? AND id=?")
         .run(worker,newLease(),now + LEASE,now,scope,candidate.id);

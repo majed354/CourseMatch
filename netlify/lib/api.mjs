@@ -127,8 +127,11 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
       const workerId = string(data.worker_id,'معرف المحرك',100);
       if (!workerId || !/^[a-zA-Z0-9_.:-]+$/.test(workerId)) throw new HttpError(400,'معرف المحرك غير صالح');
       if (pathname.endsWith('/heartbeat')) { await repository.workerHeartbeat(scope,workerId,now); return respond({ok:true}); }
+      const lane = data.lane ?? 'all';
+      const lanes = {all:undefined,interactive:['source','search'],compare:['compare']};
+      if (typeof lane !== 'string' || !Object.hasOwn(lanes,lane)) throw new HttpError(400,'مسار العامل غير صالح');
       await cleanup(now);
-      const task = await repository.claim(scope,workerId,now);
+      const task = lane === 'all' ? await repository.claim(scope,workerId,now) : await repository.claim(scope,workerId,now,lanes[lane]);
       if (!task) return respond({task:null});
       const payload = {...task.payload};
       if (['search','compare'].includes(task.kind)) {

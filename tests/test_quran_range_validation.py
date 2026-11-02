@@ -19,6 +19,21 @@ def response(pairs):return {'message':{'content':json.dumps({'pairs':pairs},ensu
 
 
 class QuranRangeTests(unittest.TestCase):
+    def test_printed_page_and_parenthesized_verse_scope_from_reference_pdf(self):
+        target,source,pairs=case('تفسير ص:7 البقرة ( 48 -38 ) تفسيرا تحليليا.', 'تفسير سورة البقرة الآيات21-39 تفسيرا تحليليا.', 80)
+        scope=topic_scopes(target)['t']
+        self.assertEqual((scope.chapter,scope.start,scope.end),(2,38,48))
+        self.assertEqual(range_issues(pairs,target,source)[0]['intersection_verses'],2)
+        with self.assertRaises(ValueError):validate_pairs(pairs,target,source)
+
+    def test_printed_tafsir_scope_does_not_infer_unlabelled_numbers(self):
+        for text in ['سورة البقرة (1-20)','تفسير سورة غير محددة (1-20)','تفسير ص:2-5 البقرة', 'تفسير ص:7 البقرة (1-20) والآيات30-40']:
+            with self.subTest(text=text):self.assertIsNone(topic_scopes([topic('t',text)])['t'])
+
+    def test_unambiguous_verse_cue_with_broken_from_particle(self):
+        scope=topic_scopes([topic('t','تفس ر الآيات م 14 -7 م سورة يوسف تفس را تحليليا.')])['t']
+        self.assertEqual((scope.chapter,scope.start,scope.end),(12,7,14))
+
     def test_real_two_of_eleven_cannot_score_eighty(self):
         target,source,pairs=case('تفسير سورة البقرة الآيات38-48','سورة البقرة المقطع الثاني الآيات21-39',80)
         issues=range_issues(pairs,target,source)

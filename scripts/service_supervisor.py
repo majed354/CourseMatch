@@ -193,7 +193,7 @@ class ServiceSupervisor:
 
     def refresh_status(self):
         pids = self.live_pids()
-        core_ready = self.api_healthy and all(name in pids for name in ('api', 'worker', 'awake'))
+        core_ready = self.api_healthy and all(name in pids for name in ('api', 'worker', 'interactive', 'awake'))
         if core_ready and 'deploy' in pids:
             phase = 'deploying_route'
         elif core_ready and self.phase == 'connecting' and 'tunnel' in pids:
@@ -250,7 +250,8 @@ class ServiceSupervisor:
 
     def maintain_core(self):
         commands = {'awake': ['/usr/bin/caffeinate', '-i'], 'api': [self.config['node_executable'], str(self.root / 'scripts/local-service.mjs')],
-                    'worker': [self.config['python_executable'], str(self.root / 'scripts/cloud_worker.py'), '--env-file', str(self.root / '.env.worker')]}
+                    'worker': [self.config['python_executable'], str(self.root / 'scripts/cloud_worker.py'), '--env-file', str(self.root / '.env.worker'), '--lane', 'compare'],
+                    'interactive': [self.config['python_executable'], str(self.root / 'scripts/cloud_worker.py'), '--env-file', str(self.root / '.env.worker'), '--lane', 'interactive']}
         changed = False
         for name, command in commands.items():
             process = self.children.get(name)

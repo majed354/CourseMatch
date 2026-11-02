@@ -29,10 +29,11 @@ _NAME = re.compile(r'(?<!\w)(?P<name>' + _NAME_PATTERN + r')(?!\w)')
 _EXPLICIT = re.compile(r'(?<!\w)[وبلفك]{0,2}(?:ال)?سورة\s*[(:：]?\s*(?P<name>' + _NAME_PATTERN + r')(?!\w)')
 _BARE_TAFSIR = re.compile(r'(?<!\w)تفسير\s+(?:ص(?:فحة)?\s*[:：]?\s*\d+\s+)?(?P<name>' + _NAME_PATTERN + r')(?=\s*[,،:：()]?\s*(?:الايات|ايات|الاية|اية))')
 _BARE_START = re.compile(r'^(?P<name>' + _NAME_PATTERN + r')(?=\s*[,،:：()]?\s*(?:الايات|ايات|الاية|اية|المقطع))')
+_PRINTED_TAFSIR = re.compile(r'(?<!\w)تفسير\s+(?:ص(?:فحة)?\s*[:：]?\s*\d+\s+)?(?P<name>' + _NAME_PATTERN + r')\s*[(\[]\s*(?P<first>\d{1,3})(?!\d)\s*[-–—−]\s*(?P<last>\d{1,3})(?!\d)\s*[)\]]')
 _CHAPTER_CUE = re.compile(r'(?<!\w)[وبلفك]{0,2}(?:ال)?(?:سورة|سورتي|سورتين|سورتا|سور)(?!\w)')
 _COORDINATED = re.compile(r'\s*[,،]?\s*و\s*(?:سورة\s*)?(?P<name>' + _NAME_PATTERN + r')(?!\w)')
 _NUMBER = r'(?P<start>\d{1,3})(?!\d)\s*(?:[-–—−]\s*|(?:الي|الى)\s*(?:(?:الاية|اية)\s*)?)(?P<end>\d{1,3})(?!\d)'
-_VERSE_RANGE = re.compile(r'(?<!\w)[وفبلك]{0,2}(?:الايات|ايات|الاية|اية)\s*[:：]?\s*[(\[]?\s*(?:من\s*)?' + _NUMBER)
+_VERSE_RANGE = re.compile(r'(?<!\w)[وفبلك]{0,2}(?:الايات|ايات|الاية|اية)\s*[:：]?\s*[(\[]?\s*(?:(?:من|م)\s*)?' + _NUMBER)
 _SEGMENT_RANGE = re.compile(r'(?<!\w)[وفبلك]{0,2}المقطع(?P<between>[^\n.;؛]{0,80}?)' + _NUMBER)
 _SINGLE_VERSE = re.compile(r'(?<!\w)[وفبلك]{0,2}(?:الاية|اية)\s*[:：]?\s*[(\[]?\s*(?P<number>\d{1,3})(?!\d)(?!\s*[-–—−]\s*\d)')
 _NON_VERSE = re.compile(r'(?:اسبوع|اسابيع|حديث|احاديث|ساع|شهر|اشهر|عام|سنة|سنوات|صفحة|ص\s*:|رمز|مقرر|خطة|تاريخ|مستوي|درس)')
@@ -55,7 +56,7 @@ class VerseScope:
 
 
 def _chapter_in(text):
-    matches = list(_EXPLICIT.finditer(text)) + list(_BARE_TAFSIR.finditer(text)) + list(_BARE_START.finditer(text))
+    matches = list(_EXPLICIT.finditer(text)) + list(_BARE_TAFSIR.finditer(text)) + list(_BARE_START.finditer(text)) + list(_PRINTED_TAFSIR.finditer(text))
     chapters = {_ALIASES[match['name']] for match in matches}
     for match in matches:
         end = match.end()
@@ -69,6 +70,8 @@ def _chapter_in(text):
 
 def _range_in(text):
     found = []
+    for match in _PRINTED_TAFSIR.finditer(text):
+        found.append((match.start('first'), match.end('last'), int(match['first']), int(match['last'])))
     for match in _VERSE_RANGE.finditer(text):
         found.append((match.start('start'), match.end('end'), int(match['start']), int(match['end'])))
     for match in _SEGMENT_RANGE.finditer(text):

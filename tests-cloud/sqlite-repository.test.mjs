@@ -175,3 +175,36 @@ test('createApi source, search, comparison and beneficiary flow works over real 
   assert.equal((await request('/api/reports/'+reportId+'/beneficiary',{beneficiary:{name:'تحديث',number:'000123'}})).status,200);
   const updated=(await(await request('/api/jobs/'+reportId)).json()).result;assert.equal(updated.beneficiary.number,'000123');assert.equal(updated.calculation.strict_coverage,100);
 });
+
+test('interactive SQLite claims continue source and search while a comparison lease stays active',async t=>{
+  const {repository:r,open}=await fixture(t),interactive=open();
+  await r.enqueue('production',sid(1),'compare',{},null,id(1),NOW);
+  await r.enqueue('production',sid(1),'source',{},null,id(2),NOW+1);
+  await r.enqueue('production',sid(1),'search',{},null,id(3),NOW+2);
+  const comparison=await r.claim('production','mac-compare',NOW+3,['compare']);
+  assert.equal(comparison.kind,'compare');assert.equal(comparison.id,id(1));
+  const source=await interactive.claim('production','mac-interactive',NOW+4,['source','search']);
+  assert.equal(source.kind,'source');assert.equal(source.id,id(2));
+  const retry=await interactive.claim('production','mac-interactive',NOW+5,['source','search']);
+  assert.equal(retry.id,source.id);assert.equal(retry.lease_token,source.lease_token);assert.equal(retry.attempts,1);
+  // Changing a role cannot lease a second job to an already active worker ID.
+  assert.equal((await interactive.claim('production','mac-interactive',NOW+6,['compare'])).id,source.id);
+  await interactive.complete('production',source.id,source.lease_token,{topics:[]},'',NOW+7,prepare);
+  const search=await interactive.claim('production','mac-interactive',NOW+8,['source','search']);
+  assert.equal(search.kind,'search');assert.equal(search.id,id(3));
+  await interactive.complete('production',search.id,search.lease_token,{candidates:[]},'',NOW+9,prepare);
+  assert.equal(await interactive.claim('production','mac-interactive',NOW+10,['source','search']),null);
+  const still=await r.claim('production','mac-compare',NOW+11,['compare']);
+  assert.equal(still.lease_token,comparison.lease_token);assert.equal(still.attempts,1);assert.equal(still.status,'running');
+  // A reclaimed comparison also stays out of the interactive lane.
+  assert.equal(await interactive.claim('production','mac-interactive',NOW+LEASE+20,['source','search']),null);
+  assert.equal((await r.claim('production','mac-compare',NOW+LEASE+21,['compare'])).attempts,2);
+});
+test('SQLite lane kinds are validated before SQL and legacy claims still include every kind',async t=>{
+  const {repository:r}=await fixture(t);
+  await r.enqueue('production',sid(1),'compare',{},null,id(1),NOW);
+  for(const kinds of [[],['source','source'],['arbitrary'],"compare",['source','search','compare','source'],["source'); DROP TABLE cm_tasks; --"]]) {
+    await assert.rejects(r.claim('production','invalid',NOW,kinds),e=>e.status===400);
+  }
+  assert.equal((await r.claim('production','legacy',NOW)).kind,'compare');
+});

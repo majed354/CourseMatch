@@ -117,6 +117,17 @@ class TransportTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 worker.load_env_file(link)
 
+    def test_claim_lane_is_explicit_only_for_specialized_workers_and_invalid_lanes_fail_closed(self):
+        for lane in ('all', 'interactive', 'compare'):
+            client = worker.CloudClient(CONFIG, lane=lane)
+            client.request = Mock(return_value={'task': None})
+            self.assertIsNone(client.claim())
+            body = client.request.call_args.args[2]
+            self.assertEqual(body, {'worker_id': CONFIG.worker_id, **({'lane': lane} if lane != 'all' else {})})
+        for lane in ('source', 'COMPARE', '', None):
+            with self.subTest(lane=lane), self.assertRaises(ValueError):
+                worker.CloudClient(CONFIG, lane=lane)
+
     def test_pdf_fetch_has_fixed_https_destination_and_current_lease_header(self):
         raw = b'%PDF-test'
         response = io.BytesIO(raw)
@@ -287,6 +298,38 @@ class ProcessorTests(WorkerFixture):
 class RecoveryTests(WorkerFixture):
     def fake_processor(self, result=None):
         return SimpleNamespace(catalog=self.catalog, process=Mock(return_value=result or {'id': 'a' * 32, 'value': 'completed'}))
+
+    def test_worker_lanes_have_disjoint_ids_runtime_locks_and_checkpoint_ownership(self):
+        processor = self.fake_processor()
+        interactive = worker.Worker(CONFIG, self.root, processor=processor, lane='interactive')
+        compare = worker.Worker(CONFIG, self.root, processor=processor, lane='compare')
+        legacy = worker.Worker(CONFIG, self.root, processor=processor)
+        self.assertEqual(interactive.config.worker_id, 'test-mac-interactive')
+        self.assertEqual(compare.config.worker_id, 'test-mac-compare')
+        self.assertEqual(legacy.config.worker_id, 'test-mac')
+        self.assertEqual(interactive.runtime, self.root.resolve() / 'runtime/cloud-worker-interactive')
+        self.assertEqual(compare.runtime, legacy.runtime)
+        self.assertNotEqual(interactive.runtime, compare.runtime)
+        interactive.checkpoints.save(task(), self.catalog['catalog_id'], {}, None)
+        self.assertEqual(list(compare.checkpoints.pending()), [])
+        long_config = worker.Config(CONFIG.cloud_url, TOKEN, 'x' * 64)
+        first = worker.Worker(long_config, self.root, lane='interactive', processor=processor)
+        second = worker.Worker(worker.Config(CONFIG.cloud_url, TOKEN, 'x' * 63 + 'y'), self.root, lane='interactive', processor=processor)
+        self.assertLessEqual(len(first.config.worker_id), 64)
+        self.assertNotEqual(first.config.worker_id, second.config.worker_id)
+
+    def test_interactive_worker_rejects_comparison_before_processor_or_heartbeat(self):
+        cloud = Mock()
+        processor = self.fake_processor()
+        instance = worker.Worker(CONFIG, self.root, cloud=cloud, processor=processor, lane='interactive')
+        with self.assertRaises(worker.TaskInputError):
+            instance.process_task(self.compare_task())
+        processor.process.assert_not_called()
+        cloud.heartbeat.assert_not_called()
+        cloud.complete.assert_not_called()
+        self.assertEqual(list(instance.checkpoints.directory.glob('*.json')), [])
+        self.assertTrue(instance.process_task(task('search')))
+        processor.process.assert_called_once()
 
     def test_checkpoint_retries_lost_ack_after_restart_without_repeating_inference(self):
         cloud = Mock()

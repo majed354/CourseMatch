@@ -534,3 +534,24 @@ test('a brief lost connection resumes GET polling and never resubmits a POST',as
   assert.equal((await vm.runInContext('api("/api/operations/abc")',context)).status,'done');assert.equal(context.calls,2);
   context.calls=0;await assert.rejects(vm.runInContext('api("/api/sources",{name:"مقرر"})',context),/connection lost/);assert.equal(context.calls,1);
 });
+
+test('search scope is selectable before upload for one program or all programs',async()=>{
+  const {context,element}=ui();
+  assert.equal(element('searchScopeMode').value,'all');assert.equal(element('scopeProgramFields').hidden,true);
+  assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(searchScope())',context)),{all_contexts:true});
+  element('searchScopeMode').value='program';await element('searchScopeMode').onchange({target:element('searchScopeMode')});
+  assert.equal(element('scopeProgramFields').hidden,false);assert.throws(()=>vm.runInContext('searchScope()',context),/اختر البرنامج/);
+  element('program').value=element('program').options.find(o=>o.value).value;await element('program').onchange({target:element('program')});
+  const scoped=JSON.parse(vm.runInContext('JSON.stringify(searchScope())',context));assert.ok(scoped.context_ids.length);assert.equal(scoped.all_contexts,undefined);
+  element('searchScopeMode').value='all';await element('searchScopeMode').onchange({target:element('searchScopeMode')});
+  assert.equal(element('program').value,'');assert.equal(element('version').value,'');assert.equal(element('scopeProgramFields').hidden,true);
+  assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(searchScope())',context)),{all_contexts:true});
+});
+
+test('rejected reports explain the closest weak match without counting it',()=>{
+  const input=reportFixture({decision:'not_equivalent',strict:0,lenient:0,total:2});
+  input.evidence.pairs[0].score=25;input.evidence.pairs[0].reason='يقتصر المصدر على الطهارة ولا يشمل موضوع الزكاة.';
+  const before=JSON.stringify(input.calculation);const {html}=renderedReport(input);
+  assert.ok(html.includes('يقتصر المصدر على الطهارة ولا يشمل موضوع الزكاة.'));assert.ok(html.includes('25%'));
+  assert.ok(html.includes('أقرب مقابلة'));assert.ok(html.includes('دون حد التوافق'));assert.equal(JSON.stringify(input.calculation),before);
+});

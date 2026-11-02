@@ -123,9 +123,17 @@ function initContexts() {
   const groupOptions=groups.map(g=>`<option value="${esc(g)}">${esc(g.replace(' | ',' · '))}</option>`).join('');
   $('program').innerHTML='<option value="">جميع البرامج والدرجات</option>'+groupOptions;
   $('sourceProgram').innerHTML='<option value="">كل البرامج والدرجات</option>'+groupOptions+((catalog.library_sources||[]).length?'<option value="__library__">مصادر إضافية غير مرتبطة بخطة</option>':'');sourceOptions();planOptions();
+  $('searchScopeMode').value='all';syncScopeControls();
+}
+function syncScopeControls() {
+  const scoped=!!$('program').value||$('searchScopeMode').value==='program';
+  $('searchScopeMode').value=scoped?'program':'all';
+  $('scopeProgramFields').hidden=!scoped;
+  $('program').required=scoped;
 }
 function searchScope() {
   const context=selectedContext(),group=$('program').value;
+  if($('searchScopeMode').value==='program'&&!group)throw new Error('اختر البرنامج والدرجة المطلوبين، أو اختر البحث في جميع البرامج.');
   if(context) return {context_id:context.id};
   if(group) return {context_ids:catalog.contexts.filter(c=>groupKey(c)===group).map(c=>c.id)};
   return {all_contexts:true};
@@ -230,7 +238,13 @@ function showReport(r) {
   const sourceCard=(c,label,n)=>`<section class="course-card"><div class="course-card-top"><span class="report-section-number">${n}</span><span class="report-kicker">${label}</span>${c.code?'<bdi class="course-code" dir="ltr">'+esc(c.code)+'</bdi>':''}</div><h3>${esc(c.name)}</h3><p class="course-scope">${c.context?esc(c.context.program)+' · '+esc(c.context.degree)+'<br>الخطة '+esc(c.context.plan_type||'')+' '+esc(c.context.version):esc(c.university||c.institution||'مقرر مصدر المعادلة')}</p><dl class="course-facts"><div><dt>الساعات المعتمدة</dt><dd>${esc(c.hours??'غير محددة')}</dd></div><div><dt>المفردات</dt><dd>${c.topics.length}</dd></div></dl>${sourceLink(c)?'<div class="course-source-link">'+sourceLink(c)+'</div>':''}</section>`;
   const matchedCell=(t,mode)=>{
     const sid=calc[mode+'_matches']?.[t.id],pair=sid?pairs.find(p=>p.target_id===t.id&&p.source_id===sid):null,s=pair?sources.get(pair.source_id):null;
-    if(!pair||!s) return '<td class="matching-cell"><span class="match-state uncounted">غير محتسبة</span><span class="match-empty">لا مقابلة محتسبة في هذا الحساب</span></td>';
+    if(!pair||!s) {
+      const nearest=pairs.filter(p=>p.target_id===t.id&&sources.has(p.source_id)).sort((a,b)=>b.score-a.score)[0];
+      if(!nearest)return '<td class="matching-cell"><span class="match-state uncounted">غير محتسبة</span><span class="match-empty">لا مقابلة محتسبة في هذا الحساب</span></td>';
+      const alternative=sources.get(nearest.source_id);
+      const explanation=nearest.score<threshold[mode]?'دون حد التوافق المطلوب في هذا الحساب.':'لا تُحتسب المفردة المصدرية نفسها لأكثر من مفردة هدف في الحساب الواحد.';
+      return `<td class="matching-cell"><span class="match-state uncounted">غير محتسبة · <bdi dir="ltr">${esc(nearest.score)}%</bdi></span><p>${esc(textOf(alternative))}</p><small>أقرب مقابلة · المصدر ص ${esc(pageOf(alternative))}</small><p class="match-reason">${esc(academicReason(nearest,evidence))}<br>${esc(explanation)}</p></td>`;
+    }
     return `<td class="matching-cell"><span class="match-state ${mode}">محتسبة · <bdi dir="ltr">${esc(pair.score)}%</bdi></span><p>${esc(textOf(s))}</p><small>المصدر · ص ${esc(pageOf(s))}</small><p class="match-reason">${esc(academicReason(pair,evidence))}</p></td>`;
   };
   const rows=r.target.topics.map((t,i)=>{
@@ -254,7 +268,11 @@ $('extractButton').onclick=e=>action(e.target,async()=>{const file=$('pdfFile').
 $('loadCourse').onclick=e=>action(e.target,async()=>{if(!$('sourceCourse').value) throw new Error('اختر المقرر المصدر');const inputRevision=++sourceInputSequence;const received=await api('/api/sources',{catalog_id:$('sourceCourse').value});if(inputRevision===sourceInputSequence)await setSource(received);});
 $('loadManual').onclick=e=>action(e.target,async()=>{const topics=$('manualTopics').value.split('\n').map(s=>s.trim()).filter(Boolean).map((text,i)=>({id:'t'+(i+1),text}));if(!topics.length) throw new Error('أدخل المفردات أولًا');const inputRevision=++sourceInputSequence;const received=await api('/api/sources',{name:$('manualName').value,topics});if(inputRevision===sourceInputSequence)await setSource(received);});
 $('sourceProgram').onchange=sourceOptions;
-$('program').onchange=e=>action(e.target,async()=>{planOptions();if(source)await searchCandidates();});
+$('searchScopeMode').onchange=e=>action(e.target,async()=>{
+  if(e.target.value==='all'){$('program').value='';planOptions();syncScopeControls();if(source)await searchCandidates();}
+  else {syncScopeControls();clearTarget();notice('حدد البرنامج والدرجة المطلوبين، ويمكنك اختيار خطة محددة.');}
+});
+$('program').onchange=e=>action(e.target,async()=>{$('searchScopeMode').value=e.target.value?'program':'all';syncScopeControls();planOptions();if(source)await searchCandidates();});
 $('version').onchange=e=>action(e.target,async()=>{targetOptions();clearTarget();if(source)await searchCandidates();});
 $('directTargetButton').onclick=()=>{targetOptions();$('candidatePanel').hidden=false;$('directTargetChoice').open=true;$('candidatePanel').scrollIntoView({behavior:'smooth'});};
 $('searchButton').onclick=e=>action(e.target,searchCandidates);
