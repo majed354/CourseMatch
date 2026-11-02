@@ -297,6 +297,34 @@ class InstallerTests(HostingFixture):
             module.install(agent, self.root / 'LaunchAgents/org.coursematch.service.plist', runner=runner)
         self.assertEqual(runner.call_count, 1)
 
+    def test_installer_recovers_the_observed_launchd_replacement_race(self):
+        module = self.module()
+        agent = module.launch_agent(self.root, '/bin/echo', self.root / 'config.json')
+        runner = Mock(side_effect=[SimpleNamespace(returncode=1), SimpleNamespace(returncode=0),
+                                   module.subprocess.CalledProcessError(5, ['launchctl', 'bootstrap']), SimpleNamespace(returncode=0)])
+        with patch.object(module.time, 'sleep') as pause:
+            module.install(agent, self.root / 'LaunchAgents/org.coursematch.service.plist', runner=runner)
+        pause.assert_called_once_with(1)
+        self.assertEqual(runner.call_count, 4)
+        self.assertEqual(runner.call_args_list[-1].args[0], runner.call_args_list[-2].args[0])
+
+    def test_installer_does_not_retry_permanent_bootstrap_errors(self):
+        module = self.module()
+        agent = module.launch_agent(self.root, '/bin/echo', self.root / 'config.json')
+        runner = Mock(side_effect=[SimpleNamespace(returncode=1), SimpleNamespace(returncode=0),
+                                   module.subprocess.CalledProcessError(13, ['launchctl', 'bootstrap'])])
+        with patch.object(module.time, 'sleep') as pause, self.assertRaises(module.subprocess.CalledProcessError):
+            module.install(agent, self.root / 'LaunchAgents/org.coursematch.service.plist', runner=runner)
+        pause.assert_not_called()
+
+    def test_installer_defaults_to_the_validated_host_interpreter(self):
+        import io
+        module = self.module()
+        output = io.StringIO()
+        with patch.object(module, 'load_config', return_value={'python_executable':'/bin/echo'}), patch.object(module, 'preflight'), patch('sys.stdout', output):
+            self.assertEqual(module.main(['--dry-run']), 0)
+        self.assertEqual(plistlib.loads(output.getvalue().encode())['ProgramArguments'][0], '/bin/echo')
+
 
 if __name__ == '__main__':
     unittest.main()

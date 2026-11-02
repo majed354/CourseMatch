@@ -9,6 +9,7 @@ import plistlib
 import subprocess
 import sys
 import tempfile
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -42,7 +43,18 @@ def install(agent, destination, runner=subprocess.run):
     temporary.replace(destination)
     destination.chmod(0o600)
     runner(['/bin/launchctl', 'bootout', domain + '/' + LABEL], check=False, capture_output=True)
-    runner(['/bin/launchctl', 'bootstrap', domain, str(destination)], check=True, capture_output=True)
+    bootstrap = ['/bin/launchctl', 'bootstrap', domain, str(destination)]
+    # bootout can return while launchd is still removing the old job. On this
+    # Mac an immediate bootstrap then returns EIO (5); retry that bounded race
+    # without touching any other label or concealing permanent failures.
+    for attempt in range(5):
+        try:
+            runner(bootstrap, check=True, capture_output=True)
+            break
+        except subprocess.CalledProcessError as error:
+            if error.returncode != 5 or attempt == 4:
+                raise
+            time.sleep(attempt + 1)
     return destination
 
 

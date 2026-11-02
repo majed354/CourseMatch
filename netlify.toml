@@ -3,12 +3,7 @@
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "22"
-
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
-  included_files = ["equivalency-pilot/catalog.json"]
+  NODE_VERSION = "24"
 
 [[headers]]
   for = "/*"
