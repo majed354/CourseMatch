@@ -1,0 +1,160 @@
+{
+  "batch": "student-controls-20261102",
+  "synthetic_not_university_documents": true,
+  "frozen_expectations_sha256": "26ffe6e7a90ebbb1f2eed09a075159e04932a48e5fc1e0e413b3f35505020a65",
+  "expectations_unchanged": true,
+  "cases": [
+    {
+      "case_id": "full",
+      "synthetic": true,
+      "expected_decision": "equivalent",
+      "expectation_sha256": "26ffe6e7a90ebbb1f2eed09a075159e04932a48e5fc1e0e413b3f35505020a65",
+      "scope_selected_before_input": {
+        "mode": "program",
+        "program": "القرآن وعلومه | بكالوريوس",
+        "context_id": "29d0be493da37c10"
+      },
+      "download_json_equals_report": true,
+      "standalone_html_opens": true,
+      "beneficiary_preserved_after_reload": true,
+      "mobile_overflow": false,
+      "pdf_pages": 3,
+      "pdf_visual_inspection": "completed_all_pages",
+      "catalog_id": "b0029d9fa2d16c71eaf73149395bae4f6fb13a5ef5e9ffa86bb6660a87093359",
+      "actual_decision": "equivalent",
+      "strict_count": 13,
+      "lenient_count": 13,
+      "strict_coverage": 100,
+      "lenient_coverage": 100,
+      "expected_matches_actual": true,
+      "provider": "exact_text",
+      "rubric": "topic-alignment-80-60-v4-compound-and-printed-scopes",
+      "automatic_search_requests": 1,
+      "candidate_count": 8,
+      "reference_readonly": true,
+      "explicit_target_context": true,
+      "status": "passed",
+      "page_errors": [],
+      "http_errors": []
+    },
+    {
+      "case_id": "partial",
+      "synthetic": true,
+      "expected_decision": "lenient",
+      "expectation_sha256": "26ffe6e7a90ebbb1f2eed09a075159e04932a48e5fc1e0e413b3f35505020a65",
+      "scope_selected_before_input": {
+        "mode": "all",
+        "program": "",
+        "context_id": ""
+      },
+      "download_json_equals_report": true,
+      "standalone_html_opens": true,
+      "beneficiary_preserved_after_reload": true,
+      "mobile_overflow": false,
+      "pdf_pages": 4,
+      "pdf_visual_inspection": "completed_all_pages",
+      "catalog_id": "b0029d9fa2d16c71eaf73149395bae4f6fb13a5ef5e9ffa86bb6660a87093359",
+      "actual_decision": "lenient",
+      "strict_count": 3,
+      "lenient_count": 13,
+      "strict_coverage": 23.076923076923077,
+      "lenient_coverage": 100,
+      "expected_matches_actual": true,
+      "provider": "ollama_local",
+      "rubric": "topic-alignment-80-60-v4-compound-and-printed-scopes",
+      "automatic_search_requests": 1,
+      "candidate_count": 8,
+      "reference_readonly": true,
+      "explicit_target_context": true,
+      "status": "passed",
+      "page_errors": [],
+      "http_errors": []
+    },
+    {
+      "case_id": "below",
+      "synthetic": true,
+      "expected_decision": "not_equivalent",
+      "expectation_sha256": "26ffe6e7a90ebbb1f2eed09a075159e04932a48e5fc1e0e413b3f35505020a65",
+      "scope_selected_before_input": {
+        "mode": "program",
+        "program": "القرآن وعلومه | بكالوريوس",
+        "context_id": "29d0be493da37c10"
+      },
+      "download_json_equals_report": true,
+      "standalone_html_opens": true,
+      "beneficiary_preserved_after_reload": true,
+      "mobile_overflow": false,
+      "pdf_pages": 4,
+      "pdf_visual_inspection": "completed_all_pages",
+      "catalog_id": "b0029d9fa2d16c71eaf73149395bae4f6fb13a5ef5e9ffa86bb6660a87093359",
+      "actual_decision": "not_equivalent",
+      "strict_count": 3,
+      "lenient_count": 3,
+      "strict_coverage": 23.076923076923077,
+      "lenient_coverage": 23.076923076923077,
+      "expected_matches_actual": true,
+      "provider": "ollama_local",
+      "rubric": "topic-alignment-80-60-v4-compound-and-printed-scopes",
+      "automatic_search_requests": 1,
+      "candidate_count": 8,
+      "reference_readonly": true,
+      "explicit_target_context": true,
+      "status": "passed",
+      "page_errors": [],
+      "http_errors": []
+    }
+  ],
+  "current_v5_revalidation_without_score_changes": [
+    {
+      "case": "full",
+      "rationale_v5_validation": true,
+      "same_calculation": true
+    },
+    {
+      "case": "partial",
+      "rationale_v5_validation": true,
+      "same_calculation": true
+    },
+    {
+      "case": "below",
+      "rationale_v5_validation": true,
+      "same_calculation": true
+    }
+  ],
+  "search_timing": {
+    "origin": "https://coursematch-6uk2.netlify.app",
+    "catalog_id": "b0029d9fa2d16c71eaf73149395bae4f6fb13a5ef5e9ffa86bb6660a87093359",
+    "source_creation_ms": 712,
+    "real_public_requests": true,
+    "readiness": "comparison_and_interactive_workers_separate",
+    "samples": [
+      {
+        "scope": "program",
+        "scope_requested": {
+          "context_id": "29d0be493da37c10"
+        },
+        "milliseconds": 4216,
+        "candidates": 8,
+        "scope_count": 71,
+        "active_comparison_before": 1,
+        "active_comparison_after": 1,
+        "warning": null,
+        "strategy": null
+      },
+      {
+        "scope": "all",
+        "scope_requested": {
+          "all_contexts": true
+        },
+        "milliseconds": 4954,
+        "candidates": 8,
+        "scope_count": 732,
+        "active_comparison_before": 1,
+        "active_comparison_after": 1,
+        "warning": null,
+        "strategy": null
+      }
+    ],
+    "limits": "two measurements only, warm caches, not a load benchmark"
+  }
+}

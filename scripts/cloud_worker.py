@@ -35,7 +35,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.equivalency.engine import calculate, compare, search
+from scripts.equivalency.engine import RUBRIC_VERSION, calculate, compare, search, validate_pairs
 from scripts.equivalency.extract import apply_readings, digest, extract_cached
 from scripts.equivalency.server import clean_beneficiary, clean_topics
 
@@ -512,6 +512,31 @@ class Processor:
                 if target is None:
                     raise TaskInputError('المقرر الهدف لم يعد متاحًا في المكتبة.')
                 self.course_path(target)
+                # A completed but unacknowledged task may survive a code/rubric
+                # upgrade. File integrity alone does not make its old evidence
+                # valid under today's rules. Never regrade a saved report here;
+                # reject it safely so the beneficiary can request a new study.
+                try:
+                    report = value['result']
+                    evidence = report['evidence']
+                    if (evidence['rubric'] != RUBRIC_VERSION
+                            or report['id'] != value['id']
+                            or report['catalog_id'] != self.catalog['catalog_id']
+                            or report['source']['id'] != value['payload']['source_id']
+                            or report['target']['id'] != target['id']):
+                        raise ValueError('obsolete_or_mismatched_checkpoint')
+                    targets, sources = report['target']['topics'], report['source']['topics']
+                    pairs = evidence['pairs']
+                    if not isinstance(pairs, list):
+                        raise ValueError('invalid_checkpoint_pairs')
+                    if pairs:
+                        validate_pairs(pairs, targets, sources)
+                    # Empty/unresolved topics legitimately return insufficient
+                    # with no pairs; calculate owns that deterministic policy.
+                    if calculate(targets, sources, pairs) != report['calculation']:
+                        raise ValueError('checkpoint_calculation_changed')
+                except (ValueError, KeyError, TypeError, AttributeError):
+                    raise TaskInputError('لم تعد نتيجة المقارنة المحفوظة صالحة للتحقق الحالي؛ أعد المقارنة لإصدار تقرير جديد.') from None
 
 
 class Worker:

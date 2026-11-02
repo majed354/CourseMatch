@@ -62,7 +62,7 @@ class WorkerFixture(unittest.TestCase):
         return task('compare', payload)
 
     def exact_evidence(self):
-        return {'provider': 'exact_text', 'pairs': [{'target_id': 't1', 'source_id': 's1', 'score': 100, 'reason': 'تتطابق المفردتان في الموضوع والنطاق.',
+        return {'provider': 'exact_text', 'rubric': worker.RUBRIC_VERSION, 'pairs': [{'target_id': 't1', 'source_id': 's1', 'score': 100, 'reason': 'تتطابق المفردتان في الموضوع والنطاق.',
                                                    'target_quote': 'تعريف العلم ونشأته', 'source_quote': 'تعريف العلم ونشأته'}]}
 
 
@@ -330,6 +330,106 @@ class RecoveryTests(WorkerFixture):
         self.assertEqual(list(instance.checkpoints.directory.glob('*.json')), [])
         self.assertTrue(instance.process_task(task('search')))
         processor.process.assert_called_once()
+
+    def saved_comparison(self, key='a' * 32):
+        claimed = self.compare_task()
+        claimed['id'] = key
+        with patch('scripts.cloud_worker.compare', return_value=self.exact_evidence()):
+            report = self.processor.process(claimed, Mock())
+        instance = worker.Worker(CONFIG, self.root, cloud=Mock(), processor=self.processor)
+        saved = instance.checkpoints.save(claimed, self.catalog['catalog_id'], report, None)
+        return instance, claimed, saved
+
+    def test_current_comparison_checkpoint_retries_ack_without_regrading_or_inference(self):
+        instance, claimed, saved = self.saved_comparison()
+        original = copy.deepcopy(saved['result'])
+        with patch.object(self.processor, 'process', side_effect=AssertionError('no inference on recovery')):
+            self.assertTrue(instance.process_task(claimed))
+        self.assertEqual(instance.cloud.complete.call_args.kwargs, {'result': original, 'error': None})
+        self.assertEqual(saved['result'], original)
+
+    def test_real_processor_rejects_obsolete_contradictory_or_tampered_checkpoint_before_publication(self):
+        for index, variation in enumerate(('old_rubric', 'current_contradiction', 'changed_calculation', 'wrong_identity', 'missing_evidence', 'invalid_quote'), 1):
+            with self.subTest(variation=variation):
+                instance, claimed, saved = self.saved_comparison(key=f'{index:032x}')
+                if variation == 'old_rubric':
+                    saved['result']['evidence']['rubric'] = 'topic-alignment-80-60-v4-compound-and-printed-scopes'
+                elif variation == 'current_contradiction':
+                    saved['result']['evidence']['pairs'][0].update(score=90, reason='التغطية جزئية في الموضوع.')
+                elif variation == 'changed_calculation':
+                    saved['result']['calculation']['strict_coverage'] = 0
+                elif variation == 'wrong_identity':
+                    saved['result']['source']['id'] = '0' * 32
+                elif variation == 'invalid_quote':
+                    saved['result']['evidence']['pairs'][0]['source_quote'] = 'اقتباس لم يرد في المصدر'
+                else:
+                    del saved['result']['evidence']
+                original_result = copy.deepcopy(saved['result'])
+                with self.assertRaisesRegex(worker.TaskInputError, 'أعد المقارنة'):
+                    self.processor.verify_checkpoint(saved, instance.cloud)
+                self.assertEqual(saved['result'], original_result)
+                worker.atomic_json(instance.checkpoints.path(claimed['id']), saved)
+                with patch.object(self.processor, 'process', side_effect=AssertionError('no automatic regrading')):
+                    self.assertTrue(instance.process_task(claimed))
+                completed = instance.cloud.complete.call_args.kwargs
+                self.assertIsNone(completed['result'])
+                self.assertIn('أعد المقارنة', completed['error'])
+                self.assertNotIn('v4', completed['error'])
+                self.assertNotIn('جزئية', completed['error'])
+                self.assertEqual(json.loads(instance.checkpoints.path(claimed['id']).read_text())['state'], 'acknowledged')
+
+    def test_unresolved_comparison_checkpoint_keeps_insufficient_instead_of_becoming_a_rejection(self):
+        instance, claimed, saved = self.saved_comparison()
+        saved['result']['source']['topics'] = [{'id': 's1', 'text': 'أخرى'}]
+        saved['result']['evidence'] = {'rubric': worker.RUBRIC_VERSION, 'provider': 'unresolved_source', 'pairs': []}
+        saved['result']['calculation'] = worker.calculate(saved['result']['target']['topics'], saved['result']['source']['topics'], [])
+        self.assertEqual(saved['result']['calculation']['decision'], 'insufficient')
+        original = copy.deepcopy(saved)
+        self.processor.verify_checkpoint(saved, instance.cloud)
+        self.assertEqual(saved, original)
+        # An empty response for known topics cannot masquerade as insufficient.
+        saved['result']['source']['topics'] = copy.deepcopy(self.source['topics'])
+        with self.assertRaisesRegex(worker.TaskInputError, 'أعد المقارنة'):
+            self.processor.verify_checkpoint(saved, instance.cloud)
+
+    def test_empty_source_or_target_checkpoint_can_legitimately_be_insufficient(self):
+        for empty_side in ('source', 'target'):
+            with self.subTest(empty_side=empty_side):
+                instance, claimed, saved = self.saved_comparison()
+                saved['result'][empty_side]['topics'] = []
+                saved['result']['evidence'] = {'rubric': worker.RUBRIC_VERSION, 'provider': 'none', 'pairs': []}
+                saved['result']['calculation'] = worker.calculate(saved['result']['target']['topics'], saved['result']['source']['topics'], [])
+                self.assertEqual(saved['result']['calculation']['decision'], 'insufficient')
+                worker.atomic_json(instance.checkpoints.path(claimed['id']), saved)
+                with patch.object(self.processor, 'process', side_effect=AssertionError('no inference on valid insufficient recovery')):
+                    self.assertTrue(instance.process_task(claimed))
+                self.assertIsNone(instance.cloud.complete.call_args.kwargs['error'])
+                self.assertEqual(instance.cloud.complete.call_args.kwargs['result'], saved['result'])
+
+    def test_real_source_and_search_recovery_do_not_require_comparison_metadata(self):
+        for kind in ('source', 'search'):
+            with self.subTest(kind=kind):
+                payload = {'topics': copy.deepcopy(self.source['topics'])} if kind == 'source' else {'source_id': self.source['id'], 'source': copy.deepcopy(self.source), 'all_contexts': True}
+                claimed = task(kind, payload)
+                with patch('scripts.cloud_worker.search', return_value={'candidates': [self.course]}):
+                    result = self.processor.process(claimed, Mock())
+                self.assertNotIn('evidence', result)
+                instance = worker.Worker(CONFIG, self.root, cloud=Mock(), processor=self.processor)
+                instance.checkpoints.save(claimed, self.catalog['catalog_id'], result, None)
+                with patch.object(self.processor, 'process', side_effect=AssertionError('no inference on source/search recovery')):
+                    instance.recover_pending()
+                self.assertEqual(instance.cloud.complete.call_args.kwargs, {'result': result, 'error': None})
+
+    def test_acknowledged_comparison_history_is_not_revalidated_or_overwritten_on_recovery(self):
+        instance, claimed, saved = self.saved_comparison()
+        saved['result']['evidence']['rubric'] = 'old-historical-rubric'
+        instance.checkpoints.mark(saved, 'acknowledged')
+        path = instance.checkpoints.path(claimed['id'])
+        previous = path.read_bytes()
+        with patch.object(self.processor, 'verify_checkpoint', side_effect=AssertionError('history is immutable')):
+            instance.recover_pending()
+        instance.cloud.complete.assert_not_called()
+        self.assertEqual(path.read_bytes(), previous)
 
     def test_checkpoint_retries_lost_ack_after_restart_without_repeating_inference(self):
         cloud = Mock()
