@@ -306,6 +306,19 @@ class ProcessTests(HostingFixture):
         self.assertEqual((instance.runtime / 'active-redirects').read_text(), (self.dist / '_redirects').read_text())
         self.assertEqual(json.loads((instance.runtime / 'status.json').read_text())['state'], 'ready')
 
+    def test_slow_deploy_keeps_core_healthy_past_three_minutes_but_stops_at_ten(self):
+        instance = self.supervisor()
+        instance.spawn = Mock(return_value=SimpleNamespace(poll=lambda: None))
+        instance.status = Mock()
+        instance.maintain_core = Mock()
+        instance.stop_child = Mock()
+        instance.stop_event = SimpleNamespace(wait=lambda _: False)
+        with patch('scripts.service_supervisor.time.monotonic', side_effect=[0, 181, 601]):
+            with self.assertRaisesRegex(RuntimeError, 'route_deploy_timeout'):
+                instance.deploy('https://words.trycloudflare.com')
+        self.assertEqual(instance.maintain_core.call_count, 2)
+        instance.stop_child.assert_called_once_with('deploy')
+
     def test_stale_tunnel_stdout_cannot_republish_a_replaced_connection(self):
         instance = self.supervisor()
         instance.children['tunnel'] = SimpleNamespace(pid=202, poll=lambda: None)

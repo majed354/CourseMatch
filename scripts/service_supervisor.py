@@ -321,7 +321,9 @@ class ServiceSupervisor:
         command = [*self.config['netlify_command'], 'deploy', '--site', self.config['site_id'], '--dir', str(self.root / 'dist'), '--no-build', '--prod', '--json']
         process = self.spawn('deploy', command)
         self.status('deploying_route', tunnel_url=tunnel)
-        deadline = time.monotonic() + 180
+        # Netlify may still be processing after its required upload list empties.
+        # Keep core workers healthy while allowing a bounded backend publish wait.
+        deadline = time.monotonic() + 600
         while process.poll() is None and not self.stop_event.wait(0.25):
             self.maintain_core()
             if time.monotonic() >= deadline:
