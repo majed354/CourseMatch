@@ -31,7 +31,7 @@ test('stale completion rolls back and cannot write an artifact',async()=>{
   assert.equal(p.calls.at(-1).text,'ROLLBACK');assert.ok(!p.calls.find(c=>/cm_artifacts/.test(c.text)));assert.equal(p.releases,1);
 });
 test('migration enforces bounded task attempts, ownership and dedicated PDF garbage collection',async()=>{
-  const sql=await readFile(new URL('../netlify/database/migrations/20261102124000_create_coursematch_queue.sql',import.meta.url),'utf8');
+  const sql=await readFile(new URL('../reference/managed-database/20261102124000_create_coursematch_queue.sql',import.meta.url),'utf8');
   assert.match(sql,/attempts BETWEEN 0 AND 3/);assert.match(sql,/FOREIGN KEY \(scope, session_id\)/);assert.match(sql,/CREATE TABLE cm_artifacts/);assert.match(sql,/CREATE TABLE cm_pdf_gc/);assert.match(sql,/not_before timestamptz/);
 });
 test('artifact and completion writes share a transaction and roll back together',async()=>{

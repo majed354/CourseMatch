@@ -58,3 +58,5 @@
 .report-hero .report-stamp{order:2;width:100px;height:100px;background:#fff;align-self:center}.report-hero .report-stamp strong{font-size:23px}.report-hero .report-stamp.pending strong{font-size:14px}.report-hero>div:not(.report-stamp){flex:1}
 @media(max-width:650px){.report-hero .report-stamp{width:82px;height:82px}.report-hero .report-stamp strong{font-size:19px}.report-hero .report-stamp span,.report-hero .report-stamp small{font-size:7px}.report-hero .report-stamp.pending strong{font-size:11px}}
 @media print{.report-hero .report-stamp{width:68px;height:68px;border-width:3px}.report-hero .report-stamp strong{font-size:17px}.report-hero .report-stamp span,.report-hero .report-stamp small{font-size:6px}.report-hero .report-stamp.pending strong{font-size:10px}}
+
+textarea[readonly]{background:#f5f8fa;border-color:#dce6eb;cursor:default}.reference-readonly-note{color:#526a79;font-size:12px;margin-top:12px}

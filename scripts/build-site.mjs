@@ -13,7 +13,16 @@ const catalog=JSON.parse(await fs.readFile(path.join(root,'equivalency-pilot/cat
 await fs.copyFile(path.join(root,'equivalency-pilot/catalog.json'),path.join(output,'catalog.json'));
 let commit;try{commit=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim()}catch{commit='uncommitted'}
 await fs.writeFile(path.join(output,'build-info.json'),JSON.stringify({project:'CourseMatch',commit,catalog_id:catalog.catalog_id,built_at:new Date().toISOString()}));
-let copied=5;
+await fs.writeFile(path.join(output,'404.html'),'<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>CourseMatch</title><p>الصفحة غير موجودة.</p></html>');
+// A live HTTPS tunnel has a generated address. Preserve only the validated
+// supervisor-generated public routes when rebuilding static assets.
+try {
+  const routes=await fs.readFile(path.join(root,'runtime/service/active-redirects'),'utf8');
+  const allowed=/^\/api\/worker\/\* \/404\.html 404!\n\/api\/\* (https:\/\/[a-z0-9-]+\.trycloudflare\.com)\/api\/:splat 200\n\/pdf\/\* \1\/pdf\/:splat 200\n\/healthz \1\/healthz 200\n$/;
+  if(!allowed.test(routes))throw Error('Invalid active service routes');
+  await fs.writeFile(path.join(output,'_redirects'),routes);
+} catch(error) {if(error.code!=='ENOENT')throw error;}
+let copied=6;
 for(const name of new Set([...catalog.courses,...catalog.library_sources].map(c=>c.source_pdf).filter(Boolean))) {
   if(!name.startsWith('assets/')||name.includes('..'))throw Error('Unsafe asset path');
   const destination=path.join(output,name);await fs.mkdir(path.dirname(destination),{recursive:true});await fs.copyFile(path.join(root,name),destination);copied++;

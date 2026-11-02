@@ -8,9 +8,5 @@
     "test": "node --test tests-js/*.test.mjs tests-cloud/*.test.mjs",
     "verify": ".venv/bin/python scripts/verify_import.py",
     "build": "node scripts/build-site.mjs"
-  },
-  "dependencies": {
-    "@netlify/blobs": "^11.1.7",
-    "@netlify/database": "^2.0.1"
   }
 }

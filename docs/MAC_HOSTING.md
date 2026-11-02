@@ -1,0 +1,90 @@
+# استضافة CourseMatch من الماك
+
+هذا المسار يستفيد من النمط العامل في مشروع أتمتة التقارير: واجهة ثابتة على Netlify، وخدمة مستقلة على الماك، ونفق HTTPS صادر، ومشرف خاص بالمشروع يبدأ تلقائيًا عند دخول المستخدم. لا يعتمد على Netlify DB أو Netlify Functions، ولا يفتح منفذ الماك على الشبكة العامة.
+
+## المكونات
+
+- `scripts/local-service.mjs`: API محلي على `127.0.0.1:8800`، مع SQLite وملفات خاصة في runtime. يقرأ `.env.service` الخاص بنفسه.
+- `scripts/cloud_worker.py`: يسحب المهام من `COURSEMATCH_LOCAL_URL=http://127.0.0.1:8800`. يستعمل `.env.worker` الخاص، ونماذج Ollama المحلية. لا تمر طلبات العامل عبر الموقع العام.
+- `scripts/service_supervisor.py`: يبدأ API والعامل و`caffeinate -i` وcloudflared كعمليات مستقلة. يحافظ على العامل وAPI عند تغير النفق، ويعيد كل طفل يملكه إذا توقف.
+- Netlify ينشر `dist/` فقط: 448 توصيف PDF، وملفات الواجهة الثلاثة، والفهرس، وهوية البناء، وصفحة 404. يضاف ملف التوجيه بعد معرفة عنوان النفق.
+
+لا يشغّل المشرف أو يوقف أي عملية بناءً على رقم منفذ أو اسم عملية عامة. الإيقاف يخص مجموعات عمليات الأطفال الذين بدأهم هو فقط؛ خدمات أتمتة التقارير على 8794 وسلة على 8773 مستقلة عنه.
+
+## الإعداد
+
+أنشئ `runtime/service/config.json` بصلاحية `0600` مع هذه المفاتيح فقط، دون أسرار:
+
+```json
+{
+  "public_origin": "https://YOUR-SITE.netlify.app",
+  "site_id": "00000000-0000-0000-0000-000000000000",
+  "port": 8800,
+  "node_executable": "/absolute/path/to/node",
+  "python_executable": "/absolute/path/to/project/.venv/bin/python",
+  "cloudflared_executable": "/opt/homebrew/bin/cloudflared",
+  "netlify_command": ["/absolute/path/to/node", "/absolute/path/to/netlify-cli/bin/run.js"]
+}
+```
+
+يجب أن يظل مسار CLI متاحًا بعد إعادة الدخول؛ يفضّل مسارًا مثبتًا ثابتًا. يرفض المشرف HTTP للأصل العام، والمنفذين 8794 و8773، والمسارات التنفيذية غير المطلقة، وأسرار CLI مثل `--auth` داخل الإعداد. تعتمد مصادقة Netlify CLI على حساب المستخدم المحفوظ؛ لا توضع بيانات المصادقة في ملف التوجيه أو حزمة الواجهة.
+
+يلزم وجود `.env.service` و`.env.worker` بصلاحية `0600` ومملوكين للمستخدم، وOllama والنماذج مثبتة ومشغلة. لا يقرأ ملف الخدمة الخاص داخل plist؛ يدخل كل برنامج إلى ملفه المخصص فقط.
+
+على جهاز التشغيل الحالي جُهّزت `.venv-host` المستقلة باستخدام Python 3.12 المثبت عبر uv، بعد كشف تعثر إقلاع Python الخاص ببيئة Codex تحت launchd. نجحت الاختبارات كاملة في بيئة الاستضافة نفسها. إصدارات المكتبات المثبتة محفوظة في `equivalency-pilot/requirements-host.lock`. يختار المثبّت تلقائيًا `python_executable` من إعداد الخدمة ما لم يُمرر `--python` صراحة. CLI النشر 27.16.1 محفوظ محليًا تحت `runtime/service/netlify-cli` خارج Git، كي لا يعتمد التشغيل الدائم على مجلد npx المؤقت.
+
+## النفق والتوجيه
+
+يشغّل المشرف quick tunnel من cloudflared إلى loopback 8800، ويحدد `--http-host-header` باسم مضيف موقع Netlify الثابت. بذلك يبقى الأصل العام والجلسة ثابتين رغم تغير عنوان النفق. يقبل عنوانًا كاملًا من النمط `https://NAME.trycloudflare.com` فقط.
+
+التوجيه المنشور:
+
+```text
+/api/worker/* /404.html 404!
+/api/* https://NAME.trycloudflare.com/api/:splat 200
+/pdf/* https://NAME.trycloudflare.com/pdf/:splat 200
+/healthz https://NAME.trycloudflare.com/healthz 200
+```
+
+الحجب الأول يمنع توجيه العامل للعامة، ويضيف HTTP adapter المحلي حجبًا مستقلاً: طلبات العامل مقبولة من loopback بالـHost المحلي فقط. بقية API تحتفظ بحماية الجلسة وCSRF وملكية المهام والملفات.
+
+قبل كل نشر يتحقق الحارس من قائمة الملفات كاملة، ورفض الروابط الرمزية والملفات الإضافية وFunctions، وتطابق بايتات الواجهة والفهرس وPDF مع مصادر المشروع. يكتب التوجيه في `runtime/service/active-redirects` لنسخه عند البناء اللاحق، ثم في `dist/_redirects`. يستخدم Netlify CLI الأمر `deploy --site … --dir dist --no-build --prod --json` من جذر المشروع؛ يقرأ CLI المثبت `netlify.toml` من هذا المجلد، بما فيه headers. لا يعاد بناء المحرك أو نشره.
+
+## الفحص والتشغيل التلقائي
+
+أولًا جهز الحزمة:
+
+```bash
+npm run build
+.venv/bin/python scripts/service_supervisor.py --check
+.venv/bin/python scripts/install-service-macos.py --dry-run
+```
+
+هذه الأوامر تفحص الملفات وتعرض plist فقط؛ لا تبدأ خدمة أو نفقًا ولا تنشر. بعد المراجعة، وقبل التركيب، أوقف نسخ CourseMatch اليدوية المعروفة فقط لتفادي شغل 8800 أو قفل العامل. يرفض المثبّت تشغيل الخدمة الجديدة إذا كان LaunchAgent القديم `org.coursematch.worker` ما زال محملًا؛ لا يوقفه من تلقاء نفسه.
+
+للتشغيل التلقائي المصرّح به:
+
+```bash
+.venv/bin/python scripts/install-service-macos.py --install
+launchctl print gui/$(id -u)/org.coursematch.service
+```
+
+الخدمة تحمل `KeepAlive` و`RunAtLoad` و`ThrottleInterval=15`، ومسارات منفصلة تحفظ العربية والمسافات دون shell. تعمل في جلسة المستخدم، ويمنع `caffeinate -i` نوم الخمول أثناء تشغيلها دون تعديل إعدادات النوم العامة أو استخدام sudo. يوقف المشرف أطفاله عند تلقي SIGTERM. يمنع قفل `runtime/service/supervisor.lock` مشرفًا ثانيًا، ويمنع قفل العامل عاملين.
+
+## الحالة والأعطال
+
+- `runtime/service/status.json`: مرحلة التشغيل ومعرفات الأطفال وعنوان النفق العام ومعرف النشر، دون أسرار أو مدخلات المستفيدين.
+- `runtime/service/publish-proof.json`: نتيجة حارس النشر.
+- `runtime/service/launchd/`: سجل المشرف الآلي.
+- `runtime/service/api.log` و`worker.log`: سجلات البرامج الخاصة بصلاحية `0600`.
+- `runtime/service/deploy.log` و`deploy.stderr.log`: مخرجات CLI الخاصة. لا تنقلها إلى الموقع أو Git.
+
+لا يبدأ النفق قبل فحص `/healthz` من طفل API حي يثبت `ok:true` و`service:CourseMatch`. تعطل النفق أو تغير عنوانه يعيد الربط والنشر فقط؛ يبقى عامل المقارنة يعمل محليًا. إذا تعطل API يعاد تشغيله، ويستعيد العامل الإقرار من checkpoint، فيما تظل البيانات في SQLite المحلي. بقاء الماك والإنترنت وOllama متاحة شرط لعمل الخدمة العامة.
+
+## التحقق
+
+```bash
+.venv/bin/python -m unittest tests.test_service_supervisor -v
+```
+
+تختبر الحالات قائمة النشر والبصمات، ورفض أسرار/ملفات إضافية أو Functions، وعناوين النفق والتوجيه الخاص بالعامل، وهوية health، واستقلال الأطفال عند إعادة الاتصال، وعدم إيقاف عمليات غير مملوكة، وأوامر النشر المصفوفية، وLaunchAgent الخاص دون أسرار. هذه فحوص core معزولة؛ فحص الاتصال والنشر العام والرحلة الحقيقية يتم بعد تركيب الخدمة وتوثيق معرف نشرها.

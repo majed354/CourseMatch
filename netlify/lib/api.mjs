@@ -23,6 +23,18 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
   const targets = new Map((catalog.courses || []).map(course => [course.id,course]));
   const contexts = new Set((catalog.contexts || []).map(context => context.id));
   const respond = (value, status = 200, headers = {}) => new Response(JSON.stringify(value), {status,headers:{...outputHeaders,...headers}});
+  function referenceTopics(course, supplied) {
+    // The bundled catalog is the trusted local reference imported from the
+    // published specification. Students can review their uploaded source, but
+    // cannot change the target denominator, order, identities or content.
+    const canonical = course.topics.map(topic => ({id:topic.id,text:topic.corrected_text || topic.text}));
+    if (supplied !== undefined && (!Array.isArray(supplied) || supplied.length !== canonical.length
+        || supplied.some((row,i) => !plain(row) || row.id !== canonical[i].id || (row.corrected_text || row.text) !== canonical[i].text))) {
+      throw new HttpError(400,'مفردات المقرر المرجعي ثابتة وفق التوصيف المعتمد');
+    }
+    // Always queue fresh server-owned copies, never caller-provided metadata.
+    return canonical;
+  }
   function searchOptions(data) {
     const all = data.all_contexts ?? false;
     const single = data.context_id;
@@ -79,6 +91,8 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
           || ready.catalog_id !== catalog.catalog_id || !plain(ready.calculation) || !['equivalent','lenient','not_equivalent','insufficient'].includes(ready.calculation.decision)) {
         throw new HttpError(400,'هوية تقرير المقارنة لا تطابق الطلب');
       }
+      if (!Array.isArray(ready.target.topics)) throw new HttpError(400,'مفردات تقرير المرجع غير صالحة');
+      referenceTopics(original,ready.target.topics);
       ready.id = task.id;
       Object.assign(ready.target,{id:original.id,code:original.code,name:original.name,context_id:original.context_id,context:original.context,source_pdf:original.source_pdf});
       ready.beneficiary = beneficiary(task.payload.beneficiary);
@@ -158,7 +172,7 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
         if (!session) { session = codec.create(now); cookie = codec.cookie(session); }
         await repository.ensureSession(scope,session,now);
         const online = await repository.workerOnline(scope,now);
-        return respond({catalog_url:'/catalog.json',token:codec.csrf(session),capabilities:{queued:true,max_upload_mb:4,worker_online:online}},200,cookie ? {'Set-Cookie':cookie} : {});
+        return respond({catalog_url:'/catalog.json',token:codec.csrf(session),capabilities:{queued:true,max_upload_mb:4,worker_online:online,reference_editable:false}},200,cookie ? {'Set-Cookie':cookie} : {});
       }
       if (!session) throw new HttpError(401,'افتح المنصة لبدء جلسة صالحة');
       if (request.method === 'POST') {
@@ -209,7 +223,8 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
           if (typeof data.target_id !== 'string' || !targets.has(data.target_id)) throw new HttpError(400,'المقرر الهدف غير موجود في الخطة');
           if (data.reviewed !== true) throw new HttpError(400,'أكد مراجعة مفردات المقررين قبل المقارنة');
           payload = {source_id:source.id,target_id:data.target_id,reviewed:true,beneficiary:beneficiary(data.beneficiary)};
-          for (const key of ['source_topics','target_topics']) { const edited = topics(data[key],true); if (edited !== undefined) payload[key] = edited; }
+          payload.target_topics = referenceTopics(targets.get(data.target_id),data.target_topics);
+          const editedSource = topics(data.source_topics,true); if (editedSource !== undefined) payload.source_topics = editedSource;
         }
       }
       payload.catalog_version = catalog.catalog_id;

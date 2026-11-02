@@ -15,7 +15,7 @@ class Element {
   constructor(tag='div',attributes={}) {
     this.tagName=tag.toLowerCase();this.attributes=attributes;this.children=[];this.parentElement=null;
     this.dataset={};this.className=attributes.class||'';this.hidden='hidden' in attributes;this.disabled='disabled' in attributes;
-    this.open='open' in attributes;this.checked='checked' in attributes;this.value=attributes.value||'';this.files=[];
+    this.readOnly='readonly' in attributes;this.open='open' in attributes;this.checked='checked' in attributes;this.value=attributes.value||'';this.files=[];
     for(const [name,value] of Object.entries(attributes))if(name.startsWith('data-'))this.dataset[name.slice(5).replace(/-([a-z])/g,(_,letter)=>letter.toUpperCase())]=value;
     this.classList={toggle:(name,force)=>{const values=new Set(this.className.split(/\s+/).filter(Boolean));const add=force??!values.has(name);if(add)values.add(name);else values.delete(name);this.className=[...values].join(' ');return add;}};
   }
@@ -467,4 +467,70 @@ test('loading a catalog source also searches automatically without a separate se
   assert.equal(calls[0].body.catalog_id,candidate.id);
   assert.equal(calls[1].body.all_contexts,true);
   assert.equal(calls[1].body.topics.length,candidate.topics.length);
+});
+
+test('queued cloud source operations are polled and return the completed source to the same caller', async()=>{
+  const {context}=ui();context.calls=[];context.setTimeout=callback=>{callback();return 0;};
+  context.responses=[{status:202,data:{operation_id:'queued-source'}},{status:200,data:{status:'running'}},{status:200,data:{status:'done',result:{id:'completed-source',topics:[]}}}];
+  vm.runInContext('fetch=async(route,options)=>{calls.push({route,options});const reply=responses.shift();if(!reply)throw Error("unexpected poll");return {ok:true,status:reply.status,json:async()=>reply.data};};',context);
+  const result=await vm.runInContext('api("/api/sources",{name:"مقرر",topics:[]})',context);
+  assert.equal(result.id,'completed-source');
+  assert.deepEqual(context.calls.map(c=>c.route),['/api/sources','/api/operations/queued-source','/api/operations/queued-source']);
+  assert.equal(context.calls[0].options.credentials,'same-origin');
+});
+
+test('failed queued cloud operations stop rather than showing a fabricated source', async()=>{
+  const {context}=ui();context.setTimeout=callback=>{callback();return 0;};
+  context.responses=[{status:202,data:{operation_id:'bad-source'}},{status:200,data:{status:'error',error:'تعذر قراءة التوصيف'}}];
+  vm.runInContext('fetch=async()=>{const reply=responses.shift();return {ok:true,status:reply.status,json:async()=>reply.data};};',context);
+  await assert.rejects(vm.runInContext('api("/api/sources",{name:"مقرر",topics:[]})',context),/تعذر قراءة التوصيف/);
+});
+
+test('a pending report link resumes after reload and retains its saved beneficiary',async()=>{
+  const {context,element}=ui();context.setTimeout=callback=>{callback();return 0;};context.reportInput=reportFixture({beneficiary:{name:'صاحب التقرير',number:'٠٠١'}});
+  context.routes=[];context.urls=[];
+  vm.runInContext('history.replaceState=(_state,_title,url)=>urls.push(url); let polls=0; api=async route=>{routes.push(route);return ++polls===1?{status:"running"}:{status:"done",result:reportInput};};',context);
+  await vm.runInContext('waitForReport("pending-report")',context);
+  assert.deepEqual(context.urls,['?report=pending-report']);
+  assert.equal(context.routes.length,2);
+  assert.ok(element('report').innerHTML.includes('صاحب التقرير'));
+  assert.ok(element('report').innerHTML.includes('٠٠١'));
+});
+
+test('an older source extraction cannot overwrite a later catalog choice',async()=>{
+  const {context,element,catalog}=ui();const course=catalog.courses.find(c=>c.topics.length);
+  context.newSource={...course,id:'new-source'};context.oldSource={...course,id:'old-source'};
+  element('manualName').value='إدخال قديم';element('manualTopics').value='موضوع الإدخال القديم';element('sourceCourse').value=course.id;
+  vm.runInContext('api=async(route,body)=>{if(route==="/api/sources")return body.catalog_id?newSource:new Promise(resolve=>globalThis.finishOldSource=resolve);if(route==="/api/search")return {candidates:[],scope_count:1};throw Error("unexpected route");};',context);
+  const pending=element('loadManual').onclick({target:element('loadManual')});
+  await element('loadCourse').onclick({target:element('loadCourse')});
+  assert.equal(vm.runInContext('source.id',context),'new-source');
+  context.finishOldSource(context.oldSource);await pending;
+  assert.equal(vm.runInContext('source.id',context),'new-source');
+});
+
+
+test('the public reference is read-only while the submitted course can be corrected',()=>{
+ const {context,element,catalog}=ui();context.courseInput=catalog.courses.find(c=>c.topics.length);
+ vm.runInContext("referenceEditable=false; editor('sourceTopics',courseInput); setTarget(courseInput.id,true);",context);
+ assert.equal(element('targetTopics').querySelector('textarea').readOnly,true);
+ assert.equal(element('sourceTopics').querySelector('textarea').readOnly,false);
+ assert.equal(element('targetTopics').querySelector('.add-topic').disabled,true);
+ assert.equal(element('targetTopics').querySelector('.remove-topic').disabled,true);
+});
+
+test('polling retries temporary overload without repeating a submitted comparison',async()=>{
+  const {context}=ui();context.setTimeout=callback=>{callback();return 0;};context.calls=[];
+  vm.runInContext('fetch=async(route,options)=>{calls.push({route,options});return calls.length===1?{ok:false,status:429,headers:{get:()=>"30"},json:async()=>({error:"busy"})}:{ok:true,status:200,json:async()=>({status:"running"})};};',context);
+  assert.equal((await vm.runInContext('api("/api/jobs/abc")',context)).status,'running');assert.equal(context.calls.length,2);
+  context.calls=[];
+  await assert.rejects(vm.runInContext('api("/api/jobs",{source_id:"s",target_id:"t"})',context),/busy/);
+  assert.equal(context.calls.length,1);
+});
+
+test('a brief lost connection resumes GET polling and never resubmits a POST',async()=>{
+  const {context}=ui();context.setTimeout=callback=>{callback();return 0;};context.calls=0;
+  vm.runInContext('fetch=async()=>{if(++calls===1)throw Error("connection lost");return {ok:true,status:200,json:async()=>({status:"done"})};};',context);
+  assert.equal((await vm.runInContext('api("/api/operations/abc")',context)).status,'done');assert.equal(context.calls,2);
+  context.calls=0;await assert.rejects(vm.runInContext('api("/api/sources",{name:"مقرر"})',context),/connection lost/);assert.equal(context.calls,1);
 });

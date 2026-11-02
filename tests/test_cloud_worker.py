@@ -20,6 +20,7 @@ from scripts import cloud_worker as worker
 
 TOKEN = 'test_token_' + 'x' * 40
 CONFIG = worker.Config('https://coursematch.example', TOKEN, 'test-mac')
+LOCAL_CONFIG = worker.Config(CONFIG.cloud_url, TOKEN, 'test-mac', local_url='http://127.0.0.1:8800')
 SESSION = '1' * 64
 LEASE = 'a' * 48
 
@@ -72,6 +73,31 @@ class TransportTests(unittest.TestCase):
                 worker.Config(origin, TOKEN, 'mac')
         self.assertNotIn(TOKEN, repr(CONFIG))
 
+    def test_local_destination_is_an_exact_optional_loopback_exception(self):
+        self.assertEqual(CONFIG.local_url, '')
+        self.assertEqual(LOCAL_CONFIG.local_url, 'http://127.0.0.1:8800')
+        for origin in (None, False, 'http://localhost:8800', 'http://127.0.0.2:8800', 'http://[::1]:8800',
+                       'http://127.0.0.1', 'http://127.0.0.1:8801', 'https://127.0.0.1:8800',
+                       'http://127.0.0.1:8800/', 'http://127.0.0.1:8800/private',
+                       'http://user@127.0.0.1:8800', 'http://user:pass@127.0.0.1:8800',
+                       'http://127.0.0.1:8800?', 'http://127.0.0.1:8800#',
+                       'http://127.0.0.1:8800?token=secret', 'http://127.0.0.1:8800#fragment',
+                       ' http://127.0.0.1:8800', 'http://127.0.0.1:8800\\@foreign.example'):
+            with self.subTest(origin=origin), self.assertRaisesRegex(ValueError, 'fixed_loopback'):
+                worker.Config(CONFIG.cloud_url, TOKEN, 'mac', local_url=origin)
+        with self.assertRaisesRegex(ValueError, 'requires_https'):
+            worker.Config('http://public.example', TOKEN, 'mac', local_url=LOCAL_CONFIG.local_url)
+
+    def test_local_destination_is_read_literally_from_private_file_and_environment(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / '.env.worker'
+            path.write_text('COURSEMATCH_CLOUD_URL=' + CONFIG.cloud_url + '\nCOURSEMATCH_WORKER_TOKEN=' + TOKEN + '\nCOURSEMATCH_WORKER_ID=test-mac\nCOURSEMATCH_LOCAL_URL=http://127.0.0.1:8800\n')
+            path.chmod(0o600)
+            self.assertEqual(worker.Config.from_file(path, environ={}), LOCAL_CONFIG)
+            self.assertEqual(worker.Config.from_file(path, environ={'COURSEMATCH_LOCAL_URL': ''}), CONFIG)
+            with self.assertRaisesRegex(ValueError, 'fixed_loopback'):
+                worker.Config.from_file(path, environ={'COURSEMATCH_LOCAL_URL': 'http://localhost:8800'})
+
     def test_secret_file_is_literal_private_and_never_shell_expanded(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / '.env.worker'
@@ -105,6 +131,25 @@ class TransportTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             client.request('GET', 'https://foreign.example/private')
         self.assertIsNone(worker.NoRedirect().redirect_request(request, None, 302, 'redirect', {}, 'https://foreign.example'))
+
+    def test_local_transport_keeps_bearer_lease_and_refuses_every_redirect(self):
+        opener = SimpleNamespace(open=Mock(return_value=io.BytesIO(b'%PDF-local')))
+        client = worker.CloudClient(LOCAL_CONFIG, opener)
+        self.assertEqual(client.input_pdf(task()), b'%PDF-local')
+        request = opener.open.call_args.args[0]
+        self.assertEqual(request.full_url, LOCAL_CONFIG.local_url + '/api/worker/tasks/' + 'a' * 32 + '/input-pdf')
+        self.assertEqual(request.get_header('Authorization'), 'Bearer ' + TOKEN)
+        self.assertEqual(request.get_header('X-lease-token'), LEASE)
+        self.assertIsNone(request.get_header('Origin'))
+        self.assertTrue(any(isinstance(handler, worker.NoRedirect) for handler in worker.CloudClient(LOCAL_CONFIG).opener.handlers))
+        for destination in (CONFIG.cloud_url, LOCAL_CONFIG.local_url + '/api/worker/other', 'http://foreign.example'):
+            with self.subTest(destination=destination):
+                self.assertIsNone(worker.NoRedirect().redirect_request(request, None, 302, 'redirect', {}, destination))
+                reply = io.BytesIO(b'{}')
+                reply.geturl = lambda: destination
+                with self.assertRaises(worker.CloudError) as error:
+                    worker.CloudClient(LOCAL_CONFIG, SimpleNamespace(open=Mock(return_value=reply))).claim()
+                self.assertEqual(error.exception.status, 302)
 
     def test_redirects_and_response_bodies_never_leak_credentials_or_pii(self):
         response = io.BytesIO(b'{}')
@@ -358,6 +403,45 @@ class RecoveryTests(WorkerFixture):
         self.assertTrue(recent.exists())
         self.assertTrue(unrelated.exists())
 
+    def test_active_session_prunes_old_files_and_empty_directories_without_following_symlinks(self):
+        instance = worker.Worker(CONFIG, self.root, cloud=Mock(), processor=self.fake_processor())
+        session = instance.runtime / 'sessions' / ('5' * 64)
+        sources, cache = session / 'sources', session / 'extraction' / 'old-cache'
+        sources.mkdir(parents=True)
+        cache.mkdir(parents=True)
+        old_pdf, old_cache, recent = sources / 'old.pdf', cache / 'topics.json', sources / 'recent.pdf'
+        old_pdf.write_bytes(b'old private PDF')
+        old_cache.write_text('old private extraction')
+        recent.write_bytes(b'recent private PDF')
+        outside = self.root / 'outside-retention'
+        outside.mkdir()
+        outside_file = outside / 'must-stay.pdf'
+        outside_file.write_bytes(b'outside private PDF')
+        file_link, directory_link = sources / 'linked.pdf', session / 'linked-directory'
+        file_link.symlink_to(outside_file)
+        directory_link.symlink_to(outside, target_is_directory=True)
+        session_link = instance.runtime / 'sessions' / ('6' * 64)
+        session_link.symlink_to(outside, target_is_directory=True)
+        special = session / 'pipe'
+        os.mkfifo(special)
+        old = time.time() - 90_000
+        for path in (old_pdf, old_cache, cache, outside_file, outside, special):
+            os.utime(path, (old, old))
+        os.utime(file_link, (old, old), follow_symlinks=False)
+        os.utime(directory_link, (old, old), follow_symlinks=False)
+        instance.last_prune = -10_000
+        instance.prune_expired()
+        self.assertFalse(old_pdf.exists())
+        self.assertFalse(old_cache.exists())
+        self.assertFalse((session / 'extraction').exists())
+        self.assertEqual(recent.read_bytes(), b'recent private PDF')
+        self.assertEqual(outside_file.read_bytes(), b'outside private PDF')
+        self.assertTrue(file_link.is_symlink())
+        self.assertTrue(directory_link.is_symlink())
+        self.assertTrue(session_link.is_symlink())
+        self.assertTrue(special.exists())
+        self.assertTrue(session.exists())
+
     def test_a_second_worker_in_the_same_runtime_is_rejected(self):
         path = self.processor.runtime / 'worker.lock'
         with worker.singleton_lock(path):
@@ -396,20 +480,45 @@ class InstallerTests(unittest.TestCase):
 class ProtocolTests(WorkerFixture):
     @unittest.skipUnless(__import__('shutil').which('node'), 'Node is required for the cross-language API protocol test')
     def test_python_worker_completes_the_real_node_api_queue_protocol(self):
+        self.run_node_api_queue_protocol(CONFIG)
+
+    @unittest.skipUnless(__import__('shutil').which('node'), 'Node is required for the cross-language API protocol test')
+    def test_python_worker_completes_the_host_gated_local_node_api_queue_protocol(self):
+        self.run_node_api_queue_protocol(LOCAL_CONFIG)
+
+    def run_node_api_queue_protocol(self, config):
         import base64
         import subprocess
-        import sys
         code = r'''
 import {createApi} from './netlify/lib/api.mjs';
 import {MemoryRepository,MemoryPdfs} from './tests-cloud/helpers.mjs';
+import {createLocalServer} from './scripts/local-service.mjs';
 import {createInterface} from 'node:readline';
-let api;
+import http from 'node:http';
+let api,server;
 for await(const line of createInterface({input:process.stdin,crlfDelay:Infinity})) {
   const data=JSON.parse(line);
-  if(data.init){api=createApi({repository:new MemoryRepository(),pdfs:new MemoryPdfs(),catalog:data.catalog,env:{CONTEXT:'production',COURSEMATCH_SESSION_SECRET:'test-session-'+'s'.repeat(40),COURSEMATCH_WORKER_TOKEN:data.token},logger:{error(){}}});process.stdout.write(JSON.stringify({ready:true})+'\n');continue;}
-  const response=await api(new Request(data.url,{method:data.method,headers:data.headers,...(data.body!==null?{body:data.body}:{})}));
-  process.stdout.write(JSON.stringify({status:response.status,headers:Object.fromEntries(response.headers),base64:Buffer.from(await response.arrayBuffer()).toString('base64')})+'\n');
+  if(data.init){
+    api=createApi({repository:new MemoryRepository(),pdfs:new MemoryPdfs(),catalog:data.catalog,env:{CONTEXT:'production',COURSEMATCH_SESSION_SECRET:'test-session-'+'s'.repeat(40),COURSEMATCH_WORKER_TOKEN:data.token},logger:{error(){}}});
+    if(data.local){server=createLocalServer({api,origin:data.origin,port:8800});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));}
+    process.stdout.write(JSON.stringify({ready:true})+'\n');continue;
+  }
+  let value;
+  if(server){
+    const url=new URL(data.url);
+    value=await new Promise((resolve,reject)=>{
+      // A temporary socket avoids occupying 8800; preserve the real worker Host.
+      const request=http.request({hostname:'127.0.0.1',port:server.address().port,path:url.pathname,method:data.method,headers:{Host:url.host,...data.headers}},response=>{
+        const chunks=[];response.on('data',chunk=>chunks.push(chunk));response.on('end',()=>resolve({status:response.statusCode,headers:response.headers,base64:Buffer.concat(chunks).toString('base64')}));
+      });request.on('error',reject);request.end(data.body);
+    });
+  }else{
+    const response=await api(new Request(data.url,{method:data.method,headers:data.headers,...(data.body!==null?{body:data.body}:{})}));
+    value={status:response.status,headers:Object.fromEntries(response.headers),base64:Buffer.from(await response.arrayBuffer()).toString('base64')};
+  }
+  process.stdout.write(JSON.stringify(value)+'\n');
 }
+if(server)await new Promise(resolve=>server.close(resolve));
 '''
         project = Path(__file__).resolve().parents[1]
         process = subprocess.Popen(['node', '--input-type=module', '-e', code], cwd=project, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -429,7 +538,16 @@ for await(const line of createInterface({input:process.stdin,crlfDelay:Infinity}
             line = process.stdout.readline()
             self.assertTrue(line, 'Node API bridge stopped before replying')
             return json.loads(line)
-        self.assertTrue(exchange({'init': True, 'catalog': self.catalog, 'token': TOKEN})['ready'])
+        self.assertTrue(exchange({'init': True, 'catalog': self.catalog, 'token': TOKEN, 'local': bool(config.local_url), 'origin': config.cloud_url})['ready'])
+        if config.local_url:
+            blocked = {'url': config.cloud_url + '/api/worker/claim', 'method': 'POST', 'headers': {'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json'}, 'body': '{"worker_id":"test-mac"}'}
+            self.assertEqual(exchange(blocked)['status'], 403)
+            blocked['url'] = config.local_url + '/api/worker/claim'
+            blocked['headers']['Origin'] = config.cloud_url
+            self.assertEqual(exchange(blocked)['status'], 403)
+            del blocked['headers']['Origin']
+            del blocked['headers']['Authorization']
+            self.assertEqual(exchange(blocked)['status'], 403)
         class Reply(io.BytesIO):
             def __init__(self, raw, url):
                 super().__init__(raw)
@@ -443,18 +561,19 @@ for await(const line of createInterface({input:process.stdin,crlfDelay:Infinity}
                 if value['status'] >= 400:
                     raise urllib.error.HTTPError(request.full_url, value['status'], 'protocol rejection', value['headers'], io.BytesIO(raw))
                 return Reply(raw, request.full_url)
-        instance = worker.Worker(CONFIG, self.root, cloud=worker.CloudClient(CONFIG, Opener()), processor=self.processor)
+        instance = worker.Worker(config, self.root, cloud=worker.CloudClient(config, Opener()), processor=self.processor)
         def browser(route, body=None, cookie=None, token=None):
-            headers = {'Origin': CONFIG.cloud_url, 'Content-Type': 'application/json'} if body is not None else {}
+            headers = {'Origin': config.cloud_url, 'Content-Type': 'application/json'} if body is not None else {}
             if cookie:
                 headers['Cookie'] = cookie
             if token:
                 headers['X-Equivalency-Token'] = token
-            value = exchange({'url': CONFIG.cloud_url + route, 'method': 'POST' if body is not None else 'GET', 'headers': headers, 'body': json.dumps(body, ensure_ascii=False) if body is not None else None})
+            value = exchange({'url': config.cloud_url + route, 'method': 'POST' if body is not None else 'GET', 'headers': headers, 'body': json.dumps(body, ensure_ascii=False) if body is not None else None})
             self.assertLess(value['status'], 400, 'the API rejected a worker-compatible request')
             return json.loads(base64.b64decode(value['base64'])), value['headers']
         bootstrap, headers = browser('/api/catalog')
-        cookie, csrf = headers['set-cookie'].split(';')[0], bootstrap['token']
+        cookie_header = headers['set-cookie']
+        cookie, csrf = (cookie_header[0] if isinstance(cookie_header, list) else cookie_header).split(';')[0], bootstrap['token']
         created, _ = browser('/api/sources', {'name': 'مقرر بروتوكول', 'topics': self.source['topics']}, cookie, csrf)
         self.assertTrue(instance.run_once())
         source_result, _ = browser('/api/operations/' + created['operation_id'], cookie=cookie)

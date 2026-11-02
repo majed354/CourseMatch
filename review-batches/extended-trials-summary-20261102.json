@@ -1,0 +1,178 @@
+{
+  "batch": "20261102",
+  "real_comparisons": 8,
+  "external_original_documents": 15,
+  "universities": 3,
+  "results_are_exploratory_not_accuracy_benchmark": true,
+  "cases": [
+    {
+      "source": "مدخل لعلوم القرآن الكريم",
+      "target": "علوم قرآن",
+      "target_context": {
+        "program": "الشريعة",
+        "degree": "بكالوريوس",
+        "plan_type": "قديمة",
+        "version": "38"
+      },
+      "source_topic_count": 12,
+      "target_topic_count": 15,
+      "decision": "not_equivalent",
+      "strict_coverage": 40.0,
+      "lenient_coverage": 40.0,
+      "segmentation_review": null,
+      "model": "qwen3.8:27b-q8_0",
+      "rubric_version": null,
+      "pair_count": 15,
+      "private_report_id": "e7c4fd1f8f145f89e9d52685cf01cf22"
+    },
+    {
+      "source": "أدلة الأحكام",
+      "target": "أدلة الأحكام الشرعية (١)",
+      "target_context": {
+        "program": "الشريعة",
+        "degree": "بكالوريوس",
+        "plan_type": "جديدة",
+        "version": "47"
+      },
+      "source_topic_count": 12,
+      "target_topic_count": 13,
+      "decision": "insufficient",
+      "strict_coverage": null,
+      "lenient_coverage": null,
+      "segmentation_review": {
+        "individually_covered": 11,
+        "distinct_source_matching": 8
+      },
+      "model": "qwen3.8:27b-q8_0",
+      "rubric_version": null,
+      "pair_count": 13,
+      "private_report_id": "c910765d4772274f81d0e0f81ef3a9b1"
+    },
+    {
+      "source": "فقه النكاح",
+      "target": "الفقه (6)",
+      "target_context": {
+        "program": "الشريعة",
+        "degree": "بكالوريوس",
+        "plan_type": "قديمة",
+        "version": "38"
+      },
+      "source_topic_count": 12,
+      "target_topic_count": 10,
+      "decision": "not_equivalent",
+      "strict_coverage": 60.0,
+      "lenient_coverage": 60.0,
+      "segmentation_review": null,
+      "model": "qwen3.8:27b-q8_0",
+      "rubric_version": null,
+      "pair_count": 15,
+      "private_report_id": "e0aa185bd17b9cf545ee865a1ccc2455"
+    },
+    {
+      "source": "القانون الإداري",
+      "target": "القانون الإداري",
+      "target_context": {
+        "program": "الأنظمة",
+        "degree": "بكالوريوس",
+        "plan_type": "قديمة",
+        "version": "38"
+      },
+      "source_topic_count": 9,
+      "target_topic_count": 15,
+      "decision": "not_equivalent",
+      "strict_coverage": 40.0,
+      "lenient_coverage": 40.0,
+      "segmentation_review": null,
+      "model": "qwen3.8:27b-q8_0",
+      "rubric_version": null,
+      "pair_count": 15,
+      "private_report_id": "23e03104fbd808ab68b4291f14a5dbdc"
+    },
+    {
+      "source": "فقه المعاملات",
+      "target": "الفقه (4)",
+      "target_context": {
+        "program": "الدراسات الإسلامية",
+        "degree": "بكالوريوس",
+        "plan_type": "قديمة",
+        "version": "39"
+      },
+      "source_topic_count": 12,
+      "target_topic_count": 13,
+      "decision": "not_equivalent",
+      "strict_coverage": 38.46153846153846,
+      "lenient_coverage": 38.46153846153846,
+      "segmentation_review": null,
+      "model": "qwen3.8:27b-q8_0",
+      "rubric_version": null,
+      "pair_count": 13,
+      "private_report_id": "0b7c607ab972c70b686d0f1cbb540379"
+    },
+    {
+      "source": "دلالات الألفاظ",
+      "target": "أصول الفقه (2)",
+      "target_context": {
+        "program": "الدراسات الإسلامية",
+        "degree": "بكالوريوس",
+        "plan_type": "قديمة",
+        "version": "39"
+      },
+      "source_topic_count": 12,
+      "target_topic_count": 13,
+      "decision": "insufficient",
+      "strict_coverage": null,
+      "lenient_coverage": null,
+      "segmentation_review": {
+        "individually_covered": 12,
+        "distinct_source_matching": 10
+      },
+      "model": "qwen3.8:27b-q8_0",
+      "rubric_version": null,
+      "pair_count": 13,
+      "private_report_id": "0a3c1bd858d0c5754e49a38acedd4943"
+    },
+    {
+      "source": "مصادر الالتزام",
+      "target": "مصادر الالتزام",
+      "target_context": {
+        "program": "الأنظمة",
+        "degree": "بكالوريوس",
+        "plan_type": "قديمة",
+        "version": "38"
+      },
+      "source_topic_count": 10,
+      "target_topic_count": 15,
+      "decision": "not_equivalent",
+      "strict_coverage": 40.0,
+      "lenient_coverage": 40.0,
+      "segmentation_review": null,
+      "model": "qwen3.8:27b-q8_0",
+      "rubric_version": null,
+      "pair_count": 15,
+      "private_report_id": "62be9e27037bec016d7a10f45816bac2"
+    },
+    {
+      "source": "التفسير التحليلي",
+      "target": "التفسير (1)",
+      "target_context": {
+        "program": "القرآن وعلومه",
+        "degree": "بكالوريوس",
+        "plan_type": "قديمة",
+        "version": "39"
+      },
+      "source_topic_count": 15,
+      "target_topic_count": 13,
+      "decision": "insufficient",
+      "strict_coverage": null,
+      "lenient_coverage": null,
+      "segmentation_review": {
+        "individually_covered": 11,
+        "distinct_source_matching": 5
+      },
+      "model": "qwen3.8:27b-q8_0",
+      "rubric_version": null,
+      "pair_count": 13,
+      "private_report_id": "2047b3e808c40acf2c4cc1863ee97f5a"
+    }
+  ]
+}

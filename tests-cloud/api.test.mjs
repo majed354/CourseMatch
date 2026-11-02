@@ -10,7 +10,7 @@ const catalog = {catalog_id:'catalog-fixture',contexts:[{id:'plan47'}],courses:[
 function setup(options = {}) {
   let now = Date.UTC(2026,10,2,12);
   const repository = options.repository || new MemoryRepository(),pdfs = options.pdfs || new MemoryPdfs();
-  const api = createApi({repository,pdfs,catalog,env:{...env,...options.env},clock:()=>now,logger:{error(){}}});
+  const api = createApi({repository,pdfs,catalog:options.catalog || catalog,env:{...env,...options.env},clock:()=>now,logger:{error(){}}});
   const request = (path,{method='GET',data,cookie,token,origin='https://example.net',headers={}} = {}) => api(new Request('https://example.net'+path,{method,headers:{...(data !== undefined ? {'Content-Type':'application/json'} : {}),...(cookie ? {Cookie:cookie} : {}),...(token ? {'X-Equivalency-Token':token} : {}),...(method === 'POST' && origin ? {Origin:origin} : {}),...headers},...(data !== undefined ? {body:JSON.stringify(data)} : {})}));
   const worker = (path,data,extra = {}) => request('/api/worker/'+path,{method:'POST',data,origin:null,headers:{Authorization:'Bearer '+env.COURSEMATCH_WORKER_TOKEN,...extra}});
   const bootstrap = async () => {const response=await request('/api/catalog');return {response,cookie:response.headers.get('set-cookie').split(';')[0],...(await response.json())};};
@@ -184,4 +184,54 @@ test('body streaming limit is applied even without a Content-Length header',asyn
   const s=setup(),a=await s.bootstrap();
   const response=await s.api(new Request('https://example.net/api/sources',{method:'POST',headers:{Cookie:a.cookie,Origin:'https://example.net','X-Equivalency-Token':a.token,'Content-Type':'application/json'},body:' '.repeat(6_000_000)}));
   assert.equal(response.status,413);
+});
+
+test('student requests cannot drop, add, edit or reorder canonical reference topics',async()=>{
+  const reference={...course,topics:[{id:'r1',text:'موضوع أول'},{id:'r2',text:'موضوع ثان'}]};
+  const s=setup({catalog:{...catalog,courses:[reference]}}),a=await s.bootstrap(),src=await s.source(a);
+  for(const target_topics of [[],reference.topics.slice(0,1),[...reference.topics,{id:'extra',text:'إضافة'}],
+    [{id:'r1',text:'تحريف'},reference.topics[1]],[...reference.topics].reverse(),[{id:'altered-id',text:'موضوع أول'},reference.topics[1]]]) {
+    const response=await s.post('/api/jobs',{source_id:src.id,target_id:reference.id,reviewed:true,target_topics},a);
+    assert.equal(response.status,400);
+    assert.equal((await response.json()).error,'مفردات المقرر المرجعي ثابتة وفق التوصيف المعتمد');
+  }
+  assert.equal([...s.repository.tasks.values()].filter(t=>t.kind==='compare').length,0);
+});
+test('omitting reference topics queues canonical effective text and keeps uploaded source editable',async()=>{
+  const reference={...course,topics:[{id:'r1',text:'وشوطه',corrected_text:'وشروطه',page:5},{id:'r2',text:'نص ثابت'}]};
+  const original=structuredClone(reference);
+  const s=setup({catalog:{...catalog,courses:[reference]}}),a=await s.bootstrap(),src=await s.source(a);
+  assert.equal(a.capabilities.reference_editable,false);
+  const editedSource=[{id:'t1',text:'قراءة مصححة من المصدر'},{id:'s2',text:'مفردة أخرى في المصدر'}];
+  const response=await s.post('/api/jobs',{source_id:src.id,target_id:reference.id,reviewed:true,source_topics:editedSource,
+    target:{context:{program:'سياق مزور'},topics:[]}},a);
+  assert.equal(response.status,202);
+  const task=(await(await s.worker('claim',{worker_id:'mac-test'})).json()).task;
+  assert.deepEqual(task.payload.target_topics,[{id:'r1',text:'وشروطه'},{id:'r2',text:'نص ثابت'}]);
+  assert.deepEqual(task.payload.source_topics,editedSource);
+  assert.equal(task.payload.target,undefined);
+  assert.equal(task.payload.target_id,reference.id);
+  assert.deepEqual(reference,original);
+});
+test('supplied reference rows must match corrected canonical text and discard all client metadata',async()=>{
+  const reference={...course,topics:[{id:'r1',text:'وشوطه',corrected_text:'وشروطه',page:5}]};
+  const s=setup({catalog:{...catalog,courses:[reference]}}),a=await s.bootstrap(),src=await s.source(a);
+  const body={source_id:src.id,target_id:reference.id,reviewed:true};
+  assert.equal((await s.post('/api/jobs',{...body,target_topics:[{id:'r1',text:'وشوطه'}]},a)).status,400);
+  assert.equal((await s.post('/api/jobs',{...body,target_topics:[{id:'r1',text:' وشروطه '}]},a)).status,400);
+  assert.equal((await s.post('/api/jobs',{...body,target_topics:[{...reference.topics[0],page:999,source_pdf:'/private/forged.pdf'}]},a)).status,202);
+  const task=(await(await s.worker('claim',{worker_id:'mac-test'})).json()).task;
+  assert.deepEqual(task.payload.target_topics,[{id:'r1',text:'وشروطه'}]);
+});
+test('worker completion cannot publish a report with a changed reference denominator',async()=>{
+  const s=setup(),a=await s.bootstrap(),src=await s.source(a);
+  await s.post('/api/jobs',{source_id:src.id,target_id:course.id,reviewed:true},a);
+  const task=(await(await s.worker('claim',{worker_id:'mac-test'})).json()).task;
+  const result={source:src,target:{...course,topics:[]},catalog_id:catalog.catalog_id,calculation:{decision:'equivalent'}};
+  const response=await s.worker('tasks/'+task.id+'/complete',{lease_token:task.lease_token,result});
+  assert.equal(response.status,400);
+  assert.equal((await response.json()).error,'مفردات المقرر المرجعي ثابتة وفق التوصيف المعتمد');
+  const current=(await(await s.request('/api/jobs/'+task.id,{cookie:a.cookie})).json());
+  assert.equal(current.status,'running');assert.equal(current.result,undefined);
+  assert.equal(s.repository.artifacts.size,1);
 });

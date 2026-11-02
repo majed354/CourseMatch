@@ -10,7 +10,6 @@ import json
 import logging
 import os
 import re
-import shutil
 import stat
 import sys
 import tempfile
@@ -38,7 +37,7 @@ SESSION_ID = re.compile(r'^[a-f0-9]{64}$')
 LEASE_TOKEN = re.compile(r'^[a-f0-9]{48}$')
 PDF_LIMIT = 12 * 1024 * 1024
 JSON_LIMIT = 16 * 1024 * 1024
-ENV_KEYS = {'COURSEMATCH_CLOUD_URL', 'COURSEMATCH_WORKER_TOKEN', 'COURSEMATCH_WORKER_ID', 'COURSEMATCH_MODEL'}
+ENV_KEYS = {'COURSEMATCH_CLOUD_URL', 'COURSEMATCH_LOCAL_URL', 'COURSEMATCH_WORKER_TOKEN', 'COURSEMATCH_WORKER_ID', 'COURSEMATCH_MODEL'}
 
 
 class CloudError(Exception):
@@ -123,11 +122,15 @@ class Config:
     token: str = field(repr=False)
     worker_id: str
     model: str = 'qwen3.8:27b-q8_0'
+    local_url: str = ''
 
     def __post_init__(self):
         parsed = urllib.parse.urlsplit(self.cloud_url)
         if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in ('', '/'):
             raise ValueError('worker_cloud_url_requires_https_origin')
+        # This is a single explicit loopback exception, not general HTTP support.
+        if not isinstance(self.local_url, str) or self.local_url not in ('', 'http://127.0.0.1:8800'):
+            raise ValueError('worker_local_url_requires_fixed_loopback_origin')
         if not re.fullmatch(r'[A-Za-z0-9_-]{32,512}', self.token):
             raise ValueError('invalid_worker_token')
         if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', self.worker_id):
@@ -139,7 +142,7 @@ class Config:
     def from_file(cls, path, environ=None):
         values = load_env_file(path)
         values.update({key: value for key, value in (os.environ if environ is None else environ).items() if key in ENV_KEYS})
-        return cls(values.get('COURSEMATCH_CLOUD_URL', '').rstrip('/'), values.get('COURSEMATCH_WORKER_TOKEN', ''), values.get('COURSEMATCH_WORKER_ID', ''), values.get('COURSEMATCH_MODEL', 'qwen3.8:27b-q8_0'))
+        return cls(values.get('COURSEMATCH_CLOUD_URL', '').rstrip('/'), values.get('COURSEMATCH_WORKER_TOKEN', ''), values.get('COURSEMATCH_WORKER_ID', ''), values.get('COURSEMATCH_MODEL', 'qwen3.8:27b-q8_0'), local_url=values.get('COURSEMATCH_LOCAL_URL', ''))
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -163,7 +166,8 @@ class CloudClient:
         if lease is not None:
             require_id(lease, LEASE_TOKEN)
             headers['X-Lease-Token'] = lease
-        request = urllib.request.Request(self.config.cloud_url.rstrip('/') + route, data=data, headers=headers, method=method)
+        destination = self.config.local_url or self.config.cloud_url
+        request = urllib.request.Request(destination.rstrip('/') + route, data=data, headers=headers, method=method)
         maximum = PDF_LIMIT if binary else JSON_LIMIT
         try:
             with self.opener.open(request, timeout=60 if binary else 30) as response:
@@ -572,11 +576,33 @@ class Worker:
             for directory in sessions.iterdir():
                 if not SESSION_ID.fullmatch(directory.name) or directory.is_symlink() or not directory.is_dir():
                     continue
-                children = list(directory.rglob('*'))
-                if any(path.is_symlink() for path in children):
+                try:
+                    descriptor = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                except OSError:
                     continue
-                if max([directory.stat().st_mtime] + [path.stat().st_mtime for path in children]) < cutoff:
-                    shutil.rmtree(directory)
+                try:
+                    # Work relative to open directories, never through a symlink.
+                    # A recent file must not keep older PDFs/caches indefinitely.
+                    for _, directories, files, parent in os.fwalk('.', topdown=False, follow_symlinks=False, dir_fd=descriptor):
+                        for name in files:
+                            try:
+                                details = os.stat(name, dir_fd=parent, follow_symlinks=False)
+                                if stat.S_ISREG(details.st_mode) and details.st_mtime < cutoff:
+                                    os.unlink(name, dir_fd=parent)
+                            except FileNotFoundError:
+                                pass
+                        for name in directories:
+                            try:
+                                os.rmdir(name, dir_fd=parent)
+                            except OSError:
+                                # Nonempty directories and symlinks stay intact.
+                                pass
+                finally:
+                    os.close(descriptor)
+                try:
+                    directory.rmdir()
+                except OSError:
+                    pass
         self.last_prune = time.monotonic()
 
     def run_once(self):
