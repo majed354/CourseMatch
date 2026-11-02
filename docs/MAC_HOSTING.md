@@ -23,7 +23,7 @@
   "node_executable": "/absolute/path/to/node",
   "python_executable": "/absolute/path/to/project/.venv/bin/python",
   "cloudflared_executable": "/opt/homebrew/bin/cloudflared",
-  "netlify_command": ["/absolute/path/to/node", "/absolute/path/to/netlify-cli/bin/run.js"]
+  "netlify_command": ["/absolute/path/to/node", "/absolute/path/to/CourseMatch/scripts/netlify-buffer-deploy.mjs"]
 }
 ```
 
@@ -32,6 +32,8 @@
 يلزم وجود `.env.service` و`.env.worker` بصلاحية `0600` ومملوكين للمستخدم، وOllama والنماذج مثبتة ومشغلة. لا يقرأ ملف الخدمة الخاص داخل plist؛ يدخل كل برنامج إلى ملفه المخصص فقط.
 
 على جهاز التشغيل الحالي جُهّزت `.venv-host` المستقلة باستخدام Python 3.12 المثبت عبر uv، بعد كشف تعثر إقلاع Python الخاص ببيئة Codex تحت launchd. نجحت الاختبارات كاملة في بيئة الاستضافة نفسها. إصدارات المكتبات المثبتة محفوظة في `equivalency-pilot/requirements-host.lock`. يختار المثبّت تلقائيًا `python_executable` من إعداد الخدمة ما لم يُمرر `--python` صراحة. CLI النشر 27.16.1 محفوظ محليًا تحت `runtime/service/netlify-cli` خارج Git، كي لا يعتمد التشغيل الدائم على مجلد npx المؤقت.
+
+يستدعي مشغّل النشر pipelineالـCLI الرسمي نفسه، مع hookعلىعميلAPI الخاص بالأمر لتحويل رفع الملفات إلىBufferمحدود32MiBللملف. يوفر ذلكContent-Lengthصحيحًا؛ أثبتت تجربة نفس الفهرس5.5MB نجاح الرفع المحدد الطول خلال5.9ثوانٍ بينما تعثر streamالمجزأ. لا تُعدّل ملفات الحزمة ولا الترويسات أو المصادقة أو endpoints؛ يرفض المشغّل أي إصدارCLIغير27.16.1. مهلة المشرف10دقائق مع إبقاء مراقبة API والعاملين مستمرة. تختبر الاختبارات المتخصصة العميل ورافع الملفات الرسميين علىloopbackعند توافر الحزمة الخاصة؛ يُعلنskipصريح فيCIعند غيابها.
 
 ## النفق والتوجيه
 
