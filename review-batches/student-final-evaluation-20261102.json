@@ -1,0 +1,159 @@
+{
+  "batch": "student-final-review-20261102",
+  "unique_real_external_cases": 6,
+  "universities": 3,
+  "synthetic_controls": 4,
+  "model": "qwen3.8:27b-q8_0",
+  "rules": "80% target coverage; 80% strict topic alignment; 60% lenient alignment",
+  "real_retests_v5": [
+    {
+      "case_id": "QS4117",
+      "source_name": "الانتصار للقرآن",
+      "target_id": "34148d89a56ad43e5388",
+      "target_source_sha256": "0aac7acfac04fe0b18bc9b5416647cea36dccaab05f14ee351557ea7a5a09ea7",
+      "calculation": {
+        "total_topics": 16,
+        "coverage_threshold": 80,
+        "strict_topic_threshold": 80,
+        "lenient_topic_threshold": 60,
+        "weighting": "topic_count",
+        "strict_count": 10,
+        "lenient_count": 13,
+        "strict_coverage": 62.5,
+        "lenient_coverage": 81.25,
+        "strict_matches": {
+          "t4": "t2",
+          "t6": "t3",
+          "t7": "t4",
+          "t9": "t7",
+          "t10": "t10",
+          "t11": "t11",
+          "t14": "t12",
+          "t15": "t13",
+          "t16": "t14",
+          "t3": "t1"
+        },
+        "lenient_matches": {
+          "t4": "t2",
+          "t6": "t3",
+          "t7": "t4",
+          "t9": "t7",
+          "t10": "t10",
+          "t11": "t11",
+          "t14": "t12",
+          "t15": "t13",
+          "t16": "t14",
+          "t3": "t1",
+          "t8": "t8",
+          "t12": "t5",
+          "t13": "t6"
+        },
+        "decision": "lenient",
+        "label": "يمكن مع التسامح"
+      },
+      "provider": "ollama_local",
+      "rubric": "topic-alignment-80-60-v5-rationale-consistency",
+      "validation_attempts": 2,
+      "reviewer_note": "تُفصل سلامة الحساب واتساق السبب عن التقدير الدلالي؛ التفاصيل غير الصريحة قد تحتاج تحكيمًا، والتعليق ليس رفضًا."
+    },
+    {
+      "case_id": "ksu-dalalat",
+      "source_name": "دلالات الألفاظ — جامعة الملك سعود",
+      "target_id": "05041029f353c0316017",
+      "target_source_sha256": "f142ecf4b76990ab091f773365f662c0cb9cb51a39cc0396c5149f2b744f1dcb",
+      "calculation": {
+        "total_topics": 13,
+        "coverage_threshold": 80,
+        "strict_topic_threshold": 80,
+        "lenient_topic_threshold": 60,
+        "weighting": "topic_count",
+        "strict_count": 0,
+        "lenient_count": 0,
+        "strict_coverage": null,
+        "lenient_coverage": null,
+        "strict_matches": {},
+        "lenient_matches": {},
+        "decision": "insufficient",
+        "label": "المعلومات لا تكفي لإصدار حكم",
+        "reason": "تختلف تجزئة الموضوعات بين المقررين؛ يلزم توحيد نطاق المفردات قبل إصدار الحكم.",
+        "segmentation_review": {
+          "individually_covered": 12,
+          "distinct_source_matching": 10
+        }
+      },
+      "provider": "ollama_local",
+      "rubric": "topic-alignment-80-60-v5-rationale-consistency",
+      "validation_attempts": 2,
+      "reviewer_note": "تُفصل سلامة الحساب واتساق السبب عن التقدير الدلالي؛ التفاصيل غير الصريحة قد تحتاج تحكيمًا، والتعليق ليس رفضًا."
+    }
+  ],
+  "semantic_positive_control": {
+    "synthetic": true,
+    "frozen_input_sha256": "f2a5acf3746ea464df34654ba972ac14679dd348a9591f8af748e3fe4814af5b  expectations.json",
+    "provider": "ollama_local",
+    "model": "qwen3.8:27b-q8_0",
+    "rubric": "topic-alignment-80-60-v5-rationale-consistency",
+    "calculation": {
+      "total_topics": 13,
+      "coverage_threshold": 80,
+      "strict_topic_threshold": 80,
+      "lenient_topic_threshold": 60,
+      "weighting": "topic_count",
+      "strict_count": 13,
+      "lenient_count": 13,
+      "strict_coverage": 100,
+      "lenient_coverage": 100,
+      "strict_matches": {
+        "t1": "t1",
+        "t2": "t2",
+        "t3": "t3",
+        "t4": "t4",
+        "t5": "t5",
+        "t6": "t6",
+        "t7": "t7",
+        "t8": "t8",
+        "t9": "t9",
+        "t10": "t10",
+        "t11": "t11",
+        "t12": "t12",
+        "t13": "t13"
+      },
+      "lenient_matches": {
+        "t1": "t1",
+        "t2": "t2",
+        "t3": "t3",
+        "t4": "t4",
+        "t5": "t5",
+        "t6": "t6",
+        "t7": "t7",
+        "t8": "t8",
+        "t9": "t9",
+        "t10": "t10",
+        "t11": "t11",
+        "t12": "t12",
+        "t13": "t13"
+      },
+      "decision": "equivalent",
+      "label": "يمكن معادلته"
+    },
+    "source_count": 13,
+    "target_id": "5a7dd29c8c2cad97d8bf",
+    "no_exact_text_shortcut": true
+  },
+  "layout_review": {
+    "student_baseline_pdf_pages": 25,
+    "core_controls_pdf_pages": 11,
+    "semantic_positive_pdf_pages": 4,
+    "v5_retest_pdf_pages": 7,
+    "all_reviewed_visually": true
+  },
+  "remaining_limits": [
+    "فرضيات المراجعين ليست تسميات ذهبية محكمة أو مقياس دقة إحصائيًا",
+    "بعض قراءات PDF احتاجت تصحيح حروف قبل الحكم",
+    "تقدير أجزاء المفردة المركبة غير الموزونة وبعض التفاصيل غير الصريحة يظل بحاجة إلى تحكيم أكاديمي",
+    "لم تُعد نتائج العينات شهادة بصحة جميع المقررات في المكتبة"
+  ],
+  "python_tests": 162,
+  "node_tests": 89,
+  "private_reports_excluded_from_git": true
+}

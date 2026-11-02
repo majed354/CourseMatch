@@ -520,10 +520,23 @@ class RecoveryTests(WorkerFixture):
         cloud.claim.side_effect = worker.CloudError()
         instance = worker.Worker(CONFIG, self.root, cloud=cloud, processor=self.fake_processor())
         stop = Stop()
-        with self.assertLogs(worker.LOGGER, level='WARNING'):
+        with self.assertLogs(worker.LOGGER, level='WARNING'), patch('scripts.cloud_worker.time.monotonic', return_value=5):
             instance.run(stop=stop, poll=4)
         self.assertEqual(stop.delays, [8, 16, 32, 60])
         self.assertEqual(cloud.claim.call_count, 4)
+        cloud.idle_heartbeat.assert_called_once()
+
+    def test_first_heartbeat_and_expiry_cleanup_do_not_depend_on_machine_uptime(self):
+        cloud = Mock();cloud.claim.return_value = None
+        instance = worker.Worker(CONFIG, self.root, cloud=cloud, processor=self.fake_processor())
+        expired = instance.checkpoints.directory / ('8' * 32 + '.json')
+        expired.write_text('{}')
+        old = time.time() - 86_401
+        os.utime(expired,(old,old))
+        with patch('scripts.cloud_worker.time.monotonic', return_value=0):
+            self.assertFalse(instance.run_once())
+            self.assertFalse(instance.run_once())
+        self.assertFalse(expired.exists())
         cloud.idle_heartbeat.assert_called_once()
 
     def test_expired_local_private_files_are_pruned_without_touching_recent_or_unrelated_files(self):

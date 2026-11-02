@@ -557,8 +557,8 @@ class Worker:
         self.processor = processor or Processor(root, self.runtime, config.model)
         self.checkpoints = Checkpoints(self.runtime / 'checkpoints', config.worker_id)
         self.heartbeat_interval = heartbeat_interval
-        self.last_idle_health = 0
-        self.last_prune = 0
+        self.last_idle_health = float('-inf')
+        self.last_prune = float('-inf')
 
     def acknowledge(self, value):
         if hasattr(self.processor, 'verify_checkpoint'):
