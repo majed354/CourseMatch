@@ -753,3 +753,38 @@ if(server)await new Promise(resolve=>server.close(resolve));
 
 if __name__ == '__main__':
     unittest.main()
+
+class ReferenceReadinessWorkerTests(WorkerFixture):
+    def test_canonical_reference_hold_never_calls_model_and_remains_pending(self):
+        original=self.processor.courses[self.course['id']]
+        original['reference_review']={'comparison_readiness':'scope_incomplete','readiness_reason':'لم يحدد موضوع التطبيقات'}
+        with patch('scripts.cloud_worker.compare',side_effect=AssertionError('no grading for incomplete reference')):
+            result=self.processor.process(self.compare_task(),Mock())
+        self.assertEqual(result['calculation']['decision'],'insufficient')
+        self.assertIsNone(result['calculation']['strict_coverage'])
+        self.assertEqual(result['evidence']['provider'],'reference_pending')
+
+    def test_readiness_uses_complete_canonical_rows_before_student_cleaning(self):
+        from scripts.equivalency.reference_quality import topics_digest
+        original=self.processor.courses[self.course['id']]
+        original['topics'][0].update(page=1,bbox=[1,2,3,4],raw_text='raw')
+        original['reference_quality']={'state':'ready_visual','source_sha256':original['source_sha256'],'topics_sha256':topics_digest(original['topics'])}
+        with patch('scripts.cloud_worker.compare',return_value=self.exact_evidence()) as comparison:
+            result=self.processor.process(self.compare_task(),Mock())
+        comparison.assert_called_once();self.assertEqual(result['calculation']['decision'],'equivalent')
+
+    def test_catalog_source_cannot_strip_its_canonical_hold(self):
+        original=copy.deepcopy(self.course);original['id']='d'*20
+        original['reference_review']={'comparison_readiness':'scope_incomplete','readiness_reason':'تطبيقات غير مسماة'}
+        self.processor.sources[original['id']]=original
+        supplied=copy.deepcopy(self.source);supplied.update(catalog_course_id=original['id'],source_sha256=original['source_sha256'])
+        supplied['reference_review']={'comparison_readiness':'ready'}
+        with patch('scripts.cloud_worker.compare',side_effect=AssertionError('source hold was bypassed')):
+            result=self.processor.process(self.compare_task(source=supplied),Mock())
+        self.assertEqual(result['evidence']['reference_review'],{'source':'تطبيقات غير مسماة'})
+        self.assertEqual(result['calculation']['decision'],'insufficient')
+
+    def test_ollama_proposal_without_second_pass_cannot_be_published(self):
+        evidence=self.exact_evidence();evidence['provider']='ollama_local'
+        with patch('scripts.cloud_worker.compare',return_value=evidence):
+            with self.assertRaises(worker.TaskInputError):self.processor.process(self.compare_task(),Mock())

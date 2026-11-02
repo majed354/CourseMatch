@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from scripts.equivalency.engine import compare,calculate,search
+from scripts.equivalency.engine import _propose_pairs as compare,calculate,search
 
 class ResilienceTests(unittest.TestCase):
     def comparison_data(self):

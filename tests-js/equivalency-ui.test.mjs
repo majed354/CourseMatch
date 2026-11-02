@@ -555,3 +555,30 @@ test('rejected reports explain the closest weak match without counting it',()=>{
   assert.ok(html.includes('يقتصر المصدر على الطهارة ولا يشمل موضوع الزكاة.'));assert.ok(html.includes('25%'));
   assert.ok(html.includes('أقرب مقابلة'));assert.ok(html.includes('دون حد التوافق'));assert.equal(JSON.stringify(input.calculation),before);
 });
+
+test('standalone report embeds both local fonts and reuses the self-contained stylesheet',async()=>{
+  const {context}=ui(),calls=[];
+  const css="@font-face{src:url('/fonts/IBMPlexSansArabic-Regular.ttf')}@font-face{src:url('/fonts/IBMPlexSansArabic-SemiBold.ttf')}";
+  const bytes=new Uint8Array(210000).fill(71);
+  context.fetch=async path=>{calls.push(path);return path==='/style.css'?{ok:true,text:async()=>css}:{ok:true,arrayBuffer:async()=>bytes.buffer};};
+  const embedded=await vm.runInContext('standaloneReportCSS()',context);
+  assert.ok(!embedded.includes('/fonts/'));assert.equal((embedded.match(/data:font\/ttf;base64,/g)||[]).length,2);
+  assert.equal(embedded.includes(Buffer.from(bytes).toString('base64')),true);
+  assert.equal(await vm.runInContext('standaloneReportCSS()',context),embedded);assert.equal(calls.length,3);
+});
+
+test('failed report font download can be retried and never silently exports a broken stylesheet',async()=>{
+  const {context}=ui();let failed=true;
+  context.fetch=async path=>path==='/style.css'?{ok:true,text:async()=>"url('/fonts/IBMPlexSansArabic-Regular.ttf')"}:
+    failed?{ok:false}:{ok:true,arrayBuffer:async()=>new Uint8Array([1,2,3]).buffer};
+  await assert.rejects(vm.runInContext('standaloneReportCSS()',context),/خط التقرير/);
+  failed=false;assert.match(await vm.runInContext('standaloneReportCSS()',context),/data:font\/ttf;base64,AQID/);
+});
+
+test('unconfirmed compound matches are shown without a misleading definitive grade',()=>{
+  const report=reportFixture({decision:'not_equivalent',strict:2,lenient:2});
+  report.evidence.pairs[3].score=85;report.evidence.pairs[3].adjudication={state:'uncertain'};
+  const {html}=renderedReport(report);
+  assert.match(html,/لم يثبت نطاق هذه المقابلة/);
+  assert.match(html,/غير محتسبة · <bdi dir="ltr">قيد الاستكمال/);
+});

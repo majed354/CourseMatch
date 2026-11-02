@@ -1,0 +1,164 @@
+{
+  "batch_id": "reference-administrative-law-v47-scope-addendum-20261103",
+  "catalog_base_id": "868d188911f3b74e77b8f5442634cf6fbb83fa42dd257a055c6abb5fa38e7b99",
+  "entries": [
+    {
+      "course_ids": [
+        "df811309c0c38c851b47"
+      ],
+      "source_pdf": "assets/course-specifications/systems-updates-1446/2003243-3.pdf",
+      "source_sha256": "2c2c935a3d38ec4628db81d5235268c72973026ae89039eb6d731c86e7c6db81",
+      "previous_topics_sha256": "aa36a56ea250917408a57c86deb1db04a299ec3c1b434638f5c0c69ca850b642",
+      "topics": [
+        {
+          "id": "t1",
+          "text": "ماهية القانون الإداري وخصائصه ومصادره",
+          "corrected_text": "ماهية القانون الإداري وخصائصه ومصادره",
+          "page": 6,
+          "origin": "reviewed_visual_transcription"
+        },
+        {
+          "id": "t2",
+          "text": "المبادئ العامة للتنظيم الإداري (المركزية الإدارية واللامركزية الإدارية)",
+          "corrected_text": "المبادئ العامة للتنظيم الإداري (المركزية الإدارية واللامركزية الإدارية)",
+          "page": 6,
+          "origin": "reviewed_visual_transcription"
+        },
+        {
+          "id": "t3",
+          "text": "التنظيم الإداري في المملكة العربية السعودية (المركزية الإدارية واللامركزية الإدارية)",
+          "corrected_text": "التنظيم الإداري في المملكة العربية السعودية (المركزية الإدارية واللامركزية الإدارية)",
+          "page": 6,
+          "origin": "reviewed_visual_transcription"
+        },
+        {
+          "id": "t4",
+          "text": "نشاط الإدارة: الضبط الإداري وتعريفه وأنواعه وأهدافه ووسائله وحدود سلطاته",
+          "corrected_text": "نشاط الإدارة: الضبط الإداري وتعريفه وأنواعه وأهدافه ووسائله وحدود سلطاته",
+          "page": 6,
+          "origin": "reviewed_visual_transcription"
+        },
+        {
+          "id": "t5",
+          "text": "هيئة الرقابة ومكافحة الفساد: تعريفها وأهدافها واختصاصاتها",
+          "corrected_text": "هيئة الرقابة ومكافحة الفساد: تعريفها وأهدافها واختصاصاتها",
+          "page": 6,
+          "origin": "reviewed_visual_transcription"
+        },
+        {
+          "id": "t6",
+          "text": "المرافق العامة: تعريفها وأهميتها وعناصرها",
+          "corrected_text": "المرافق العامة: تعريفها وأهميتها وعناصرها",
+          "page": 6,
+          "origin": "reviewed_visual_transcription"
+        },
+        {
+          "id": "t7",
+          "text": "أنواع المرافق العامة بحسب طبيعة النشاط والشخصية المعنوية والنشاط الجغرافي",
+          "corrected_text": "أنواع المرافق العامة بحسب طبيعة النشاط والشخصية المعنوية والنشاط الجغرافي",
+          "page": 6,
+          "origin": "reviewed_visual_transcription"
+        },
+        {
+          "id": "t8",
+          "text": "المبادئ التي تحكم المرافق العامة",
+          "corrected_text": "المبادئ التي تحكم المرافق العامة",
+          "page": 6,
+          "origin": "reviewed_visual_transcription"
+        },
+        {
+          "id": "t9",
+          "text": "وسائل السلطة الإدارية البشرية: مفهوم الموظف العام وعناصر تعريفه وشروط شغل الوظيفة العامة",
+          "corrected_text": "وسائل السلطة الإدارية البشرية: مفهوم الموظف العام وعناصر تعريفه وشروط شغل الوظيفة العامة",
+          "page": 6,
+          "origin": "reviewed_visual_transcription"
+        },
+        {
+          "id": "t10",
+          "text": "حقوق وواجبات الموظف العام في القانون السعودي",
+          "corrected_text": "حقوق وواجبات الموظف العام في القانون السعودي",
+          "page": 6,
+          "origin": "reviewed_visual_transcription"
+        },
+        {
+          "id": "t11",
+          "text": "سلطة التأديب والتحقيق",
+          "corrected_text": "سلطة التأديب والتحقيق",
+          "page": 6,
+          "origin": "reviewed_visual_transcription"
+        },
+        {
+          "id": "t12",
+          "text": "الوسائل المادية (المال العام): تعريفها وأنواعها والحماية القانونية لها",
+          "corrected_text": "الوسائل المادية (المال العام): تعريفها وأنواعها والحماية القانونية لها",
+          "page": 6,
+          "origin": "reviewed_visual_transcription"
+        },
+        {
+          "id": "t13",
+          "text": "نزع الملكية للمنفعة العامة: تعريفها وشروطها",
+          "corrected_text": "نزع الملكية للمنفعة العامة: تعريفها وشروطها",
+          "page": 6,
+          "origin": "reviewed_visual_transcription"
+        },
+        {
+          "id": "t14",
+          "text": "الوسائل القانونية للسلطة الإدارية (القرار الإداري): تعريفه وخصائصه وأركانه وسريانه ونهايته",
+          "corrected_text": "الوسائل القانونية للسلطة الإدارية (القرار الإداري): تعريفه وخصائصه وأركانه وسريانه ونهايته",
+          "page": 6,
+          "origin": "reviewed_visual_transcription"
+        },
+        {
+          "id": "t15",
+          "text": "العقود الإدارية: تعريفها وخصائصها وأنواعها",
+          "corrected_text": "العقود الإدارية: تعريفها وخصائصها وأنواعها",
+          "page": 6,
+          "origin": "reviewed_visual_transcription"
+        }
+      ],
+      "review_pages": [
+        6
+      ],
+      "review_kind": "visual_source_transcription",
+      "comparison_readiness": "ready",
+      "proof": {
+        "read_catalog_id": "868d188911f3b74e77b8f5442634cf6fbb83fa42dd257a055c6abb5fa38e7b99",
+        "read_catalog_bytes_sha256": "28aafd5d273215176537e76325ef23958d288b01d42c041bed01c50ffe09e743",
+        "approved_source_course_id": "62a456750b36182d1ace",
+        "approved_source_manifest": "review-batches/reference-topic-review-20261102.json",
+        "approved_source_manifest_sha256": "9f692860297cbe717859bc1505f3dfb9c6b3a320ccd1b79087444a012bea7c84",
+        "approved_source_topics_sha256": "41fc140f2a4b2a02ce7bea1cd56b432b9aa5ce623648c5bc8e4033238dd4733a",
+        "target_previous_topics_sha256": "aa36a56ea250917408a57c86deb1db04a299ec3c1b434638f5c0c69ca850b642",
+        "source_pdf_sha256": "2c2c935a3d38ec4628db81d5235268c72973026ae89039eb6d731c86e7c6db81",
+        "identity_verified_fields": {
+          "code": "2003243-3",
+          "name": "القانون الإداري",
+          "hours": 3,
+          "source_pdf": "assets/course-specifications/systems-updates-1446/2003243-3.pdf",
+          "source_sha256": "2c2c935a3d38ec4628db81d5235268c72973026ae89039eb6d731c86e7c6db81"
+        },
+        "identity_pages": [
+          1,
+          3
+        ],
+        "topic_pages": [
+          6
+        ],
+        "exact_approved_topics_copy": true,
+        "target_ids_only": [
+          "df811309c0c38c851b47"
+        ],
+        "context_preserved": {
+          "program": "الأنظمة",
+          "degree": "بكالوريوس",
+          "plan_type": "جديدة",
+          "version": "47"
+        },
+        "academic_scope_inferred": false,
+        "CLO_PLO_copied": false,
+        "catalog_or_source_written": false
+      }
+    }
+  ],
+  "approved_by": "root_after_identical_PDF_identity_and_approved_topic_hash_check"
+}

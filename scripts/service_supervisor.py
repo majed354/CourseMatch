@@ -121,7 +121,8 @@ def validate_publish(root=ROOT, expected_redirects=None):
         path = Path(name)
         if path.is_absolute() or '..' in path.parts or '\\' in name or not name.startswith(('assets/course-specifications/', 'assets/course-uploads/')) or path.suffix.lower() != '.pdf':
             raise ValueError('invalid_public_pdf_path')
-    core = {'index.html','app.js','style.css','catalog.json','build-info.json','404.html'}
+    fonts = {'fonts/IBMPlexSansArabic-Regular.ttf','fonts/IBMPlexSansArabic-SemiBold.ttf','fonts/LICENSE.txt'}
+    core = {'index.html','app.js','style.css','catalog.json','build-info.json','404.html'} | fonts
     allowed = assets | core | {'_redirects'}
     actual = set()
     for path in public.rglob('*'):
@@ -141,6 +142,10 @@ def validate_publish(root=ROOT, expected_redirects=None):
     for name in ('index.html','app.js','style.css'):
         if file_hash(root / 'equivalency-pilot' / name) != file_hash(public / name):
             raise ValueError('published_interface_is_stale')
+    for name in fonts:
+        source = root / 'equivalency-pilot' / name
+        if source.is_symlink() or not source.is_file() or file_hash(source) != file_hash(public / name):
+            raise ValueError('published_font_differs_from_licensed_source')
     if file_hash(root / 'equivalency-pilot/catalog.json') != file_hash(public / 'catalog.json'):
         raise ValueError('published_catalog_is_stale')
     info = json.loads((public / 'build-info.json').read_text())

@@ -15,7 +15,12 @@ from scripts.extract_course_outcomes import logical_region_text
 
 ROOT = Path(__file__).resolve().parents[2]
 PROGRAM = "القرآن وعلومه"
-EXTRACTOR_VERSION = "topic-grid-v10"
+EXTRACTOR_VERSION = "topic-grid-v14"
+ASSESSMENT_LABEL_PATTERN = (
+    r'(?:(?:ا\s*ل\s*)?[اإ]\s*خ\s*ت\s*ب\s*ا\s*ر\s*(?:النصف(?:ي)?|نصف(?:ي)?|الفصل(?:ي)?|فصل(?:ي)?|النهائ(?:ي)?|نهائ(?:ي)?|النيائي|الدوري|دوري)'
+    r'|(?:التقويم|التقييم)\s*(?:الأول|الثاني)'
+    r'|تقييم\s*البحوث)'
+)
 
 
 def digest(path):
@@ -33,10 +38,8 @@ def compact(value):
 
 
 def mixed_assessment_reading(text):
-    """A printed '+' can join an exam and real curriculum in the same row."""
-    if '+' not in text:
-        return None
-    cleaned, count = re.subn(r'(?:ال)?اختبار\s*(?:النصفي|نصفي|الفصلي|فصلي|النهائي|نهائي)', '', text)
+    """An exam label may share a physical row with substantive curriculum."""
+    cleaned, count = re.subn(ASSESSMENT_LABEL_PATTERN, '', text)
     if not count:
         return None
     cleaned = cleaned.strip(' +،:.-')
@@ -45,6 +48,24 @@ def mixed_assessment_reading(text):
     if compact(cleaned) in ('مراجعة', 'مراجعةعامة', 'مراجعةالمقرر', 'الاختبارالنهائي'):
         return None
     return cleaned
+
+
+def pure_assessment_text(text):
+    value = norm(text).strip(' .،:;-▪■')
+    residual, exams = re.subn(ASSESSMENT_LABEL_PATTERN, '', value)
+    residual, reviews = re.subn(r'(?:مراجعة|راجعة)\s*(?:عامة|المقرر|وتقييم)?', '', residual)
+    return bool(exams or reviews) and not compact(residual)
+
+
+def _prefer_numbered_grid(topics, grid):
+    if not grid.get('topics'):
+        return False
+    if grid.get('additional_topic_sections') or len(grid['topics']) > len(topics):
+        return True
+    contaminated = any(pure_assessment_text(t.get('corrected_text') or t['text'])
+        or compact(t.get('corrected_text') or t['text']) in ('المجموع', 'مجموع', 'الإجمالي') for t in topics)
+    closed = bool(grid.get('table_evidence') and grid['table_evidence'][-1].get('total'))
+    return bool(contaminated and closed)
 
 
 def explicit_unit_topics(path):
@@ -250,14 +271,35 @@ def extract_pdf(path):
                     active["last_page"] = page_number
                 consumed.append(table.bbox[1])
             page.close()
+    if topics:
+        # A nonzero result is not proof of completeness. The independent vector
+        # numbering column can retain full rows even when fragmented hour cells
+        # made the older reader stop after the first row or page continuation.
+        from .recovery import numbered_grid
+        grid = numbered_grid(path)
+        if _prefer_numbered_grid(topics, grid):
+            grid['extractor'] = EXTRACTOR_VERSION
+            grid['replaced_partial_extraction'] = {'topic_count': len(topics), 'topics': topics}
+            return grid
     if not topics:
         # Existing physical-grid recovery preserves merged rows and page
         # fragments. It takes priority over the narrower unit-heading fallback.
-        from .recovery import strict_grid
+        from .recovery import strict_grid, numbered_grid
         recovered_grid = strict_grid(path)
+        numbered = numbered_grid(path)
+        if numbered.get('topics') and numbered.get('additional_topic_sections'):
+            numbered['extractor'] = EXTRACTOR_VERSION
+            return numbered
+        units = explicit_unit_topics(path)
+        if units and len(units['topics']) > max(len(recovered_grid.get('topics', [])), len(numbered.get('topics', []))):
+            return units
+        if _prefer_numbered_grid(recovered_grid.get('topics', []), numbered):
+            numbered['extractor'] = EXTRACTOR_VERSION
+            numbered['replaced_partial_extraction'] = {'topic_count': len(recovered_grid.get('topics', [])), 'topics': recovered_grid.get('topics', [])}
+            return numbered
         if recovered_grid.get('topics'):
             return recovered_grid
-        recovered = explicit_unit_topics(path)
+        recovered = units
         if recovered:
             return recovered
         warnings.append("لم يستخرج جدول موضوعات موثوق؛ يلزم فحص الصفحة أو إدخال المفردات يدويًا")

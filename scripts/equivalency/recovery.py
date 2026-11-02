@@ -27,6 +27,186 @@ def save_json(path, value):
     temporary.replace(path)
 
 
+def number_cell_has_ink(page, cell):
+    """Distinguish an actually blank label from a glyph with lost Unicode.
+
+    This detects pixels only; it never guesses the digit or repairs its text.
+    Interior cropping excludes the table borders and flat cell background.
+    """
+    box = pymupdf.Rect(cell)
+    box = pymupdf.Rect(box.x0 + 1.2, box.y0 + 1.2, box.x1 - 1.2, box.y1 - 1.2)
+    if box.is_empty:
+        return False
+    pix = page.get_pixmap(matrix=pymupdf.Matrix(1.5, 1.5), clip=box, colorspace=pymupdf.csGRAY, alpha=False)
+    values = pix.samples
+    if not values:
+        return False
+    background = sorted(values)[len(values) // 2]
+    return sum(abs(value - background) > 55 for value in values) >= max(3, len(values) // 500)
+
+
+def numbered_grid(path):
+    """Read the entire topic table using its physical numbering column.
+
+    Hours are optional evidence, never a condition for retaining a numbered
+    topic. Only a recognised topic header opens a section. Continuations must
+    align with the previous topic/number columns on the immediate next page.
+    This is structural extraction, not a claim of human academic review.
+    """
+    from .extract import norm, compact, digest, mixed_assessment_reading, pure_assessment_text
+    from scripts.pdf_font_recovery import recover_embedded_font_text
+    topics, excluded, evidence, warnings = [], [], [], []
+    active = None
+    closed_first_section, additional_sections = False, []
+    total_keys = {'المجموع', 'مجموع', 'المجمو', 'الإجمالي', 'الاجمالي', 'اع', 'اوع', 'وع', 'ع'}
+    with pymupdf.open(path) as native, pdfplumber.open(path) as textdoc:
+        for index, page in enumerate(native):
+            pp, page_number = textdoc.pages[index], index + 1
+            tables = sorted(page.find_tables(strategy='lines_strict').tables, key=lambda t: t.bbox[1])
+            for table_index, table in enumerate(tables):
+                if table.bbox[2] - table.bbox[0] < page.rect.width * .55:
+                    continue
+                header = None
+                for row in table.rows[:3]:
+                    for cell in row.cells:
+                        if not cell or not page.rect.width * .38 < cell[2] - cell[0] < (table.bbox[2] - table.bbox[0]) * .92:
+                            continue
+                        title = compact(logical_region_text(pp, cell))
+                        if len(title) < 75 and any(v in title for v in ('موضوع', 'المضات', 'الموضات', 'ضات', 'محتوىالمقرر')):
+                            # A real right-hand numbering column is mandatory.
+                            if table.bbox[2] - cell[2] >= 10 and table.bbox[2] - cell[2] < page.rect.width * .17:
+                                number_header = compact(logical_region_text(pp, (cell[2]+.5, cell[1]+.3, table.bbox[2]-.5, cell[3]-.3)))
+                                if number_header in {'م', 'الأسبوع', 'الاسبوع', 'رقم', 'مسلسل'}:
+                                    header = cell
+                                    break
+                    if header:
+                        break
+                continuation = False
+                if header:
+                    if closed_first_section:
+                        additional_sections.append({'page': page_number, 'table_bbox': list(table.bbox), 'header_bbox': list(header), 'header_text': norm(logical_region_text(pp, header))})
+                        active = None
+                        continue
+                    active = {'x0': header[0], 'x1': header[2], 'left': table.bbox[0], 'right': table.bbox[2], 'page': page_number}
+                    top = header[3]
+                elif (active and active['page'] == page_number - 1 and table_index == 0
+                      and table.bbox[1] < 180 and abs(table.bbox[0] - active['left']) < 15
+                      and abs(table.bbox[2] - active['right']) < 15):
+                    top, continuation = table.bbox[1], True
+                    aligned = [cell for row in table.rows[:2] for cell in row.cells if cell
+                               and abs(cell[0] - active['x0']) < 18 and abs(cell[2] - active['x1']) < 18]
+                    if not aligned:
+                        active = None
+                        continue
+                    active.update(x0=aligned[0][0], x1=aligned[0][2])
+                else:
+                    continue
+                x0, x1 = active['x0'], active['x1']
+                number_cells, total = {}, None
+                for row in table.rows:
+                    for cell in row.cells:
+                        if not cell or cell[1] < top - 1:
+                            continue
+                        if abs(cell[0] - x0) < 3 and cell[2] >= x1 - 3:
+                            if compact(logical_region_text(pp, cell)) in total_keys:
+                                total = {'page': page_number, 'bbox': list(cell), 'text': norm(logical_region_text(pp, cell))}
+                        if abs(cell[0] - x1) < 3 and abs(cell[2] - table.bbox[2]) < 3 and cell[3] - cell[1] > 6:
+                            number_cells[(round(cell[1], 2), round(cell[3], 2))] = cell
+                anchors = sorted(number_cells.values(), key=lambda c: c[1])
+                labels = [norm(logical_region_text(pp, c)) for c in anchors]
+                numeric_labels = sum(bool(re.fullmatch(r'\d{1,2}', label)) for label in labels)
+                if not anchors or (not numeric_labels and not (continuation and total)):
+                    active = None
+                    continue
+                section = {'page': page_number, 'table_bbox': list(table.bbox), 'topic_column': [x0, x1],
+                           'continuation': continuation, 'numbered_geometry_rows': len(anchors),
+                           'numeric_labels': numeric_labels, 'row_labels': labels,
+                           'first_row_label': labels[0], 'last_row_label': labels[-1], 'total': total,
+                           'content_rows': [], 'excluded_rows': [], 'merged_fragment_rows': []}
+                for row_index, cell in enumerate(anchors):
+                    bbox = [x0 + .5, cell[1] + .3, x1 - .5, cell[3] - .3]
+                    raw = norm(logical_region_text(pp, bbox))
+                    if not raw:
+                        section.setdefault('empty_rows', []).append({'bbox': bbox, 'label': labels[row_index]})
+                        continue
+                    key = compact(raw)
+                    if key in total_keys:
+                        break
+                    hours = norm(logical_region_text(pp, (table.bbox[0] + .5, cell[1] + .3, x0 - .5, cell[3] - .3)))
+                    label = labels[row_index]
+                    record = {'text': raw, 'page': page_number, 'bbox': bbox, 'hours_raw': hours,
+                              'source_row_numbers': label, 'row_basis': 'explicit_number_column_geometry'}
+                    recovered = recover_embedded_font_text(native, index, bbox)
+                    reading = norm(recovered) if recovered else raw
+                    mixed = mixed_assessment_reading(reading)
+                    if pure_assessment_text(reading):
+                        excluded.append(dict(record, reason='اختبار أو مراجعة فقط؛ ليس مفردة موضوعية'))
+                        section['excluded_rows'].append(record)
+                        continue
+                    printed_label = bool(label) or number_cell_has_ink(page, cell)
+                    # An unnumbered continuation can still be a new teaching
+                    # unit when its own bounded hours cell has printed content.
+                    # A vertically merged hours cell does not establish this.
+                    own_hours_cell = next((candidate for row in table.rows for candidate in row.cells
+                        if candidate and abs(candidate[0]-table.bbox[0]) < 3
+                        and abs(candidate[2]-x0) < 3
+                        and abs(candidate[1]-cell[1]) < 1.5
+                        and abs(candidate[3]-cell[3]) < 1.5), None)
+                    independent_hours = bool(own_hours_cell and (hours or number_cell_has_ink(page, own_hours_cell)))
+                    if own_hours_cell:
+                        record['hours_cell_bbox'] = list(own_hours_cell)
+                    if independent_hours and not printed_label:
+                        record['row_basis'] = 'independent_hours_cell_geometry'
+                    if (not printed_label and not independent_hours and topics
+                            and not re.match(r'^[\W\d_]*الوحدة', reading)):
+                        previous = topics[-1]
+                        previous_reading = previous.get('corrected_text', previous['text'])
+                        previous.setdefault('fragments', [{'page': previous['page'], 'bbox': previous['bbox']}]).append({'page': page_number, 'bbox': bbox})
+                        previous['text'] += ' ' + raw
+                        previous['end_page'] = page_number
+                        effective_reading = mixed or reading
+                        if previous.get('corrected_text') or effective_reading != raw:
+                            previous['corrected_text'] = previous_reading + ' ' + effective_reading
+                            previous.setdefault('correction_method', 'embedded_font_cmap')
+                        fragment = dict(record, topic_id=previous['id'], reason='blank_printed_number_column')
+                        section['merged_fragment_rows'].append(fragment)
+                        if continuation and row_index == 0:
+                            section['continued_previous_topic'] = previous['id']
+                        continue
+                    if mixed:
+                        record.update(corrected_text=mixed, mixed_assessment_row=True,
+                                      correction_method='mixed_assessment_subject',
+                                      correction_note='حُفظ النص الخام؛ استبعد عنوان الاختبار فقط وأبقي الموضوع المطبوع في الصف نفسه')
+                    elif recovered and reading != raw:
+                        record.update(corrected_text=reading, correction_method='embedded_font_cmap',
+                                      correction_note='استرداد الحروف من خريطة الخط المضمن للبوكس نفسه؛ ليس إكمالًا بالنموذج')
+                    if not hours:
+                        record['hours_status'] = 'unreadable_in_source' if independent_hours else 'missing_in_source'
+                    if not label or not re.fullmatch(r'\d{1,2}', label) or int(label) == 0:
+                        record['row_number_status'] = 'unreadable_label_preserved'
+                    topics.append(dict(record, id=f't{len(topics)+1}'))
+                    section['content_rows'].append({'id': topics[-1]['id'], 'bbox': bbox, 'source_row_numbers': label})
+                evidence.append(section)
+                if total:
+                    closed_first_section = True
+                    active = None
+                else:
+                    active['page'] = page_number
+            pp.close()
+    if any(section.get('empty_rows') for section in evidence):
+        warnings.append('بعض خلايا عمود الموضوعات بلا نص قابل للاستخراج؛ يلزم فحص الصورة')
+    if any(topic.get('row_number_status') for topic in topics):
+        warnings.append('بعض أرقام الصفوف غير مقروءة؛ حُفظت الخلايا هندسيًا دون تخمين الأرقام')
+    if evidence and not evidence[-1].get('total'):
+        warnings.append('نهاية جدول الموضوعات غير مثبتة بصف مجموع؛ يلزم فحص الحد الأخير')
+    if additional_sections:
+        warnings.append('يتضمن الملف أقسام موضوعات أخرى بعد إغلاق القسم الأول؛ لا تجمع مقررات أو أقسامًا مستقلة دون مراجعة المصدر')
+    return {'source_sha256': digest(path), 'topics': topics, 'excluded_rows': excluded,
+            'warnings': warnings, 'status': 'needs_review' if warnings or not topics else 'extracted_needs_review',
+            'reviewed': False, 'extractor': 'topic-numbered-grid-v1', 'extraction_method': 'numbered_vector_grid',
+            'table_evidence': evidence, 'additional_topic_sections': additional_sections}
+
+
 def strict_grid(path):
     from .extract import norm, compact, digest
     topics, excluded, warnings = [], [], []

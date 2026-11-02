@@ -78,8 +78,10 @@ def review_catalog_topics(root, manifest_path, *, apply=False):
 
     courses = catalog.get('courses')
     require(isinstance(courses, list), 'invalid_catalog_courses')
+    library = catalog.get('library_sources', [])
+    require(isinstance(library, list), 'invalid_library_sources')
     by_id = {}
-    for course in courses:
+    for course in courses + library:
         require(isinstance(course, dict) and valid_string(course.get('id'), 128) and course['id'] not in by_id, 'duplicate_or_invalid_catalog_course_id')
         require(isinstance(course.get('topics'), list), 'invalid_catalog_course_topics')
         by_id[course['id']] = course
@@ -87,6 +89,10 @@ def review_catalog_topics(root, manifest_path, *, apply=False):
     seen, prepared, pdf_bytes_by_path = set(), [], {}
     for entry in batch['entries']:
         require(isinstance(entry, dict) and entry.get('review_kind') == 'visual_source_transcription', 'invalid_review_kind')
+        readiness=entry.get('comparison_readiness','ready')
+        require(readiness in ('ready','scope_incomplete','source_anomaly'), 'invalid_comparison_readiness')
+        if readiness!='ready':
+            require(valid_string(entry.get('readiness_reason'), 2000), 'comparison_readiness_reason_required')
         ids = entry.get('course_ids')
         require(isinstance(ids, list) and 1 <= len(ids) <= 1000, 'explicit_course_ids_required')
         for course_id in ids:
@@ -131,7 +137,7 @@ def review_catalog_topics(root, manifest_path, *, apply=False):
             prepared.append((course_id, entry))
 
     updated = copy.deepcopy(catalog)
-    targets = {course['id']: course for course in updated['courses']}
+    targets = {course['id']: course for course in updated['courses'] + updated.get('library_sources', [])}
     changes = []
     for course_id, entry in prepared:
         course = targets[course_id]
@@ -140,6 +146,9 @@ def review_catalog_topics(root, manifest_path, *, apply=False):
             course['original_extracted_topics'] = copy.deepcopy(course['topics'])
         course['topics'] = copy.deepcopy(entry['topics'])
         course['reference_review'] = {'batch_id': batch['batch_id'], 'review_pages': copy.deepcopy(entry['review_pages']), 'source_sha256': entry['source_sha256'], 'kind': entry['review_kind']}
+        if entry.get('comparison_readiness','ready')!='ready':
+            course['reference_review']['comparison_readiness']=entry['comparison_readiness']
+            course['reference_review']['readiness_reason']=entry['readiness_reason']
         course['extraction_method'] = 'reviewed_visual_transcription'
         course['reviewed'] = False
     manifest_sha = hashlib.sha256(manifest_bytes).hexdigest()

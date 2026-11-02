@@ -1,0 +1,57 @@
+{
+  "batch_id": "calibration-and-reference-summary-20261103",
+  "catalog_id": "bdc07f5264f4a807c3c3da570daf4989107c7644edd5f1065b4f396422e29d73",
+  "policy": {
+    "coverage": 80,
+    "strict_topic": 80,
+    "lenient_topic": 60,
+    "weights": "printed_topic_count_no_facet_equal_weights"
+  },
+  "corpus": {
+    "unique_pdf_count": 448,
+    "visually_reviewed_pdf_count": 391,
+    "native_only_pdf_count": 57,
+    "ready_by_unique_pdf": {
+      "ready_visual": 304,
+      "needs_review": 81,
+      "ready_native": 57,
+      "no_fixed_topics": 6
+    },
+    "pdf_bytes_changed": false,
+    "plan_data_changed": false
+  },
+  "v6_heldout_original": {
+    "total": 8,
+    "matched": 5,
+    "underclassification": 1,
+    "validation_errors": 2,
+    "unchanged_after_learning": true
+  },
+  "v7_sealed_heldout": {
+    "total": 8,
+    "matched": 8,
+    "definitive_decisions": 7,
+    "justified_pending": 1,
+    "local_model_cases": 5,
+    "deterministic_atomic_cases": 3,
+    "model_calls": 14,
+    "bounded_repairs": 3,
+    "final_errors": 0,
+    "general_accuracy_claim": false,
+    "commitment_sha256": "25109373f2191f289f5f5971368c76b6aa1ee7d663deac9dd8a74f0aa81f4e3b",
+    "core_hashes": {
+      "scripts/equivalency/engine.py": "0890f9aa0e85b765e3f92d5578c8d03252f6833afd8079f80a9be82deb76edf1",
+      "scripts/equivalency/grounding.py": "6f5d8b261bd70a50fd4819d7905a6f01cfe419a8aa323211e7b31be83ac510be",
+      "scripts/equivalency/atomic_scope.py": "db0c5e003304092b53144f7296ba459a733759732438babb0e851e485baf04c7",
+      "scripts/equivalency/ranges.py": "f13d25bd0a131fb3bedf15d817aa5ff0d184edf494073964e4115f6f5cbaab44",
+      "scripts/equivalency/consistency.py": "f714c9b3dfb226f91b192022dd1aff75c96fb382ce333beea692cabe96a638e8",
+      "scripts/equivalency/quran_metadata.py": "ad5fd539ac2275d41b7574c26d58546f2c8fe6dae4e495c95f1144a732ff7d90",
+      "scripts/equivalency/data/tanzil-quran-data.xml": "8867c1d88191472adec9db694b3cd9f135b1a2ef580574d32cf888dcb22c5c7a"
+    }
+  },
+  "ui": {
+    "fonts": "IBM Plex Sans Arabic; local OFL1.1",
+    "responsive_width_tested": 390,
+    "html_fonts_embedded": true
+  }
+}

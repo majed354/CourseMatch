@@ -14,7 +14,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from .engine import calculate, compare, search, topic_text
+from .engine import RUBRIC_VERSION, calculate, compare, search, topic_text
+from .reference_quality import reference_pending, evidence_calculation
 from .extract import ROOT, digest, extract_pdf, extract_cached, apply_readings
 
 
@@ -163,10 +164,10 @@ class Pilot:
         def run():
             try:
                 self.jobs[key].update(status="running", message="تدقيق توافق المفردات بالنموذج المحلي")
-                evidence = compare(target, source, model=self.model)
+                evidence = reference_pending(self.courses[data['target_id']], (self.sources[source['catalog_course_id']] if source.get('catalog_course_id') else source), RUBRIC_VERSION) or compare(target, source, model=self.model)
                 result = {"id": key, "source": source, "target": target, "evidence": evidence,
                           "beneficiary": beneficiary, "created_at": datetime.now(timezone.utc).isoformat(),
-                          "calculation": calculate(target["topics"], source["topics"], evidence["pairs"]),
+                          "calculation": evidence_calculation(target["topics"], source["topics"], evidence),
                           "catalog_id": self.catalog["catalog_id"], "reviewed_by": "user_confirmed_extraction",
                           "notice": "نتيجة تجريبية للمفردات وفق سياسة 80/80/60؛ درجات توافق المفردات تقدير آلي يحتاج اعتماد المختص. الساعات واللوائح خارج هذا الحكم."}
                 self.verify_course(target)

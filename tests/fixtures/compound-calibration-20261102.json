@@ -1,0 +1,2093 @@
+{
+  "schema_version": 1,
+  "benchmark": "compound-calibration-20261102",
+  "frozen_at": "2026-11-02T21:13:14.465186+00:00",
+  "baseline_rubric": "topic-alignment-80-60-v5-rationale-consistency",
+  "policy": {
+    "course_coverage": 80,
+    "strict_topic": 80,
+    "lenient_topic": 60,
+    "no_implicit_facet_weights": true,
+    "no_cross_unit_borrowing": true
+  },
+  "partitions": {
+    "development_count": 20,
+    "heldout_count": 8,
+    "heldout_sha256": "118e86889113c58ea60e98f04dd64e8fcab948d1f63dc74a0b1e4a513aeb6b92",
+    "heldout_case_commitments": [
+      {
+        "id": "H01",
+        "sha256": "700cfb5473f9b655c1ec65d781ef7c2aab17581d517b9683da1a404292a9f091"
+      },
+      {
+        "id": "H02",
+        "sha256": "ef66bf7f6fb189039aceaaa0935ad4abea90577bb85ccf064d36d3d1cc63d45b"
+      },
+      {
+        "id": "H03",
+        "sha256": "44d740a4ad14603d7ee4436a82ab4f87b2d1c6a25e1b93665c579a1cc87dbab0"
+      },
+      {
+        "id": "H04",
+        "sha256": "658b2174b389420047488b9200b306f4de4da9f9d496800a77330b83b86b70d0"
+      },
+      {
+        "id": "H05",
+        "sha256": "0ae0b377493e7971a5b37bc3043a3e5a4bf52de45ac1511fd65d68be1d6a2995"
+      },
+      {
+        "id": "H06",
+        "sha256": "db21405ba0f97f2e319c5d3fa1bd6df02d29dcd545f3770e20a1583686a20b79"
+      },
+      {
+        "id": "H07",
+        "sha256": "c14568c22a63e5cd78856fdf5683b6e6668048e4e02fc49a63e068be437e323d"
+      },
+      {
+        "id": "H08",
+        "sha256": "0845499d1d9116245619b572ec8691ba5d52d734aac06db6aa81542db2f8fa52"
+      }
+    ]
+  },
+  "model_input_contract": "Only target_units/source_units/fixed_pairs/allow_source_union are model inputs. Never reveal expectation, target_facets, objective_scope or prior observations to the candidate generator or blinded adjudicator.",
+  "metrics_contract": {
+    "objective_accuracy_denominator": "objective_control labels only, reported separately by partition and domain",
+    "strict_false_accept": "predicted strict when an objective pair is labeled lenient or weak",
+    "lenient_false_accept": "predicted lenient or strict when objective weak",
+    "false_reject": "predicted weak for objective strict or lenient",
+    "insufficient": "report abstention counts separately, including false abstention on complete objective controls",
+    "literal_grounding": "source quote substring validity plus independent target-span coverage and required-facet status; never replace semantic checks with quote validity",
+    "reviewer_constraints": "unweighted real cases are evaluated for grounding/unknown-status and no invented claims; never counted as gold tier accuracy",
+    "scenario_metrics": "distinct-source matching and confirmed/possible outcome bounds; segmentation policy probes separate from accuracy"
+  },
+  "limitations": [
+    "Not an estimate of population-level academic accuracy.",
+    "Known historical failures informed development selection; heldout inputs/labels are sealed from v6 tuning.",
+    "No component-count percentage is a gold label. Explicit verse scopes use the already stated numeric policy."
+  ],
+  "development_cases": [
+    {
+      "id": "D01",
+      "kind": "pair",
+      "partition": "development",
+      "title": "UQU direct complete synonym",
+      "target_units": [
+        {
+          "id": "t7",
+          "text": "الشبه حول الطعن في الوحي والرد عليها.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "0aac7acfac04fe0b18bc9b5416647cea36dccaab05f14ee351557ea7a5a09ea7",
+            "page": 5,
+            "bbox": [
+              147.8,
+              692.26,
+              508.3,
+              713.84
+            ],
+            "source_pdf": "assets/course-specifications/qiraat-source-1445/2002410-2.pdf",
+            "previous_report_file": "output/student-trials-20261102/postfix-v5/uqu-integration-report.json",
+            "source_role": "target",
+            "text_sha256": "9fde07b4337121e8ffc13939444c211213338aaa21a8d07e9ce480ae60ef5770"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "t4",
+          "text": "الانتصار للوحي ودحض الشبه المثارة حوله.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "99c234276360560e6972b00edfcb494cc6698a0ff994be696460b42624988135",
+            "page": 5,
+            "bbox": [
+              147.9,
+              571.43,
+              508.3,
+              592.95
+            ],
+            "source_pdf": "output/equivalency-external-sources-20261102/جامعة_أم_القرى/QS4117_الانتصار_للقرآن.pdf",
+            "previous_report_file": "output/student-trials-20261102/postfix-v5/uqu-integration-report.json",
+            "source_role": "source",
+            "text_sha256": "84dcb99be8d6434fe97adafdda07a5b8c46c1b10268037900525a5675e2fdcf1"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t7",
+          "source_id": "t4"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t7": [
+          {
+            "id": "f1",
+            "target_quote": "الشبه حول الطعن في الوحي ",
+            "target_span": [
+              0,
+              25
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "الانتصار للوحي ودحض الشبه المثارة حوله."
+            ],
+            "source_id": "t4"
+          },
+          {
+            "id": "f2",
+            "target_quote": "والرد عليها.",
+            "target_span": [
+              25,
+              37
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "الانتصار للوحي ودحض الشبه المثارة حوله."
+            ],
+            "source_id": "t4"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "objective_control",
+        "tier_scored_for_accuracy": true,
+        "expected_tier": "strict",
+        "allowed_score_band": [
+          80,
+          100
+        ],
+        "rationale": "Both the named subject and rebuttal are explicitly present.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ]
+      }
+    },
+    {
+      "id": "D02",
+      "kind": "pair",
+      "partition": "development",
+      "title": "KSU definition and closed enumeration",
+      "target_units": [
+        {
+          "id": "t1",
+          "text": "دلالات الألفاظ: تعريف الدلالة، وتقسيمها من حيث دلالتها على المعنى المراد إلى دلالة مطابقة وتضمن والتزام.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "f142ecf4b76990ab091f773365f662c0cb9cb51a39cc0396c5149f2b744f1dcb",
+            "page": 5,
+            "bbox": [
+              125.22,
+              98.14,
+              506.78,
+              125.86
+            ],
+            "source_pdf": "assets/course-specifications/raw-recovery-20260827/20043106-2.pdf",
+            "previous_report_file": "output/student-trials-20261102/postfix-v5/ksu-dalalat-report.json",
+            "source_role": "target",
+            "text_sha256": "2518bb6823c52bf88a3b27f2866ff5e6d01bb13d9560d40e2b371519553bbe99"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "t1",
+          "text": "الوحدة الأولى: تعريف الدلالة وتقسيمها من حيث دلالتها على المعنى المراد إلى دلالة مطابقة وتضمن والتزام.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "ea0aafb93c7e61ae209f9568574144dfc7511e85be297751ad7060e23dc6a189",
+            "page": 5,
+            "bbox": [
+              160.96,
+              132.18,
+              499.21,
+              159.82
+            ],
+            "source_pdf": "output/equivalency-external-sources-20261102/جامعة_الملك_سعود/362_سلم_دلالات_الألفاظ.pdf",
+            "previous_report_file": "output/student-trials-20261102/postfix-v5/ksu-dalalat-report.json",
+            "source_role": "source",
+            "text_sha256": "6aefe33e31b82327e0e3b8271bf3efe3e107af125cb2333bc6483c8d23f63397"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t1",
+          "source_id": "t1"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t1": [
+          {
+            "id": "f1",
+            "target_quote": "دلالات الألفاظ: تعريف الدلالة، ",
+            "target_span": [
+              0,
+              31
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "الوحدة الأولى: تعريف الدلالة وتقسيمها من حيث دلالتها على المعنى المراد إلى دلالة مطابقة وتضمن والتزام."
+            ],
+            "source_id": "t1"
+          },
+          {
+            "id": "f2",
+            "target_quote": "وتقسيمها من حيث دلالتها على المعنى المراد إلى دلالة مطابقة وتضمن والتزام.",
+            "target_span": [
+              31,
+              104
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "الوحدة الأولى: تعريف الدلالة وتقسيمها من حيث دلالتها على المعنى المراد إلى دلالة مطابقة وتضمن والتزام."
+            ],
+            "source_id": "t1"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "objective_control",
+        "tier_scored_for_accuracy": true,
+        "expected_tier": "strict",
+        "allowed_score_band": [
+          80,
+          100
+        ],
+        "rationale": "Definition plus all three named indication types are present.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ]
+      }
+    },
+    {
+      "id": "D03",
+      "kind": "pair",
+      "partition": "development",
+      "title": "Najran generic title cannot certify five specific requirements",
+      "target_units": [
+        {
+          "id": "t14",
+          "text": "الوسائل القانونية للسلطة الإدارية (القرار الإداري): تعريفه وخصائصه وأركانه وسريانه ونهايته",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "2c2c935a3d38ec4628db81d5235268c72973026ae89039eb6d731c86e7c6db81",
+            "page": 6,
+            "bbox": null,
+            "source_pdf": "assets/course-specifications/systems-updates-1446/2003243-3.pdf",
+            "previous_report_file": "output/student-trials-20261102/najran/nu-administrative-report.json",
+            "source_role": "target",
+            "text_sha256": "04bf344d0ab6089c2eaf51e6cdf7dc8759ec30c608528fa24ca0f81c8ecd8688"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "t8",
+          "text": "تأديب الموظف، والقرارات الإدارية.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "5f625e1c422509a10fd060918d764b86bbf12443af3608b0086a69d78886ad55",
+            "page": 5,
+            "bbox": [
+              177.17,
+              334.58,
+              508.97,
+              355.81
+            ],
+            "source_pdf": "output/equivalency-external-sources-20261102/جامعة_نجران/132_قان_3_القانون_الإداري.pdf",
+            "previous_report_file": "output/student-trials-20261102/najran/nu-administrative-report.json",
+            "source_role": "source",
+            "text_sha256": "dc1b709899ac89a687b7b658e004421b764f34663125c7e7331f17ca9769b963"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t14",
+          "source_id": "t8"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t14": [
+          {
+            "id": "f1",
+            "target_quote": "الوسائل القانونية للسلطة الإدارية (القرار الإداري): تعريفه ",
+            "target_span": [
+              0,
+              59
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "t8"
+          },
+          {
+            "id": "f2",
+            "target_quote": "وخصائصه ",
+            "target_span": [
+              59,
+              67
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "t8"
+          },
+          {
+            "id": "f3",
+            "target_quote": "وأركانه ",
+            "target_span": [
+              67,
+              75
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "t8"
+          },
+          {
+            "id": "f4",
+            "target_quote": "وسريانه ",
+            "target_span": [
+              75,
+              83
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "t8"
+          },
+          {
+            "id": "f5",
+            "target_quote": "ونهايته",
+            "target_span": [
+              83,
+              90
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "t8"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "reviewer_constraint_not_gold",
+        "tier_scored_for_accuracy": false,
+        "expected_tier": null,
+        "allowed_score_band": null,
+        "rationale": "A general course heading is not literal evidence of all enumerated details.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ],
+        "forbid_unjustified_complete_coverage_claim": true,
+        "unweighted_facets_must_not_be_converted_to_percentage": true
+      }
+    },
+    {
+      "id": "D04",
+      "kind": "pair",
+      "partition": "development",
+      "title": "KSU compound part belongs to a different source unit",
+      "target_units": [
+        {
+          "id": "t5",
+          "text": "دلالة الأمر بعد الحظر. الأمر بالشيء هل هو نهي عن ضده؟ وعكسها.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "f142ecf4b76990ab091f773365f662c0cb9cb51a39cc0396c5149f2b744f1dcb",
+            "page": 5,
+            "bbox": [
+              125.22,
+              266.13,
+              506.78,
+              293.41
+            ],
+            "source_pdf": "assets/course-specifications/raw-recovery-20260827/20043106-2.pdf",
+            "previous_report_file": "output/student-trials-20261102/postfix-v5/ksu-dalalat-report.json",
+            "source_role": "target",
+            "text_sha256": "016f365fa9c9c49161128a07bc91ed2d4a19c2aa77b586e2471ddc6c9942855d"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "t5",
+          "text": "الوحدة الخامسة: مسألة الأمر بالشيء هل هو نهي عن ضده، والنهي عن الشيء هل هو أمر بضده؟ مسألة: سقوط الأمر بفوات وقته. مسألة: اقتضاء النهي الفساد وعدمه.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "ea0aafb93c7e61ae209f9568574144dfc7511e85be297751ad7060e23dc6a189",
+            "page": 5,
+            "bbox": [
+              160.96,
+              273.45,
+              499.21,
+              301.21
+            ],
+            "source_pdf": "output/equivalency-external-sources-20261102/جامعة_الملك_سعود/362_سلم_دلالات_الألفاظ.pdf",
+            "previous_report_file": "output/student-trials-20261102/postfix-v5/ksu-dalalat-report.json",
+            "source_role": "source",
+            "text_sha256": "1dc54dc53c07fdc2ea1244a54e4de594c572c60e74a2bd621dec76ac3b2fe639"
+          }
+        },
+        {
+          "id": "t4",
+          "text": "الوحدة الرابعة: مسألة الأمر والنهي المجردين عن القرائن من حيث التكرار وعدمه. مسألة دلالة الأمر والنهي المجردين عن القرائن من حيث الفور وعدمه. مسألة دلالة الأمر بعد الحظر.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "ea0aafb93c7e61ae209f9568574144dfc7511e85be297751ad7060e23dc6a189",
+            "page": 5,
+            "bbox": [
+              160.96,
+              231.3,
+              499.21,
+              272.65
+            ],
+            "source_pdf": "output/equivalency-external-sources-20261102/جامعة_الملك_سعود/362_سلم_دلالات_الألفاظ.pdf",
+            "previous_report_file": "output/student-trials-20261102/postfix-v5/ksu-dalalat-report.json",
+            "source_role": "source",
+            "text_sha256": "cb064e3252143e7c2fa017ccd961e679506ff532ea552d1023f8639c4ac90c2c"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t5",
+          "source_id": "t5"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t5": [
+          {
+            "id": "f1",
+            "target_quote": "دلالة الأمر بعد الحظر. ",
+            "target_span": [
+              0,
+              23
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "t5"
+          },
+          {
+            "id": "f2",
+            "target_quote": "الأمر بالشيء هل هو نهي عن ضده؟ وعكسها.",
+            "target_span": [
+              23,
+              61
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "الوحدة الخامسة: مسألة الأمر بالشيء هل هو نهي عن ضده، والنهي عن الشيء هل هو أمر بضده؟ مسألة: سقوط الأمر بفوات وقته. مسألة: اقتضاء النهي الفساد وعدمه."
+            ],
+            "source_id": "t5"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "reviewer_constraint_not_gold",
+        "tier_scored_for_accuracy": false,
+        "expected_tier": null,
+        "allowed_score_band": null,
+        "rationale": "After prohibition occurs in a different source unit; do not borrow it into the fixed pair.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ],
+        "forbid_unjustified_complete_coverage_claim": true,
+        "unweighted_facets_must_not_be_converted_to_percentage": true
+      }
+    },
+    {
+      "id": "D05",
+      "kind": "pair",
+      "partition": "development",
+      "title": "UQU collection and writing split",
+      "target_units": [
+        {
+          "id": "t8",
+          "text": "الشبه حول جمع القرآن وكتابته والرد عليها.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "0aac7acfac04fe0b18bc9b5416647cea36dccaab05f14ee351557ea7a5a09ea7",
+            "page": 5,
+            "bbox": [
+              147.8,
+              714.64,
+              508.3,
+              736.12
+            ],
+            "source_pdf": "assets/course-specifications/qiraat-source-1445/2002410-2.pdf",
+            "previous_report_file": "output/student-trials-20261102/postfix-v5/uqu-integration-report.json",
+            "source_role": "target",
+            "text_sha256": "5d8daa6c88023578060c1aeb947d5021a28279b9392e2af635f420384c351cba"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "t8",
+          "text": "الانتصار لجمع القرآن ودحض الشبه المثارة حوله.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "99c234276360560e6972b00edfcb494cc6698a0ff994be696460b42624988135",
+            "page": 5,
+            "bbox": [
+              147.9,
+              660.74,
+              508.3,
+              682.14
+            ],
+            "source_pdf": "output/equivalency-external-sources-20261102/جامعة_أم_القرى/QS4117_الانتصار_للقرآن.pdf",
+            "previous_report_file": "output/student-trials-20261102/postfix-v5/uqu-integration-report.json",
+            "source_role": "source",
+            "text_sha256": "d124d4ce4257a9739ad3fb8e0f74eb0d3061f4e60b241d7183da06b3453a6467"
+          }
+        },
+        {
+          "id": "t9",
+          "text": "الانتصار لكتابة القرآن ودحض الشبه المثارة حوله.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "99c234276360560e6972b00edfcb494cc6698a0ff994be696460b42624988135",
+            "page": 5,
+            "bbox": [
+              147.9,
+              682.94,
+              508.3,
+              704.46
+            ],
+            "source_pdf": "output/equivalency-external-sources-20261102/جامعة_أم_القرى/QS4117_الانتصار_للقرآن.pdf",
+            "previous_report_file": "output/student-trials-20261102/postfix-v5/uqu-integration-report.json",
+            "source_role": "source",
+            "text_sha256": "2a1a2544cfa5f4a0acf776a4a24c544b230f45cdd5c031079f1304e75f947384"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t8",
+          "source_id": "t8"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t8": [
+          {
+            "id": "f1",
+            "target_quote": "الشبه حول جمع القرآن ",
+            "target_span": [
+              0,
+              21
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "الانتصار لجمع القرآن ودحض الشبه المثارة حوله."
+            ],
+            "source_id": "t8"
+          },
+          {
+            "id": "f2",
+            "target_quote": "وكتابته ",
+            "target_span": [
+              21,
+              29
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "t8"
+          },
+          {
+            "id": "f3",
+            "target_quote": "والرد عليها.",
+            "target_span": [
+              29,
+              41
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "الانتصار لجمع القرآن ودحض الشبه المثارة حوله."
+            ],
+            "source_id": "t8"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "reviewer_constraint_not_gold",
+        "tier_scored_for_accuracy": false,
+        "expected_tier": null,
+        "allowed_score_band": null,
+        "rationale": "Collection is explicit; writing is in a separate unit. No50 or70 derived from counting title parts.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ],
+        "forbid_unjustified_complete_coverage_claim": true,
+        "unweighted_facets_must_not_be_converted_to_percentage": true
+      }
+    },
+    {
+      "id": "D06",
+      "kind": "pair",
+      "partition": "development",
+      "title": "UQU generic definition versus explicit two modes",
+      "target_units": [
+        {
+          "id": "t1",
+          "text": "تعريف علم الانتصار للقرآن إفرادًا وتركيبًا.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "0aac7acfac04fe0b18bc9b5416647cea36dccaab05f14ee351557ea7a5a09ea7",
+            "page": 5,
+            "bbox": [
+              147.8,
+              525.14,
+              508.3,
+              554.55
+            ],
+            "source_pdf": "assets/course-specifications/qiraat-source-1445/2002410-2.pdf",
+            "previous_report_file": "output/student-trials-20261102/postfix-v5/uqu-integration-report.json",
+            "source_role": "target",
+            "text_sha256": "fcd6652985992fbb508f9bb03f9d8663bde6511910a2a65ceb800ad3b6bb2605"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "t1",
+          "text": "الترحيب بالطلاب والتعريف بتوصيف المقرر (تعريف مصطلح الانتصار للقرآن، ومشروعيته، وبيان نشأته، ومراحله(.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "99c234276360560e6972b00edfcb494cc6698a0ff994be696460b42624988135",
+            "page": 5,
+            "bbox": [
+              147.9,
+              483.47,
+              508.3,
+              526.16
+            ],
+            "source_pdf": "output/equivalency-external-sources-20261102/جامعة_أم_القرى/QS4117_الانتصار_للقرآن.pdf",
+            "previous_report_file": "output/student-trials-20261102/postfix-v5/uqu-integration-report.json",
+            "source_role": "source",
+            "text_sha256": "9ebe340e262d3e29d17387d0e233e4d25d6e870860ea752584c0ae650e259a86"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t1",
+          "source_id": "t1"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t1": [
+          {
+            "id": "f1",
+            "target_quote": "تعريف علم الانتصار للقرآن ",
+            "target_span": [
+              0,
+              26
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "الترحيب بالطلاب والتعريف بتوصيف المقرر (تعريف مصطلح الانتصار للقرآن، ومشروعيته، وبيان نشأته، ومراحله(."
+            ],
+            "source_id": "t1"
+          },
+          {
+            "id": "f2",
+            "target_quote": "إفرادًا ",
+            "target_span": [
+              26,
+              34
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "t1"
+          },
+          {
+            "id": "f3",
+            "target_quote": "وتركيبًا.",
+            "target_span": [
+              34,
+              43
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "t1"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "reviewer_constraint_not_gold",
+        "tier_scored_for_accuracy": false,
+        "expected_tier": null,
+        "allowed_score_band": null,
+        "rationale": "The generic definition may imply modes, but this is not explicit evidence of each requested mode.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ],
+        "forbid_unjustified_complete_coverage_claim": true,
+        "unweighted_facets_must_not_be_converted_to_percentage": true
+      }
+    },
+    {
+      "id": "D07",
+      "kind": "pair",
+      "partition": "development",
+      "title": "UQU unspecified temporal endpoint",
+      "target_units": [
+        {
+          "id": "t3",
+          "text": "نشأة الانتصار للقرآن ومراحله حتى العصر الحاضر.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "0aac7acfac04fe0b18bc9b5416647cea36dccaab05f14ee351557ea7a5a09ea7",
+            "page": 5,
+            "bbox": [
+              147.8,
+              585.77,
+              508.3,
+              616.59
+            ],
+            "source_pdf": "assets/course-specifications/qiraat-source-1445/2002410-2.pdf",
+            "previous_report_file": "output/student-trials-20261102/postfix-v5/uqu-integration-report.json",
+            "source_role": "target",
+            "text_sha256": "b2c05bb1d1c4fb1bd41550871a670e20f7235dd06e3483294df23b999b430dea"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "t1",
+          "text": "الترحيب بالطلاب والتعريف بتوصيف المقرر (تعريف مصطلح الانتصار للقرآن، ومشروعيته، وبيان نشأته، ومراحله(.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "99c234276360560e6972b00edfcb494cc6698a0ff994be696460b42624988135",
+            "page": 5,
+            "bbox": [
+              147.9,
+              483.47,
+              508.3,
+              526.16
+            ],
+            "source_pdf": "output/equivalency-external-sources-20261102/جامعة_أم_القرى/QS4117_الانتصار_للقرآن.pdf",
+            "previous_report_file": "output/student-trials-20261102/postfix-v5/uqu-integration-report.json",
+            "source_role": "source",
+            "text_sha256": "9ebe340e262d3e29d17387d0e233e4d25d6e870860ea752584c0ae650e259a86"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t3",
+          "source_id": "t1"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t3": [
+          {
+            "id": "f1",
+            "target_quote": "نشأة الانتصار للقرآن ",
+            "target_span": [
+              0,
+              21
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "الترحيب بالطلاب والتعريف بتوصيف المقرر (تعريف مصطلح الانتصار للقرآن، ومشروعيته، وبيان نشأته، ومراحله(."
+            ],
+            "source_id": "t1"
+          },
+          {
+            "id": "f2",
+            "target_quote": "ومراحله ",
+            "target_span": [
+              21,
+              29
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "الترحيب بالطلاب والتعريف بتوصيف المقرر (تعريف مصطلح الانتصار للقرآن، ومشروعيته، وبيان نشأته، ومراحله(."
+            ],
+            "source_id": "t1"
+          },
+          {
+            "id": "f3",
+            "target_quote": "حتى العصر الحاضر.",
+            "target_span": [
+              29,
+              46
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "t1"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "reviewer_constraint_not_gold",
+        "tier_scored_for_accuracy": false,
+        "expected_tier": null,
+        "allowed_score_band": null,
+        "rationale": "History and stages are explicit; coverage through the present is not explicit.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ],
+        "forbid_unjustified_complete_coverage_claim": true,
+        "unweighted_facets_must_not_be_converted_to_percentage": true
+      }
+    },
+    {
+      "id": "D08",
+      "kind": "pair",
+      "partition": "development",
+      "title": "Najran eligibility is not all conditions of legal responsibility",
+      "target_units": [
+        {
+          "id": "t6",
+          "text": "التكليف: المراد به، وأركانه، وشروطه. عوارض الأهلية، وأثر كل منها على التكليف.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "125fd82938e18355dca30033f182b368733c6f0b6ef0594235752f8ee5723075",
+            "page": 5,
+            "bbox": [
+              126.26,
+              159.42,
+              500.16,
+              187.18
+            ],
+            "source_pdf": "assets/course-specifications/raw-recovery-20260827/20042106-2.pdf",
+            "previous_report_file": "output/student-trials-20261102/najran/nu-usul1-report.json",
+            "source_role": "target",
+            "text_sha256": "b152b3e0ae2fa608332a21643e4282be8525ec6281566bf5235ee82d01bca367"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "t9",
+          "text": "الأهلية وعوارضها",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "56eec16c68c57e420278209b218fcaf14168ce35e1e6b45cd5835849652e39c3",
+            "page": 5,
+            "bbox": [
+              159.99,
+              309.84,
+              494.5,
+              330.16
+            ],
+            "source_pdf": "output/equivalency-external-sources-20261102/جامعة_نجران/112_أصل_3_أصول_الفقه_1.pdf",
+            "previous_report_file": "output/student-trials-20261102/najran/nu-usul1-report.json",
+            "source_role": "source",
+            "text_sha256": "21961a2a5a6cfbc0cf82edab7eebe64b2a097bdf32d5b6741b0bbfb42f2bf6df"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t6",
+          "source_id": "t9"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t6": [
+          {
+            "id": "f1",
+            "target_quote": "التكليف: المراد به، ",
+            "target_span": [
+              0,
+              20
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "t9"
+          },
+          {
+            "id": "f2",
+            "target_quote": "وأركانه، ",
+            "target_span": [
+              20,
+              29
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "t9"
+          },
+          {
+            "id": "f3",
+            "target_quote": "وشروطه. ",
+            "target_span": [
+              29,
+              37
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "t9"
+          },
+          {
+            "id": "f4",
+            "target_quote": "عوارض الأهلية، ",
+            "target_span": [
+              37,
+              52
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "الأهلية وعوارضها"
+            ],
+            "source_id": "t9"
+          },
+          {
+            "id": "f5",
+            "target_quote": "وأثر كل منها على التكليف.",
+            "target_span": [
+              52,
+              77
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "t9"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "reviewer_constraint_not_gold",
+        "tier_scored_for_accuracy": false,
+        "expected_tier": null,
+        "allowed_score_band": null,
+        "rationale": "Explicit eligibility impediments do not establish all separately listed responsibility requirements.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ],
+        "forbid_unjustified_complete_coverage_claim": true,
+        "unweighted_facets_must_not_be_converted_to_percentage": true
+      }
+    },
+    {
+      "id": "D09",
+      "kind": "pair",
+      "partition": "development",
+      "title": "أسس الحركة",
+      "target_units": [
+        {
+          "id": "t1",
+          "text": "تعريف القوة والكتلة والتسارع، وشرح العلاقة F = m × a، وتطبيقها في الحركة الخطية.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "s1",
+          "text": "يشرح المقرر مفاهيم القوة والكتلة والتسارع، ثم يوضح العلاقة F = m × a ويطبقها على الحركة الخطية.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t1",
+          "source_id": "s1"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t1": [
+          {
+            "id": "f1",
+            "target_quote": "تعريف القوة والكتلة والتسارع، ",
+            "target_span": [
+              0,
+              30
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "يشرح المقرر مفاهيم القوة والكتلة والتسارع، ثم يوضح العلاقة F = m × a ويطبقها على الحركة الخطية."
+            ],
+            "source_id": "s1"
+          },
+          {
+            "id": "f2",
+            "target_quote": "وشرح العلاقة F = m × a، ",
+            "target_span": [
+              30,
+              54
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "يشرح المقرر مفاهيم القوة والكتلة والتسارع، ثم يوضح العلاقة F = m × a ويطبقها على الحركة الخطية."
+            ],
+            "source_id": "s1"
+          },
+          {
+            "id": "f3",
+            "target_quote": "وتطبيقها في الحركة الخطية.",
+            "target_span": [
+              54,
+              80
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "يشرح المقرر مفاهيم القوة والكتلة والتسارع، ثم يوضح العلاقة F = m × a ويطبقها على الحركة الخطية."
+            ],
+            "source_id": "s1"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "objective_control",
+        "tier_scored_for_accuracy": true,
+        "expected_tier": "strict",
+        "allowed_score_band": [
+          80,
+          100
+        ],
+        "rationale": "Controlled complete paraphrase: every explicit requirement is preserved.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ]
+      }
+    },
+    {
+      "id": "D10",
+      "kind": "pair",
+      "partition": "development",
+      "title": "مبادئ القرار الإداري",
+      "target_units": [
+        {
+          "id": "t1",
+          "text": "تعريف القرار الإداري، وخصائصه، وأركانه، وسريانه، وانتهاؤه.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "s1",
+          "text": "شرح المقصود بالقرار الإداري وبيان خصائصه وأركانه، ثم دراسة سريانه وكيفية انتهائه.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t1",
+          "source_id": "s1"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t1": [
+          {
+            "id": "f1",
+            "target_quote": "تعريف القرار الإداري، ",
+            "target_span": [
+              0,
+              22
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "شرح المقصود بالقرار الإداري وبيان خصائصه وأركانه، ثم دراسة سريانه وكيفية انتهائه."
+            ],
+            "source_id": "s1"
+          },
+          {
+            "id": "f2",
+            "target_quote": "وخصائصه، ",
+            "target_span": [
+              22,
+              31
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "شرح المقصود بالقرار الإداري وبيان خصائصه وأركانه، ثم دراسة سريانه وكيفية انتهائه."
+            ],
+            "source_id": "s1"
+          },
+          {
+            "id": "f3",
+            "target_quote": "وأركانه، ",
+            "target_span": [
+              31,
+              40
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "شرح المقصود بالقرار الإداري وبيان خصائصه وأركانه، ثم دراسة سريانه وكيفية انتهائه."
+            ],
+            "source_id": "s1"
+          },
+          {
+            "id": "f4",
+            "target_quote": "وسريانه، ",
+            "target_span": [
+              40,
+              49
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "شرح المقصود بالقرار الإداري وبيان خصائصه وأركانه، ثم دراسة سريانه وكيفية انتهائه."
+            ],
+            "source_id": "s1"
+          },
+          {
+            "id": "f5",
+            "target_quote": "وانتهاؤه.",
+            "target_span": [
+              49,
+              58
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "شرح المقصود بالقرار الإداري وبيان خصائصه وأركانه، ثم دراسة سريانه وكيفية انتهائه."
+            ],
+            "source_id": "s1"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "objective_control",
+        "tier_scored_for_accuracy": true,
+        "expected_tier": "strict",
+        "allowed_score_band": [
+          80,
+          100
+        ],
+        "rationale": "Controlled complete paraphrase: every explicit requirement is preserved.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ]
+      }
+    },
+    {
+      "id": "D11",
+      "kind": "pair",
+      "partition": "development",
+      "title": "Explicit numeric scope",
+      "target_units": [
+        {
+          "id": "t5",
+          "text": "تفسير ص:3 البقرة ( 16 -6 ) تفسيرا تحليليا.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "67c82d86b6650dbec18980e6f37be8ae7f86adb00a660b165a40cad4fbb35a8d",
+            "source_pdf": "assets/course-specifications/quran-old-v39/2002204-2.pdf",
+            "page": 4,
+            "text_sha256": "3498f81a9580d0c2a34008e8bc8d33d1fd65ae06f9bd3731072ad1535879040d"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "s1",
+          "text": "دراسة تفسيرية تحليلية لسورة البقرة، الآيات6-12.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t5",
+          "source_id": "s1"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t5": [
+          {
+            "id": "f1",
+            "target_quote": "تفسير ص:3 البقرة ( 16 -6 ) تفسيرا تحليليا.",
+            "target_span": [
+              0,
+              42
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "partial",
+            "supporting_source_quotes": [
+              "دراسة تفسيرية تحليلية لسورة البقرة، الآيات6-12."
+            ],
+            "source_id": "s1"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "objective_control",
+        "tier_scored_for_accuracy": true,
+        "expected_tier": "lenient",
+        "allowed_score_band": [
+          60,
+          79
+        ],
+        "rationale": "Tier follows explicit verse intersection in the same named chapter; no unweighted facet arithmetic.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ]
+      },
+      "objective_scope": {
+        "covered_units": 7,
+        "target_units": 11,
+        "coverage_ratio": 0.6363636363636364,
+        "same_chapter": true,
+        "unit": "explicit_verse_count",
+        "thresholds": {
+          "strict": 0.8,
+          "lenient": 0.6
+        }
+      }
+    },
+    {
+      "id": "D12",
+      "kind": "pair",
+      "partition": "development",
+      "title": "Explicit numeric scope",
+      "target_units": [
+        {
+          "id": "t5",
+          "text": "تفسير ص:3 البقرة ( 16 -6 ) تفسيرا تحليليا.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "67c82d86b6650dbec18980e6f37be8ae7f86adb00a660b165a40cad4fbb35a8d",
+            "source_pdf": "assets/course-specifications/quran-old-v39/2002204-2.pdf",
+            "page": 4,
+            "text_sha256": "3498f81a9580d0c2a34008e8bc8d33d1fd65ae06f9bd3731072ad1535879040d"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "s1",
+          "text": "دراسة تفسيرية تحليلية لسورة البقرة، الآيات6-10.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t5",
+          "source_id": "s1"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t5": [
+          {
+            "id": "f1",
+            "target_quote": "تفسير ص:3 البقرة ( 16 -6 ) تفسيرا تحليليا.",
+            "target_span": [
+              0,
+              42
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "partial",
+            "supporting_source_quotes": [
+              "دراسة تفسيرية تحليلية لسورة البقرة، الآيات6-10."
+            ],
+            "source_id": "s1"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "objective_control",
+        "tier_scored_for_accuracy": true,
+        "expected_tier": "weak",
+        "allowed_score_band": [
+          0,
+          59
+        ],
+        "rationale": "Tier follows explicit verse intersection in the same named chapter; no unweighted facet arithmetic.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ]
+      },
+      "objective_scope": {
+        "covered_units": 5,
+        "target_units": 11,
+        "coverage_ratio": 0.45454545454545453,
+        "same_chapter": true,
+        "unit": "explicit_verse_count",
+        "thresholds": {
+          "strict": 0.8,
+          "lenient": 0.6
+        }
+      }
+    },
+    {
+      "id": "D13",
+      "kind": "pair",
+      "partition": "development",
+      "title": "Explicit numeric scope",
+      "target_units": [
+        {
+          "id": "t5",
+          "text": "تفسير ص:3 البقرة ( 16 -6 ) تفسيرا تحليليا.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "67c82d86b6650dbec18980e6f37be8ae7f86adb00a660b165a40cad4fbb35a8d",
+            "source_pdf": "assets/course-specifications/quran-old-v39/2002204-2.pdf",
+            "page": 4,
+            "text_sha256": "3498f81a9580d0c2a34008e8bc8d33d1fd65ae06f9bd3731072ad1535879040d"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "s1",
+          "text": "دراسة تفسيرية تحليلية لسورة آل عمران، الآيات6-16.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t5",
+          "source_id": "s1"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t5": [
+          {
+            "id": "f1",
+            "target_quote": "تفسير ص:3 البقرة ( 16 -6 ) تفسيرا تحليليا.",
+            "target_span": [
+              0,
+              42
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "absent",
+            "supporting_source_quotes": [],
+            "source_id": "s1"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "objective_control",
+        "tier_scored_for_accuracy": true,
+        "expected_tier": "weak",
+        "allowed_score_band": [
+          0,
+          59
+        ],
+        "rationale": "Tier follows explicit verse intersection in the same named chapter; no unweighted facet arithmetic.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ]
+      },
+      "objective_scope": {
+        "covered_units": 0,
+        "target_units": 11,
+        "coverage_ratio": 0,
+        "same_chapter": false,
+        "unit": "explicit_verse_count",
+        "thresholds": {
+          "strict": 0.8,
+          "lenient": 0.6
+        }
+      }
+    },
+    {
+      "id": "D14",
+      "kind": "pair",
+      "partition": "development",
+      "title": "Explicit numeric scope",
+      "target_units": [
+        {
+          "id": "t9",
+          "text": "تفسير ص:7 البقرة ( 48 -38 ) تفسيرا تحليليا.",
+          "provenance": {
+            "kind": "authentic_pdf_topic_fragment",
+            "source_sha256": "67c82d86b6650dbec18980e6f37be8ae7f86adb00a660b165a40cad4fbb35a8d",
+            "source_pdf": "assets/course-specifications/quran-old-v39/2002204-2.pdf",
+            "page": 4,
+            "text_sha256": "83d4732fad60693afed54e50d7ffc53e0b0d6210c32411b065d1d03428ddac04"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "s1",
+          "text": "دراسة تفسيرية تحليلية لسورة البقرة، الآيات38-48.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t9",
+          "source_id": "s1"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t9": [
+          {
+            "id": "f1",
+            "target_quote": "تفسير ص:7 البقرة ( 48 -38 ) تفسيرا تحليليا.",
+            "target_span": [
+              0,
+              43
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "دراسة تفسيرية تحليلية لسورة البقرة، الآيات38-48."
+            ],
+            "source_id": "s1"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "objective_control",
+        "tier_scored_for_accuracy": true,
+        "expected_tier": "strict",
+        "allowed_score_band": [
+          80,
+          100
+        ],
+        "rationale": "Tier follows explicit verse intersection in the same named chapter; no unweighted facet arithmetic.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ]
+      },
+      "objective_scope": {
+        "covered_units": 11,
+        "target_units": 11,
+        "coverage_ratio": 1.0,
+        "same_chapter": true,
+        "unit": "explicit_verse_count",
+        "thresholds": {
+          "strict": 0.8,
+          "lenient": 0.6
+        }
+      }
+    },
+    {
+      "id": "D15",
+      "kind": "pair",
+      "partition": "development",
+      "title": "علوم الخلية",
+      "target_units": [
+        {
+          "id": "t1",
+          "text": "دراسة البناء الضوئي ومراحله.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "s1",
+          "text": "يقتصر هذا المقرر على التنفس الخلوي، ولا يتناول البناء الضوئي أو مراحله.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t1",
+          "source_id": "s1"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t1": [
+          {
+            "id": "f1",
+            "target_quote": "دراسة البناء الضوئي ومراحله.",
+            "target_span": [
+              0,
+              28
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "absent",
+            "supporting_source_quotes": [],
+            "source_id": "s1"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "objective_control",
+        "tier_scored_for_accuracy": true,
+        "expected_tier": "weak",
+        "allowed_score_band": [
+          0,
+          59
+        ],
+        "rationale": "Controlled literal inclusion, exclusion or unavailable input; identical title alone is not evidence.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ]
+      }
+    },
+    {
+      "id": "D16",
+      "kind": "pair",
+      "partition": "development",
+      "title": "توصيف غير مكتمل",
+      "target_units": [
+        {
+          "id": "t1",
+          "text": "تعريف العقد وأركانه وشروط صحته.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "s1",
+          "text": "التوصيف التفصيلي غير متاح؛ لم تُراجع مفرداته.",
+          "availability": "unavailable",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t1",
+          "source_id": "s1"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t1": [
+          {
+            "id": "f1",
+            "target_quote": "تعريف العقد ",
+            "target_span": [
+              0,
+              12
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "s1"
+          },
+          {
+            "id": "f2",
+            "target_quote": "وأركانه ",
+            "target_span": [
+              12,
+              20
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "s1"
+          },
+          {
+            "id": "f3",
+            "target_quote": "وشروط صحته.",
+            "target_span": [
+              20,
+              31
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "unknown",
+            "supporting_source_quotes": [],
+            "source_id": "s1"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "objective_control",
+        "tier_scored_for_accuracy": true,
+        "expected_tier": "uncertain",
+        "allowed_score_band": null,
+        "rationale": "Controlled literal inclusion, exclusion or unavailable input; identical title alone is not evidence.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ]
+      }
+    },
+    {
+      "id": "D17",
+      "kind": "pair",
+      "partition": "development",
+      "title": "القانون الإداري",
+      "target_units": [
+        {
+          "id": "t1",
+          "text": "تعريف القرار الإداري وخصائصه وأركانه.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "s1",
+          "text": "أركان الجريمة والعقوبة؛ ولا يتناول هذا المقطع القرار الإداري.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t1",
+          "source_id": "s1"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t1": [
+          {
+            "id": "f1",
+            "target_quote": "تعريف القرار الإداري ",
+            "target_span": [
+              0,
+              21
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "absent",
+            "supporting_source_quotes": [],
+            "source_id": "s1"
+          },
+          {
+            "id": "f2",
+            "target_quote": "وخصائصه ",
+            "target_span": [
+              21,
+              29
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "absent",
+            "supporting_source_quotes": [],
+            "source_id": "s1"
+          },
+          {
+            "id": "f3",
+            "target_quote": "وأركانه.",
+            "target_span": [
+              29,
+              37
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "absent",
+            "supporting_source_quotes": [],
+            "source_id": "s1"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "objective_control",
+        "tier_scored_for_accuracy": true,
+        "expected_tier": "weak",
+        "allowed_score_band": [
+          0,
+          59
+        ],
+        "rationale": "Controlled literal inclusion, exclusion or unavailable input; identical title alone is not evidence.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ]
+      }
+    },
+    {
+      "id": "D18",
+      "kind": "pair",
+      "partition": "development",
+      "title": "مبادئ القياس",
+      "target_units": [
+        {
+          "id": "t1",
+          "text": "تعريف القياس وأركانه وشروطه.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "s1",
+          "text": "يعرض هذا الجزء تعريف القياس وأركانه وشروطه دون إغفال أي منها.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t1",
+          "source_id": "s1"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t1": [
+          {
+            "id": "f1",
+            "target_quote": "تعريف القياس ",
+            "target_span": [
+              0,
+              13
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "يعرض هذا الجزء تعريف القياس وأركانه وشروطه دون إغفال أي منها."
+            ],
+            "source_id": "s1"
+          },
+          {
+            "id": "f2",
+            "target_quote": "وأركانه ",
+            "target_span": [
+              13,
+              21
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "يعرض هذا الجزء تعريف القياس وأركانه وشروطه دون إغفال أي منها."
+            ],
+            "source_id": "s1"
+          },
+          {
+            "id": "f3",
+            "target_quote": "وشروطه.",
+            "target_span": [
+              21,
+              28
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "يعرض هذا الجزء تعريف القياس وأركانه وشروطه دون إغفال أي منها."
+            ],
+            "source_id": "s1"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "objective_control",
+        "tier_scored_for_accuracy": true,
+        "expected_tier": "strict",
+        "allowed_score_band": [
+          80,
+          100
+        ],
+        "rationale": "Controlled literal inclusion, exclusion or unavailable input; identical title alone is not evidence.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ]
+      }
+    },
+    {
+      "id": "D19",
+      "kind": "scenario",
+      "partition": "development",
+      "title": "Complete contents split into two target rows but one source row",
+      "target_units": [
+        {
+          "id": "t1",
+          "text": "تفسير الاستعاذة.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        },
+        {
+          "id": "t2",
+          "text": "تفسير البسملة.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "s1",
+          "text": "تفسير الاستعاذة والبسملة.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t1",
+          "source_id": "s1"
+        },
+        {
+          "target_id": "t2",
+          "source_id": "s1"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t1": [
+          {
+            "id": "f1",
+            "target_quote": "تفسير الاستعاذة.",
+            "target_span": [
+              0,
+              16
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "تفسير الاستعاذة والبسملة."
+            ],
+            "source_id": "s1"
+          }
+        ],
+        "t2": [
+          {
+            "id": "f1",
+            "target_quote": "تفسير البسملة.",
+            "target_span": [
+              0,
+              14
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "تفسير الاستعاذة والبسملة."
+            ],
+            "source_id": "s1"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "reviewer_constraint_not_gold",
+        "tier_scored_for_accuracy": false,
+        "expected_tier": null,
+        "allowed_score_band": null,
+        "rationale": "Both subjects exist. One-to-one matching is1/2; do not double-count or equate segmentation with academic absence.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ],
+        "forbid_unjustified_complete_coverage_claim": true,
+        "unweighted_facets_must_not_be_converted_to_percentage": true
+      },
+      "matching_constraints": {
+        "individually_supported_targets": 2,
+        "maximum_distinct_source_matching": 1,
+        "segmentation_review_required": true
+      }
+    },
+    {
+      "id": "D20",
+      "kind": "scenario",
+      "partition": "development",
+      "title": "Generator omitted a directly supported alternate source",
+      "target_units": [
+        {
+          "id": "t1",
+          "text": "تفسير البسملة.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "source_units": [
+        {
+          "id": "s1",
+          "text": "تفسير الاستعاذة فقط.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        },
+        {
+          "id": "s2",
+          "text": "شرح معاني البسملة وتفسيرها.",
+          "availability": "available",
+          "provenance": {
+            "kind": "controlled_synthetic_not_university_data"
+          }
+        }
+      ],
+      "fixed_pairs": [
+        {
+          "target_id": "t1",
+          "source_id": "s1"
+        }
+      ],
+      "allow_source_union": false,
+      "target_facets": {
+        "t1": [
+          {
+            "id": "f1",
+            "target_quote": "تفسير البسملة.",
+            "target_span": [
+              0,
+              14
+            ],
+            "weight": null,
+            "materiality": "explicit_target_requirement_not_numerically_weighted",
+            "expected_grounding": "supported",
+            "supporting_source_quotes": [
+              "شرح معاني البسملة وتفسيرها."
+            ],
+            "source_id": "s2"
+          }
+        ]
+      },
+      "expectation": {
+        "label_authority": "objective_control",
+        "tier_scored_for_accuracy": true,
+        "expected_tier": "strict",
+        "allowed_score_band": [
+          80,
+          100
+        ],
+        "rationale": "The alternate s2 directly covers the target; rejecting solely from proposed s1 would be a false rejection.",
+        "required_process_constraints": [
+          "literal_target_and_source_grounding",
+          "no_other_unit_borrowing"
+        ]
+      },
+      "alternative_pair_required": {
+        "target_id": "t1",
+        "source_id": "s2"
+      }
+    }
+  ],
+  "amendments_before_evaluation": [
+    {
+      "at": "2026-11-02T21:13:14.465186+00:00",
+      "prior_development_sha256": "b48e6bc8ee5b1cc8e8fa1064795f322b0904c05c6a77326ca847a76416b8edf0",
+      "before_any_v6_model_outputs": true,
+      "case_id": "D03",
+      "facet_id": "f1",
+      "change": "supported -> unknown; remove unsupported source quote",
+      "reason": "First target slice includes definition of administrative decision, but the authentic source gives only the heading administrative decisions; a heading does not explicitly support its definition. This corrects annotation bookkeeping, not a model-dependent threshold."
+    }
+  ]
+}

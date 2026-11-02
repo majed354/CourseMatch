@@ -1,0 +1,1593 @@
+{
+  "batch_id": "full-reference-visual-first-five-20261102",
+  "catalog_base_id": "9702460083612d14a2ff7139173ccc9f487eda4ee77e16db8a9ad9de34dae960",
+  "review_protocol": "All nine topic-table pages rendered and independently viewed by root. Printed row numbers define units; mixed midterm/topic rows retain the topic; totals, standalone exams and generic revision activities are excluded. All original raw readings retained.",
+  "entries": [
+    {
+      "course_ids": [
+        "49c867153dc636a6fa8c"
+      ],
+      "name": "المحاماة وأخلاقيات المهنة",
+      "source_pdf": "assets/course-specifications/systems-source-2022/2003216-2.pdf",
+      "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+      "previous_topics_sha256": "0185c75eadc8be04fda38766dc966c79c7e1af27d02a523050ee3ae6a1745b00",
+      "topics": [
+        {
+          "text": "تعرف مهنة المحاماة وبان الأسس الت تموم علها مهنة المحاماة.",
+          "page": 6,
+          "bbox": [
+            157.27199732462566,
+            366.1099822998047,
+            489.8000030517578,
+            401.5099822998047
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "1",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t1",
+          "corrected_text": "تعريف مهنة المحاماة وبيان الأسس التي تقوم عليها مهنة المحاماة.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+          "raw_text_sha256": "c2c850102b0b9d1d07a503f337c106f01b5ced4ec3ab9102b77d32f6f300d649"
+        },
+        {
+          "text": "التطور التارخ لمهنة المحاماة",
+          "page": 6,
+          "bbox": [
+            157.27199732462566,
+            402.1099822998047,
+            489.8000030517578,
+            420.1099884033203
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "2",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t2",
+          "corrected_text": "التطور التاريخي لمهنة المحاماة.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+          "raw_text_sha256": "7c97118a49f807bc5194d3484729ba939af4d78e734eff73888904080d3810b5"
+        },
+        {
+          "text": "التنظم المانون لمهنة المحاماة من حث بان شروط مزاولة مهنة المحاماة، وشروط المد ف سجل المحامن.",
+          "page": 6,
+          "bbox": [
+            157.27199732462566,
+            420.7099884033203,
+            489.8000030517578,
+            455.9899932861328
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "3",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t3",
+          "corrected_text": "التنظيم القانوني للمحاماة من حيث بيان شروط مزاولة مهنة المحاماة، وشروط القيد في سجل المحامين.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+          "raw_text_sha256": "c92ea17245bbac3fa1373d639fb236065e8eea070d42ab59e59aa99f00e86a36"
+        },
+        {
+          "text": "المواعد المنظمة لأسالب مزاولة مهنة المحاماة -التنظم الإداري لمهنة المحاماة.",
+          "page": 6,
+          "bbox": [
+            157.27199732462566,
+            456.5899932861328,
+            489.8000030517578,
+            492.00997467041014
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "4",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t4",
+          "corrected_text": "القواعد المنظمة لأساليب مزاولة مهنة المحاماة - التنظيم الإداري لمهنة المحاماة.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+          "raw_text_sha256": "7774af0503d5a781dd46acc5dd003d9d47fd5d40e783f7c886d34434b24e4722"
+        },
+        {
+          "text": "الجهة المختصة بتنظم المحاماة إدارا- الرلابة المضائة ف مجال تنظم مهنة المحاماة",
+          "page": 6,
+          "bbox": [
+            157.27199732462566,
+            492.60997467041017,
+            489.8000030517578,
+            527.8899719238282
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "5",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t5",
+          "corrected_text": "الجهة المختصة بتنظيم المحاماة إداريًا - الرقابة القضائية في مجال تنظيم مهنة المحاماة.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+          "raw_text_sha256": "af092aeec86b64591d2e38e08ac9b744ef0b7b83af766e70e297af2366735350"
+        },
+        {
+          "text": "واجبات وحموق المحامن تجاه مهنة المحاماة والمضاء والموكل.( الواجبات الاجابة)",
+          "page": 6,
+          "bbox": [
+            157.27199732462566,
+            528.4899719238281,
+            489.8000030517578,
+            564.0185424804688
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "6",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t6",
+          "corrected_text": "واجبات وحقوق المحامين تجاه مهنة المحاماة والقضاء والموكل (الواجبات الإيجابية).",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+          "raw_text_sha256": "ec8313079a24e4dec968b13c87f1beb6e47ed6621a94adfa527545c07c8961bd"
+        },
+        {
+          "text": "الاختبار النصف الواجبات السلبة",
+          "page": 6,
+          "bbox": [
+            157.27199732462566,
+            564.6185424804687,
+            489.8000030517578,
+            599.7528302873884
+          ],
+          "hours_raw": "1 1",
+          "source_row_numbers": "7",
+          "row_basis": "explicit_number_column_geometry",
+          "corrected_text": "الواجبات السلبية.",
+          "mixed_assessment_row": true,
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "id": "t7",
+          "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+          "raw_text_sha256": "98d47ad4229ad6f624070b0969c285d7af1ae1b9ffe6493b2e225ac589ec0229"
+        },
+        {
+          "text": "مفهوم الوكالة بالخصومة -الأحكام الشرعة والنظامة للوكالة بالخصومة -أنواع الوكالة بالخصومة -انعماد الوكالة بالخصومة -شكل وصا ة التوكل.",
+          "page": 6,
+          "bbox": [
+            157.27199732462566,
+            600.3528302873883,
+            489.8000030517578,
+            649.3299743652344
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "8",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t8",
+          "corrected_text": "مفهوم الوكالة بالخصومة - الأحكام الشرعية والنظامية للوكالة بالخصومة - أنواع الوكالة بالخصومة - انعقاد الوكالة بالخصومة - شكل وصياغة التوكيل.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+          "raw_text_sha256": "52e22a08522e4316a933fdd29ee8b7ec258aedac4324a14b2a9d0e29e3ec8efe"
+        },
+        {
+          "text": "المسئولة التأدبة للمحام: تأدب المحامن -الدعوى التأدبة -الأحكام المنظمة للدعوى التأدبة -الجهة المختصة بنظر الدعوى التأدبة.",
+          "page": 6,
+          "bbox": [
+            157.27199732462566,
+            649.9299743652343,
+            489.8000030517578,
+            685.3600036621094
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "9",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t9",
+          "corrected_text": "المسؤولية التأديبية للمحامي: تأديب المحامين - الدعوى التأديبية - الأحكام المنظمة للدعوى التأديبية - الجهة المختصة بنظر الدعوى التأديبية.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+          "raw_text_sha256": "16f72c8db2cfc964903a2f6c474da48fdeccd6e7a5b3ba36dac4beaca5749072"
+        },
+        {
+          "text": "إجراءات التأدب- العموبات التأدبة، وطرق الطعن فها.",
+          "page": 6,
+          "bbox": [
+            157.27199732462566,
+            685.9600036621093,
+            489.8000030517578,
+            703.8399841308594
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "10",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t10",
+          "corrected_text": "إجراءات التأديب، العقوبات التأديبية، وطرق الطعن فيها.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+          "raw_text_sha256": "42ae4d5fe9d3d5f34fade11fb445da24127c9fe04dd2a88c1ba0f33d0204c832"
+        },
+        {
+          "text": "المسئولة المدنة للمحام: مسؤولة المحام بالتعول عن الضرر الناجم عن أخطائه المهنة.",
+          "page": 6,
+          "bbox": [
+            157.27199732462566,
+            704.4399841308593,
+            489.8000030517578,
+            739.8399841308594
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "11",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t11",
+          "corrected_text": "المسؤولية المدنية للمحامي: مسؤولية المحامي بالتعويض عن الضرر الناجم عن أخطائه المهنية.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+          "raw_text_sha256": "022493f1413e719010ac18e32eb4cf56a697ab012b44e6cd41aed0f74165933f"
+        },
+        {
+          "text": "مفهوم إخلال المحام بواجبه المهن.",
+          "page": 6,
+          "bbox": [
+            157.27199732462566,
+            740.4399841308593,
+            489.8000030517578,
+            758.315966796875
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "12",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t12",
+          "corrected_text": "مفهوم إخلال المحامي بواجبه المهني.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+          "raw_text_sha256": "4ab842430d34c4bab6ffe6ceb1f2c3641364ac0474171dd5f27dd6e8f3ecc9ce"
+        },
+        {
+          "text": "طبعة الالتزام المهن للمحام.",
+          "page": 7,
+          "bbox": [
+            157.6666662428114,
+            72.65997663225446,
+            489.8000030517578,
+            90.53999633789063
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "13",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t13",
+          "corrected_text": "طبيعة الالتزام المهني للمحامي.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+          "raw_text_sha256": "5b42be943d20214f860bc732fbd82f4e7a3e54d3701dd661e856f73deda028bd"
+        },
+        {
+          "text": "مسؤولة المحام ف التعول عن الضرر الفعل، والضرر المباشر",
+          "page": 7,
+          "bbox": [
+            157.6666662428114,
+            91.13999633789062,
+            489.8000030517578,
+            109.15999145507813
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "14",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t14",
+          "corrected_text": "مسؤولية المحامي في التعويض عن الضرر الفعلي، والضرر المباشر.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+          "raw_text_sha256": "bc19071f3004f9876c56c45f9a3b910a2993f230a0d2f609320e0dc8a7865408"
+        },
+        {
+          "text": "حالات انمضاء الدعوى التأدبة، والعموبات التأدبة",
+          "page": 7,
+          "bbox": [
+            157.6666662428114,
+            109.75999145507812,
+            489.8000030517578,
+            127.63997192382813
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "15",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t15",
+          "corrected_text": "حالات انقضاء الدعوى التأديبية، والعقوبات التأديبية.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a",
+          "raw_text_sha256": "1cac76d6b6769d119720cba25ae97f91f0e80aca74d228666d5ffbb92c936a0c"
+        }
+      ],
+      "review_pages": [
+        6,
+        7
+      ],
+      "review_kind": "visual_source_transcription",
+      "excluded_rows": [
+        {
+          "text": "الاختبار النهائ",
+          "page": 7,
+          "bbox": [
+            157.6666662428114,
+            128.23997192382814,
+            489.8000030517578,
+            146.44570138113838
+          ],
+          "hours_raw": "",
+          "source_row_numbers": "16",
+          "row_basis": "explicit_number_column_geometry",
+          "reason": "اختبار أو مراجعة فقط؛ ليس مفردة موضوعية"
+        }
+      ],
+      "approved_by": "root_visual_review_after_agent_transcription"
+    },
+    {
+      "course_ids": [
+        "59baed5a6393b3fd6992"
+      ],
+      "name": "وسائل الإثبات",
+      "source_pdf": "assets/course-specifications/systems-source-2022/2003352-2.pdf",
+      "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+      "previous_topics_sha256": "706a6edb2eacb9ff69d4b7df206763309f7f3c0689bdc33f35fba8dda3b2af6f",
+      "topics": [
+        {
+          "text": "المواعد الموضوعة العامة للإثباتو عناصر الاثبات المضائو شروطهو من تحمل عبء الاثبات.",
+          "page": 5,
+          "bbox": [
+            143.44000244140625,
+            434.74998931884767,
+            489.8000030517578,
+            478.08997650146483
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "1",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t1",
+          "corrected_text": "القواعد الموضوعية العامة للإثبات، عناصر الإثبات القضائي، شروطه، من يتحمل عبء الإثبات.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+          "raw_text_sha256": "4078cfc78c2f3fc31b80f0a9e6ad7ffcb49944f3d5d82ab0078dafb00e76b7f5"
+        },
+        {
+          "text": "الخصوم وحمهم ف الإثبات ودور الماض ف الإثبات. مدى تعلك لواعد الإثبات بالنظام العام",
+          "page": 5,
+          "bbox": [
+            143.44000244140625,
+            478.68997650146486,
+            489.8000030517578,
+            522.0099670410157
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "2",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t2",
+          "corrected_text": "الخصوم وحقهم في الإثبات ودور القاضي في الإثبات. مدى تعلق قواعد الإثبات بالنظام العام.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+          "raw_text_sha256": "c5cd3afd8c8eb2c22643b0a1f5868b1797254d8e1c544018196d5af36718ace7"
+        },
+        {
+          "text": "الالرار المضائو تعرفهو خصائصهو شروطهو أركانهو آثاره.",
+          "page": 5,
+          "bbox": [
+            143.44000244140625,
+            522.6099670410156,
+            489.8000030517578,
+            548.6499816894532
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "3",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t3",
+          "corrected_text": "الإقرار القضائي، تعريفه، خصائصه، شروطه، أركانه، آثاره.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+          "raw_text_sha256": "dc30aaddc794c2b17b1c877d33dbd825476357424d8b12baadb63fd8cab3238e"
+        },
+        {
+          "text": "طرق الاثبات التملدة ( الكتابة- المنو المعانةو شهادة الشهودو الخبرةو المرائن) الكتابة كطرك أصلى من طرق الإثبات تعرفها وأهمتها ومجال الإثبات بالكتابة.",
+          "page": 5,
+          "bbox": [
+            143.44000244140625,
+            549.2499816894531,
+            489.8000030517578,
+            635.2899963378907
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "4",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t4",
+          "corrected_text": "طرق الإثبات التقليدية (الكتابة - اليمين، المعاينة، شهادة الشهود، الخبرة، القرائن). الكتابة كطريق أصلي من طرق الإثبات تعريفها وأهميتها ومجال الإثبات بالكتابة.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+          "raw_text_sha256": "8904c8fe4af56d8d719f42118657df06c1aabeb0487e11df7fc56e703bf77626"
+        },
+        {
+          "text": "الأوراق الرسمة والعرفة وحجة كل منهما ف الاثبات.",
+          "page": 5,
+          "bbox": [
+            143.44000244140625,
+            635.8899963378906,
+            489.8000030517578,
+            661.8399841308594
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "5",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t5",
+          "corrected_text": "الأوراق الرسمية والعرفية وحجية كل منهما في الإثبات.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+          "raw_text_sha256": "53202ca8b91fcd8ad60d10b404589dd01cb84e556860b313a9c547cfa0d8526f"
+        },
+        {
+          "text": "شهادة الشهود التعرف بالشهادة ونطاق الإثبات بالشهادة واجراءات الإثبات بالشهادة",
+          "page": 5,
+          "bbox": [
+            143.44000244140625,
+            662.4399841308593,
+            489.8000030517578,
+            713.7999755859375
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "6",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t6",
+          "corrected_text": "شهادة الشهود. التعريف بالشهادة ونطاق الإثبات بالشهادة وإجراءات الإثبات بالشهادة.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+          "raw_text_sha256": "50e22beb9eaec9a2040a2469f835091e84e39af64f8b9575c9a9d673f39cb625"
+        },
+        {
+          "text": "الاختبار النصف المرائن وحجة الشء المحكوم فه وأنواعها والتعرف بالحجة وشروطها",
+          "page": 5,
+          "bbox": [
+            143.44000244140625,
+            714.3999755859375,
+            489.8000030517578,
+            765.6359741210938
+          ],
+          "hours_raw": "1 1",
+          "source_row_numbers": "7",
+          "row_basis": "explicit_number_column_geometry",
+          "corrected_text": "القرائن وحجية الشيء المحكوم فيه وأنواعها والتعريف بالحجية وشروطها.",
+          "mixed_assessment_row": true,
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "id": "t7",
+          "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+          "raw_text_sha256": "c18d1dc77e9dd89afc337268e4a280221934ae712906b61deef7bd67e3e67e6d"
+        },
+        {
+          "text": "المعانة والخبرة كطرق للإثبات",
+          "page": 6,
+          "bbox": [
+            143.44000244140625,
+            72.65997663225446,
+            489.8000030517578,
+            98.59999389648438
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "8",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t8",
+          "corrected_text": "المعاينة والخبرة كطرق للإثبات.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+          "raw_text_sha256": "0c1534a3473f109578e4e4516d9496db871feb9844a1216b88e52b1814924cc1"
+        },
+        {
+          "text": "المن وأنواعه المن الحاسمة والمن المتممة",
+          "page": 6,
+          "bbox": [
+            143.44000244140625,
+            99.19999389648437,
+            489.8000030517578,
+            125.11998291015625
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "9",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t9",
+          "corrected_text": "اليمين وأنواعه اليمين الحاسمة واليمين المتممة.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+          "raw_text_sha256": "ebf6581d31fe5ec4e869a858bb55ce31c2a3cdbb1500be9a80c1814575c59bcc"
+        },
+        {
+          "text": "الاثبات عبر الوسائل الحدثة( الكتابة الالكترونة)",
+          "page": 6,
+          "bbox": [
+            143.44000244140625,
+            125.71998291015625,
+            489.8000030517578,
+            151.6399719238281
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "10",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t10",
+          "corrected_text": "الإثبات عبر الوسائل الحديثة (الكتابة الإلكترونية).",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+          "raw_text_sha256": "8c6f82d02b09fef390a990fb71060da71943ce8e895024f143cf287ae1704969"
+        },
+        {
+          "text": "التعاملات الالكترونة ف النظام المانون السعودي.",
+          "page": 6,
+          "bbox": [
+            143.44000244140625,
+            152.23997192382814,
+            489.8000030517578,
+            178.2799865722656
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "11",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t11",
+          "corrected_text": "التعاملات الإلكترونية في النظام القانوني السعودي.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+          "raw_text_sha256": "ec4804271d0cbee40e78289438f5cb107fcf55171323b2112a383f6827fbc1f2"
+        },
+        {
+          "text": "التولع الالكترونو التوثك الالكترون)",
+          "page": 6,
+          "bbox": [
+            143.44000244140625,
+            178.87998657226564,
+            489.8000030517578,
+            204.8000061035156
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "12",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t12",
+          "corrected_text": "التوقيع الإلكتروني، التوثيق الإلكتروني.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+          "raw_text_sha256": "9a893abe875a860714012825970c5364cd8723387d4a06402007fe4fa4d74979"
+        },
+        {
+          "text": "شروط عرض السجلات والبانات الالكترونة",
+          "page": 6,
+          "bbox": [
+            143.44000244140625,
+            205.40000610351564,
+            489.8000030517578,
+            223.3999816894531
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "13",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t13",
+          "corrected_text": "شروط عرض السجلات والبيانات الإلكترونية.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+          "raw_text_sha256": "962bf20a5668da67d8079f31d0ebbff798c7ddd8b955e25cf2f5e6a70fef3c76"
+        },
+        {
+          "text": "التولع الالكترون ف النظام المانون السعوديو تعرفهو شروطهو صورهو آثارهو اجراءاته. وحجته ف الاثبات.",
+          "page": 6,
+          "bbox": [
+            143.44000244140625,
+            223.99998168945314,
+            489.8000030517578,
+            259.3999816894531
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "14",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t14",
+          "corrected_text": "التوقيع الإلكتروني في النظام القانوني السعودي، تعريفه، شروطه، صوره، آثاره، إجراءاته، وحجيته في الإثبات.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+          "raw_text_sha256": "53443469bc0f97976eacd2bf6b493ecd832fb5582f7ff8be84cc858e0a755f0f"
+        },
+        {
+          "text": "التصدك الرلم ف النظام المانون السعودي دور هئة الاتصالات وتمنة المعلومات والمركز الوطن بشأن التصدك الرلمو شهادة التصدك و مسؤولات صاحب الشهادة الالكترونة.",
+          "page": 6,
+          "bbox": [
+            143.44000244140625,
+            259.99998168945314,
+            489.8000030517578,
+            320.74998779296874
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "15",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t15",
+          "corrected_text": "التصديق الرقمي في النظام القانوني السعودي. دور هيئة الاتصالات وتقنية المعلومات والمركز الوطني بشأن التصديق الرقمي، شهادة التصديق، مسؤوليات صاحب الشهادة الإلكترونية.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9",
+          "raw_text_sha256": "72a47400bbf1403261da841a763eff1939c45f602a6f3336143443821c3efc3d"
+        }
+      ],
+      "review_pages": [
+        5,
+        6
+      ],
+      "review_kind": "visual_source_transcription",
+      "excluded_rows": [
+        {
+          "text": "الاختبار النهائ",
+          "page": 6,
+          "bbox": [
+            143.44000244140625,
+            321.34998779296876,
+            489.8000030517578,
+            339.133984375
+          ],
+          "hours_raw": "",
+          "source_row_numbers": "16",
+          "row_basis": "explicit_number_column_geometry",
+          "reason": "اختبار أو مراجعة فقط؛ ليس مفردة موضوعية"
+        }
+      ],
+      "approved_by": "root_visual_review_after_agent_transcription"
+    },
+    {
+      "course_ids": [
+        "9019ab69aacd7da5d0bf",
+        "ffb71d524359fabe65b6"
+      ],
+      "name": "النظام الجزائي الخاص",
+      "source_pdf": "assets/course-specifications/systems-source-2022/2003323-3.pdf",
+      "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+      "previous_topics_sha256": "030609074e4c255654453e611e67ed73a100d79675f53c69ebffe5be46b8807c",
+      "topics": [
+        {
+          "text": "ممدمة حول المانون الجنائ الخاص وألسام الجرائم ف الشرعة وتمنن جرائم التعازر",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            395.6299713134766,
+            482.1799949645996,
+            431.0299789428711
+          ],
+          "hours_raw": "3",
+          "source_row_numbers": "1",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t1",
+          "corrected_text": "مقدمة حول القانون الجنائي الخاص وأقسام الجرائم في الشريعة وتقنين جرائم التعازير.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+          "raw_text_sha256": "6560335e5d0ab3395e895d4b269f752e03348abbe12d22c955eed5741d82f97b"
+        },
+        {
+          "text": "التعرف بالرشوة وأطرافها والمنهج التشرع ف تجرمها وتطور تجرمها ف المملكة",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            431.6299789428711,
+            482.1799949645996,
+            467.04999084472655
+          ],
+          "hours_raw": "3",
+          "source_row_numbers": "2",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t2",
+          "corrected_text": "التعريف بالرشوة وأطرافها والمنهج التشريعي في تجريمها وتطور تجريمها في المملكة.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+          "raw_text_sha256": "44324a6528266ae75955a35c9581047d165bbbcb257a1dbb51245f0072b186bb"
+        },
+        {
+          "text": "مفهوم الموظف العام ف الرشوة والطوائف الت ف حكمه وولت توافر الصفة ف المرتش",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            467.6499908447266,
+            482.1799949645996,
+            502.92999572753905
+          ],
+          "hours_raw": "3",
+          "source_row_numbers": "3",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t3",
+          "corrected_text": "مفهوم الموظف العام في الرشوة والوظائف التي في حكمه ووقت توافر الصفة في المرتشي.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+          "raw_text_sha256": "8b4d5aaa64ab581ccd3437b4f50cd4740abb01dfd27dfdc5e9ee6691b04b1fac"
+        },
+        {
+          "text": "الاختصاص الوظف للمرتش",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            503.5299957275391,
+            482.1799949645996,
+            521.5299865722657
+          ],
+          "hours_raw": "3",
+          "source_row_numbers": "4",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t4",
+          "corrected_text": "الاختصاص الوظيفي للمرتشي.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+          "raw_text_sha256": "7614c43262ecdb8df8755608a77c7b2b7ad622eb6995cf693ab9e1340f08649a"
+        },
+        {
+          "text": "الركن المادي لجرمة الرشوة",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            522.1299865722656,
+            482.1799949645996,
+            540.1299621582032
+          ],
+          "hours_raw": "3",
+          "source_row_numbers": "5",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t5",
+          "corrected_text": "الركن المادي لجريمة الرشوة.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+          "raw_text_sha256": "f7f817c791961200ff602741bcc94365b7a2cdd18be2cf45f5dc1973dd5b7d6a"
+        },
+        {
+          "text": "الركن المعنوي لجرمة الرشوة",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            540.7299621582031,
+            482.1799949645996,
+            558.6100036621094
+          ],
+          "hours_raw": "3",
+          "source_row_numbers": "6",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t6",
+          "corrected_text": "الركن المعنوي لجريمة الرشوة.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+          "raw_text_sha256": "5d636a8f6a61107c7d58ab097dcc8c116819143f6be39d731c515a418e88a917"
+        },
+        {
+          "text": "الاختبار النصف العماب على الرشوة",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            559.2100036621093,
+            482.1799949645996,
+            594.6100036621094
+          ],
+          "hours_raw": "1 2",
+          "source_row_numbers": "7",
+          "row_basis": "explicit_number_column_geometry",
+          "corrected_text": "العقاب على الرشوة.",
+          "mixed_assessment_row": true,
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "id": "t7",
+          "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+          "raw_text_sha256": "cad55172dc0c897e913f6c593c73479dececf1b6f9a0b1968f65d938a022bbd4"
+        },
+        {
+          "text": "الجرائم الملحمة بالرشوة",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            595.2100036621093,
+            482.1799949645996,
+            613.2099792480469
+          ],
+          "hours_raw": "3",
+          "source_row_numbers": "8",
+          "row_basis": "explicit_number_column_geometry",
+          "corrected_text": "الجرائم الملحقة بالرشوة.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "id": "t8",
+          "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+          "raw_text_sha256": "d40654a7fcb45205192b176936094915a8204a0f96d79bbc8bcfd30c9d940201"
+        },
+        {
+          "text": "جرائم التزف والتزور",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            613.8099792480468,
+            482.1799949645996,
+            631.8099853515625
+          ],
+          "hours_raw": "3",
+          "source_row_numbers": "9",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t9",
+          "corrected_text": "جرائم التزييف والتزوير.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+          "raw_text_sha256": "4d8e116e8bfd72544d740c80505428f39d087ea601c1e6490ad8679658497171"
+        },
+        {
+          "text": "جرائم التزف",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            632.4099853515625,
+            482.1799949645996,
+            650.30498046875
+          ],
+          "hours_raw": "3",
+          "source_row_numbers": "10",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t10",
+          "corrected_text": "جرائم التزييف.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+          "raw_text_sha256": "e381e237f5d3f367b869e650d066065049871deecfc4b0b6aa844656f3e3f5b5"
+        },
+        {
+          "text": "الجرائم المرتبطة بتزف العملات أو تملدها",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            650.90498046875,
+            482.1799949645996,
+            668.919970703125
+          ],
+          "hours_raw": "3",
+          "source_row_numbers": "11",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t11",
+          "corrected_text": "الجرائم المرتبطة بتزييف العملات أو تقليدها.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+          "raw_text_sha256": "86739ebeb4c59e2169ba575baafb2c3bf7e66c61c2bfa68c197721fd4f0985ae"
+        },
+        {
+          "text": "طرق التزور المادي",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            669.519970703125,
+            482.1799949645996,
+            687.5199768066407
+          ],
+          "hours_raw": "3",
+          "source_row_numbers": "12",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t12",
+          "corrected_text": "طرق التزوير المادي.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+          "raw_text_sha256": "74a0551464c30ca85c8d86ea57e32b83ba222c1b19df8d85560e06bcca367d48"
+        },
+        {
+          "text": "طرق التزور المعنوي",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            688.1199768066406,
+            482.1799949645996,
+            706.1199981689454
+          ],
+          "hours_raw": "3",
+          "source_row_numbers": "13",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t13",
+          "corrected_text": "طرق التزوير المعنوي.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+          "raw_text_sha256": "9d780953101271869da066da289325bed9f4bef447df5e59a159cb5f15cb905b"
+        },
+        {
+          "text": "( جرائم الشن)جرمة سحب شن لس له ممابل وفا",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            706.7199981689453,
+            482.1799949645996,
+            724.5999786376954
+          ],
+          "hours_raw": "3",
+          "source_row_numbers": "14",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t14",
+          "corrected_text": "(جرائم الشيك) جريمة سحب شيك ليس له مقابل وفاء.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+          "raw_text_sha256": "ad5095d20b900548e66e7c8d47f3dc17660666470bafc2e50691dc6dc148d5b9"
+        },
+        {
+          "text": "العموبات",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            725.1999786376953,
+            482.1799949645996,
+            743.1960021972657
+          ],
+          "hours_raw": "3",
+          "source_row_numbers": "15",
+          "row_basis": "explicit_number_column_geometry",
+          "corrected_text": "العقوبات.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "id": "t15",
+          "source_sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3",
+          "raw_text_sha256": "9355959110c548bfddd07c0361138944659036c7354aa3a7b705a0974b157a0c"
+        }
+      ],
+      "review_pages": [
+        6
+      ],
+      "review_kind": "visual_source_transcription",
+      "excluded_rows": [
+        {
+          "text": "الاختبار النهائ",
+          "page": 6,
+          "bbox": [
+            157.366313131232,
+            743.7960021972656,
+            482.1799949645996,
+            761.6759870256697
+          ],
+          "hours_raw": "",
+          "source_row_numbers": "16",
+          "row_basis": "explicit_number_column_geometry",
+          "reason": "اختبار أو مراجعة فقط؛ ليس مفردة موضوعية"
+        }
+      ],
+      "approved_by": "root_visual_review_after_agent_transcription"
+    },
+    {
+      "course_ids": [
+        "c4fe1c643fdf040fcca2"
+      ],
+      "name": "تدريبات قانونية",
+      "source_pdf": "assets/course-specifications/systems-source-2022/2003404-2.pdf",
+      "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+      "previous_topics_sha256": "3e9a5177adb8eb21cc1a69cbe63dc1584710025397b4be36322c93257683fdcc",
+      "topics": [
+        {
+          "text": "بان أهمة دراسة المواضع المتعلقة بالتدربات القانونة",
+          "page": 5,
+          "bbox": [
+            149.20000076293945,
+            408.7099884033203,
+            495.5699996948242,
+            434.7499725341797
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "4",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t1",
+          "corrected_text": "بيان أهمية دراسة المواضيع المتعلقة بالتدريبات القانونية.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+          "raw_text_sha256": "ee8ae3665720c5d100e2117f02ff66994bb7ce9dc93861a7a82975a2edfc8de5"
+        },
+        {
+          "text": "كفة استخدام المراجع الشرعة والنظامة فماخص المادة العلمة.",
+          "page": 5,
+          "bbox": [
+            149.20000076293945,
+            435.3499725341797,
+            495.5699996948242,
+            461.289973449707
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "2",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t2",
+          "corrected_text": "كيفية استخدام المراجع الشرعية والنظامية فيما يخص المادة العلمية.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+          "raw_text_sha256": "16529988219243fbacab931dadd69f2997982d5fb790625fd13cbc0bed98f063"
+        },
+        {
+          "text": "ماهة الدعوى – أنواع الدعاوى – شروط رفع الدعوى – طرق إعلان الدعوى.( نظري )",
+          "page": 5,
+          "bbox": [
+            149.20000076293945,
+            461.88997344970704,
+            495.5699996948242,
+            505.3299896240234
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "3",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t3",
+          "corrected_text": "ماهية الدعوى - أنواع الدعاوى - شروط رفع الدعوى - طرق إعلان الدعوى (نظري).",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+          "raw_text_sha256": "bd2a1d48058a454159ec679dbc73610022ef78721d7c3fb90e682f70dfc36447"
+        },
+        {
+          "text": "كفة صاغة وتحرر صحفة الدعوى وبان البنود المتطلبة لشكل صحفة الدعوى من حث الدباجة وموضوع الدعوى والأساند القانونة والطلبات الختامة.",
+          "page": 5,
+          "bbox": [
+            149.20000076293945,
+            505.92998962402345,
+            495.5699996948242,
+            566.6499816894532
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "4",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t4",
+          "corrected_text": "كيفية صياغة وتحرير صحيفة الدعوى وبيان البنود المتطلبة لشكل صحيفة الدعوى من حيث الديباجة وموضوع الدعوى والأسانيد القانونية والطلبات الختامية.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+          "raw_text_sha256": "858941655d23744cd25c1149cb051a46710f9ac5ba2338821ddcea23a8954004"
+        },
+        {
+          "text": "الطلبات الأصلة والطلبات العارضة",
+          "page": 5,
+          "bbox": [
+            149.20000076293945,
+            567.2499816894531,
+            495.5699996948242,
+            593.169970703125
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "5",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t5",
+          "corrected_text": "الطلبات الأصلية والطلبات العارضة.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+          "raw_text_sha256": "797ff7e3b4ebe9d2aa1f3da8b9ff7897cb51c901c6291ba9f42137d3260030da"
+        },
+        {
+          "text": "نماذج صاغة التظلمات– صاغة الشكاوى – صاغة صحف الدعاوى والعرائض وكتابة وصاغة مذكرات الدفاع",
+          "page": 5,
+          "bbox": [
+            149.20000076293945,
+            593.769970703125,
+            495.5699996948242,
+            637.1199981689454
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "6",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t6",
+          "corrected_text": "نماذج صياغة التظلمات - صياغة الشكاوى - صياغة صحف الدعاوى والعرائض وكتابة وصياغة مذكرات الدفاع.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+          "raw_text_sha256": "7347b7ccda8ea724d5de1bd2070734bbf8839ba69266136885cc2c5dd73f85df"
+        },
+        {
+          "text": "صدور الأحكام القضائة – الإجراءات الشكلة للحكم – حثات الحكم – منطوق الحكم – أنواع الأحكام القضائة",
+          "page": 5,
+          "bbox": [
+            149.20000076293945,
+            637.7199981689453,
+            495.5699996948242,
+            681.0399810791016
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "7",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t7",
+          "corrected_text": "صدور الأحكام القضائية - الإجراءات الشكلية للحكم - حيثيات الحكم - منطوق الحكم - أنواع الأحكام القضائية.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+          "raw_text_sha256": "ec3d60b355cdebfaa27ce469dd0147b8782df6be08d09cf3a3878422951d8793"
+        },
+        {
+          "text": "كفة استخلاص الحكم للطعن علة - كفة التعرف على ثغرات الحكم",
+          "page": 5,
+          "bbox": [
+            149.20000076293945,
+            681.6399810791015,
+            495.5699996948242,
+            707.679965209961
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "8",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t8",
+          "corrected_text": "كيفية استخلاص الحكم للطعن عليه - كيفية التعرف على ثغرات الحكم.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+          "raw_text_sha256": "7013ca88ddb6cfacaa17ff70b62eab51b76d9bc7a779a58a548446631e3ee7d4"
+        },
+        {
+          "text": "تقم مستمر( تدربات قضائة على الموضوعات السابقة)",
+          "page": 5,
+          "bbox": [
+            149.20000076293945,
+            708.2799652099609,
+            495.5699996948242,
+            734.2
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "9",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t9",
+          "corrected_text": "تدريبات قضائية على الموضوعات السابقة.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+          "raw_text_sha256": "b04b2e8e626f22529198f8f108470dfb2601520669d3825da69e6e8051ce495c"
+        },
+        {
+          "text": "كفة اعداد صحف وعرائض الطعن على الحكم نماذج صاغة الطعن على الأحكام",
+          "page": 5,
+          "bbox": [
+            149.20000076293945,
+            734.8,
+            495.5699996948242,
+            760.7159912109375
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "40",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t10",
+          "fragments": [
+            {
+              "page": 5,
+              "bbox": [
+                149.20000076293945,
+                734.8,
+                495.5699996948242,
+                760.7159912109375
+              ]
+            },
+            {
+              "page": 6,
+              "bbox": [
+                149.20000076293945,
+                72.65997663225446,
+                495.5699996948242,
+                98.59999389648438
+              ]
+            }
+          ],
+          "end_page": 6,
+          "corrected_text": "كيفية إعداد صحف وعرائض الطعن على الحكم. نماذج صياغة الطعن على الأحكام.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+          "raw_text_sha256": "4a323d3350e87dd86f44369f8cfacc510e9d7b2eb851c5f519b69f315b50b643"
+        },
+        {
+          "text": "نماذج صاغة التماس اعادة النظر",
+          "page": 6,
+          "bbox": [
+            149.20000076293945,
+            99.19999389648437,
+            495.5699996948242,
+            125.11998291015625
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "44",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t11",
+          "corrected_text": "نماذج صياغة التماس إعادة النظر.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+          "raw_text_sha256": "846e09889282604ca2a1aac27ed5e5e078d8895ebbae6074bba233fad1892429"
+        },
+        {
+          "text": "كفة المثول أمام المحكمة – كفة توجه الطلبات – كفة الرد على الدفوع- المرافعة",
+          "page": 6,
+          "bbox": [
+            149.20000076293945,
+            125.71998291015625,
+            495.5699996948242,
+            169.0399963378906
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "42",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t12",
+          "corrected_text": "كيفية المثول أمام المحكمة - كيفية توجيه الطلبات - كيفية الرد على الدفوع - المرافعة.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+          "raw_text_sha256": "454103cd0a71f8d23fc72eea5b620c11f0b6008073af4ebb0b9c1365450d33c7"
+        },
+        {
+          "text": "طرقه الصاغة القانونة للعقد – كفة تفسر بنود العقد ( جانب عمل )",
+          "page": 6,
+          "bbox": [
+            149.20000076293945,
+            169.63999633789064,
+            495.5699996948242,
+            195.67998046875
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "43",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t13",
+          "corrected_text": "طريقة الصياغة القانونية للعقد - كيفية تفسير بنود العقد (جانب عملي).",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+          "raw_text_sha256": "28fd76580751c142e87a163e68ab73b7fe03ea3b026d4a6e525490af3712c685"
+        },
+        {
+          "text": "كفة صاغة صحفة إشكال ف التنفذ",
+          "page": 6,
+          "bbox": [
+            149.20000076293945,
+            196.27998046875,
+            495.5699996948242,
+            222.19996948242186
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "44",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t14",
+          "corrected_text": "كيفية صياغة صحيفة إشكال في التنفيذ.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+          "raw_text_sha256": "78bd5a7cb32c1731786804b743964a5a291af79cf87354da739795bdab261d87"
+        },
+        {
+          "text": "دراسات قضائةمختلفة من مدونة الأحكام السعودة القضائة.",
+          "page": 6,
+          "bbox": [
+            149.20000076293945,
+            222.7999694824219,
+            495.5699996948242,
+            249.16569388253347
+          ],
+          "hours_raw": "2",
+          "source_row_numbers": "45",
+          "row_basis": "explicit_number_column_geometry",
+          "id": "t15",
+          "corrected_text": "دراسات قضائية مختلفة من مدونة الأحكام السعودية القضائية.",
+          "correction_method": "visual_source_transcription",
+          "correction_note": "قراءة مباشرة لجميع صفوف جدول الموضوعات ومقابلتها بالصورة؛ لا توسعة أكاديمية.",
+          "source_sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f",
+          "raw_text_sha256": "c5dc308cf8c7a533e1388412c5df4af460302f46e155731ef574882df9a59613"
+        }
+      ],
+      "review_pages": [
+        5,
+        6
+      ],
+      "review_kind": "visual_source_transcription",
+      "excluded_rows": [],
+      "notes": [
+        "أول صف بالصفحة6 لا يحمل رقمًا أو ساعات وهو تتمة الموضوع10؛ ليس موضوعًا16.",
+        "صف9 فيه تقييم مستمر وتدريبات قضائية؛ أبقي التدريب المطبوع فقط فيcorrected_text."
+      ],
+      "approved_by": "root_visual_review_after_agent_transcription"
+    },
+    {
+      "course_ids": [
+        "e11ab000db21c6e2c6bb"
+      ],
+      "name": "علم القراءات دراية",
+      "source_pdf": "assets/course-specifications/quranic-master-single-domain-20261015/courses/2002854-2/course-specification.pdf",
+      "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188",
+      "previous_topics_sha256": "0843185752ae9bcda1e3e3dd7fec8e209cae1f050efc39b2f4f02c8673ad3bac",
+      "topics": [
+        {
+          "id": "t1",
+          "text": "مقدمات في علم القراءات دراية (المصطلح – النشأة – المصادر).",
+          "page": 6,
+          "bbox": [
+            0,
+            494.39393939393943,
+            595.303955078125,
+            811.8897705078125
+          ],
+          "source_row_numbers": "1",
+          "origin": "local_vision_transcription",
+          "corrected_text": "مقدمات في علم القراءات دراية (المصطلح – النشأة – المصادر).",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "4be0fa17e4edcfc009d78b0e14f5f613e50dfbfb271a1e704ca8793974009f96",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        },
+        {
+          "id": "t2",
+          "text": "مقدمات في علم القراءات دراية (المصطلح – النشأة – المصادر).",
+          "page": 6,
+          "bbox": [
+            0,
+            494.39393939393943,
+            595.303955078125,
+            811.8897705078125
+          ],
+          "source_row_numbers": "2",
+          "origin": "local_vision_transcription",
+          "corrected_text": "مقدمات في علم القراءات دراية (المصطلح – النشأة – المصادر).",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "4be0fa17e4edcfc009d78b0e14f5f613e50dfbfb271a1e704ca8793974009f96",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        },
+        {
+          "id": "t3",
+          "text": "دراسة حديث الأحرف السبعة وعلاقتها بالقراءات.",
+          "page": 6,
+          "bbox": [
+            0,
+            494.39393939393943,
+            595.303955078125,
+            811.8897705078125
+          ],
+          "source_row_numbers": "3",
+          "origin": "local_vision_transcription",
+          "corrected_text": "دراسة حديث الأحرف السبعة وعلاقتها بالقراءات.",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "0a499b605e2b13f66bafe5f785c64b1314272d152304b8a79f7edf0abf157698",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        },
+        {
+          "id": "t4",
+          "text": "دراسة حديث الأحرف السبعة وعلاقتها بالقراءات.",
+          "page": 6,
+          "bbox": [
+            0,
+            494.39393939393943,
+            595.303955078125,
+            811.8897705078125
+          ],
+          "source_row_numbers": "4",
+          "origin": "local_vision_transcription",
+          "corrected_text": "دراسة حديث الأحرف السبعة وعلاقتها بالقراءات.",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "0a499b605e2b13f66bafe5f785c64b1314272d152304b8a79f7edf0abf157698",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        },
+        {
+          "id": "t5",
+          "text": "الاختيار عند القراء وتاريخه وأثره في القراءات.",
+          "page": 6,
+          "bbox": [
+            0,
+            494.39393939393943,
+            595.303955078125,
+            811.8897705078125
+          ],
+          "source_row_numbers": "5",
+          "origin": "local_vision_transcription",
+          "corrected_text": "الاختيار عند القراء وتاريخه وأثره في القراءات.",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "7e01a7a070342bc36db65b270e0a9467cc05850e8d27dce010f13d68ae97fd3d",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        },
+        {
+          "id": "t6",
+          "text": "أقسام القراءات وشروط قبولها.",
+          "page": 6,
+          "bbox": [
+            0,
+            494.39393939393943,
+            595.303955078125,
+            811.8897705078125
+          ],
+          "source_row_numbers": "6",
+          "origin": "local_vision_transcription",
+          "corrected_text": "أقسام القراءات وشروط قبولها.",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "d98d9e7634829c4b743425119add361735452d2f7d77db1e730bb180ab233a02",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        },
+        {
+          "id": "t7",
+          "text": "مفهوم رسم المصحف وعلاقته بالقراءات وأثره فيها.",
+          "page": 6,
+          "bbox": [
+            0,
+            494.39393939393943,
+            595.303955078125,
+            811.8897705078125
+          ],
+          "source_row_numbers": "7",
+          "origin": "local_vision_transcription",
+          "corrected_text": "مفهوم رسم المصحف وعلاقته بالقراءات وأثره فيها.",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "df5ba7af3a2585aeb4f79bddc569aed654f96f48734616db8d32af1048a9d421",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        },
+        {
+          "id": "t8",
+          "text": "مصادر توثيق القراءات المتواترة والشاذة.",
+          "page": 6,
+          "bbox": [
+            0,
+            494.39393939393943,
+            595.303955078125,
+            811.8897705078125
+          ],
+          "source_row_numbers": "8",
+          "origin": "local_vision_transcription",
+          "corrected_text": "مصادر توثيق القراءات المتواترة والشاذة.",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "63b5fb50385bd33691af857de197ff4d7b9ebda1c7699321c5fb3072cdef55c5",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        },
+        {
+          "id": "t9",
+          "text": "مصادر توثيق القراءات المتواترة والشاذة.",
+          "page": 6,
+          "bbox": [
+            0,
+            494.39393939393943,
+            595.303955078125,
+            811.8897705078125
+          ],
+          "source_row_numbers": "9",
+          "origin": "local_vision_transcription",
+          "corrected_text": "مصادر توثيق القراءات المتواترة والشاذة.",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "63b5fb50385bd33691af857de197ff4d7b9ebda1c7699321c5fb3072cdef55c5",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        },
+        {
+          "id": "t10",
+          "text": "أثر القراءات المتواترة في التفسير. ساعتان",
+          "page": 7,
+          "bbox": [
+            0,
+            65,
+            595.303955078125,
+            344.6969696969697
+          ],
+          "source_row_numbers": "10",
+          "origin": "local_vision_transcription",
+          "corrected_text": "أثر القراءات المتواترة في التفسير.",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "ac0e64d25610447fa58670a707da7ead25b2bf8e7abbab91e67841b6e5f58f89",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        },
+        {
+          "id": "t11",
+          "text": "أثر القراءات المتواترة في التفسير. ساعتان",
+          "page": 7,
+          "bbox": [
+            0,
+            65,
+            595.303955078125,
+            344.6969696969697
+          ],
+          "source_row_numbers": "11",
+          "origin": "local_vision_transcription",
+          "corrected_text": "أثر القراءات المتواترة في التفسير.",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "ac0e64d25610447fa58670a707da7ead25b2bf8e7abbab91e67841b6e5f58f89",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        },
+        {
+          "id": "t12",
+          "text": "مفهوم القراءات الشاذة ومكانتها وأثرها في التفسير. ساعتان",
+          "page": 7,
+          "bbox": [
+            0,
+            65,
+            595.303955078125,
+            344.6969696969697
+          ],
+          "source_row_numbers": "12",
+          "origin": "local_vision_transcription",
+          "corrected_text": "مفهوم القراءات الشاذة ومكانتها وأثرها في التفسير.",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "d77123b1971756b25148db92d2dcbf90181abfd5fe15136bd9513b82ad383460",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        },
+        {
+          "id": "t13",
+          "text": "مفهوم القراءات الشاذة ومكانتها وأثرها في التفسير. ساعتان",
+          "page": 7,
+          "bbox": [
+            0,
+            65,
+            595.303955078125,
+            344.6969696969697
+          ],
+          "source_row_numbers": "13",
+          "origin": "local_vision_transcription",
+          "corrected_text": "مفهوم القراءات الشاذة ومكانتها وأثرها في التفسير.",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "d77123b1971756b25148db92d2dcbf90181abfd5fe15136bd9513b82ad383460",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        },
+        {
+          "id": "t14",
+          "text": "أهم المصادر في بيان أثر القراءات. ساعتان",
+          "page": 7,
+          "bbox": [
+            0,
+            65,
+            595.303955078125,
+            344.6969696969697
+          ],
+          "source_row_numbers": "14",
+          "origin": "local_vision_transcription",
+          "corrected_text": "أهم المصادر في بيان أثر القراءات.",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "34f1744056e273f5d1e2ff8a0d2140be2fcaf5a4a9c7282e1eba209b4fbeacee",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        },
+        {
+          "id": "t15",
+          "text": "مفهوم التحريرات وتاريخها ومناهجها وأثرها في القراءات. ساعتان",
+          "page": 7,
+          "bbox": [
+            0,
+            65,
+            595.303955078125,
+            344.6969696969697
+          ],
+          "source_row_numbers": "15",
+          "origin": "local_vision_transcription",
+          "corrected_text": "مفهوم التحريرات وتاريخها ومناهجها وأثرها في القراءات.",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "43c04b42211fe46b4faa6efd169d89223a669c54e2666f6868c7bfe2182e5f5e",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        },
+        {
+          "id": "t16",
+          "text": "موقف المقسرين من القراءات. ساعتان",
+          "page": 7,
+          "bbox": [
+            0,
+            65,
+            595.303955078125,
+            344.6969696969697
+          ],
+          "source_row_numbers": "16",
+          "origin": "local_vision_transcription",
+          "corrected_text": "موقف المفسرين من القراءات.",
+          "correction_method": "visual_source_transcription",
+          "raw_text_sha256": "e22e446f8522d616f66d65e9d0b80c8fff86328c491abff92b98773ad6a596b1",
+          "source_sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+        }
+      ],
+      "review_pages": [
+        6,
+        7
+      ],
+      "review_kind": "visual_source_transcription",
+      "excluded_rows": [
+        {
+          "page": 7,
+          "source_row_numbers": "17",
+          "text": "مراجعة عامة."
+        }
+      ],
+      "notes": [
+        "الصفوف المكررة1/2 و3/4 و8/9 و10/11 و12/13 مطبوعة فعلًا؛ لا تحذف بمجرد تشابه النص.",
+        "ساعتان في آخر نصوص الصفحة7 تلوث من عمود الساعات؛ أزيلت من القراءة المصححة فقط.",
+        "المصدر مصور؛ native0 لا يثبت خلوه أو قصور16موضوعًا الحالية."
+      ],
+      "approved_by": "root_visual_review_after_agent_transcription"
+    }
+  ]
+}

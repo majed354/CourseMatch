@@ -1,0 +1,15 @@
+{
+  "publisher": "Tanzil Project",
+  "documentation_url": "https://tanzil.net/docs/Quran_Metadata",
+  "source_url": "https://tanzil.net/res/text/metadata/quran-data.xml",
+  "retrieved_at_utc": "2026-11-02T22:42:03.917818+00:00",
+  "source_sha256": "8867c1d88191472adec9db694b3cd9f135b1a2ef580574d32cf888dcb22c5c7a",
+  "source_bytes": 77234,
+  "source_stored_unmodified": true,
+  "metadata_version": "1.0",
+  "copyright": "(C) 2008-2009 Tanzil.info",
+  "license": "cc-by",
+  "chapter_count": 114,
+  "total_ayas": 6236,
+  "use": "Offline endpoint validation only; invalid scope yields insufficient, never a fabricated grade or definitive academic rejection. Counts follow the numbering of this publisher metadata."
+}

@@ -153,7 +153,7 @@ async function searchCandidates() {
     const contexts=c.available_contexts?.length?c.available_contexts:[{course_id:c.id,context_id:c.context_id,context:c.context}];
     for(const entry of contexts)candidateVariants.set(entry.course_id,contexts);
   }
-  $('candidates').innerHTML=r.candidates.length?r.candidates.map((c,i)=>`<button class="candidate" data-id="${esc(c.id)}"><span class="candidate-rank">المرشح ${i+1}</span><strong>${esc(c.name)}</strong><span>${esc(c.code)} · ${c.topics.length} مفردة</span><span>${esc(c.context.program)} · ${esc(c.context.degree)} · ${esc(c.context.plan_type)} ${esc(c.context.version)}</span>${c.available_contexts?.length>1?`<span class="candidate-context-count">متاح في ${c.available_contexts.length} سياقات دراسية</span>`:''}</button>`).join(''):'<p>لا توجد توصيفات ذات مفردات متاحة ضمن النطاق المختار. وسّع نطاق البحث.</p>';
+  $('candidates').innerHTML=r.candidates.length?r.candidates.map((c,i)=>`<button class="candidate" data-id="${esc(c.id)}"><span class="candidate-rank">المرشح ${i+1}</span><strong>${esc(c.name)}</strong><span>${esc(c.code)} · ${c.topics.length} مفردة</span><span>${esc(c.context.program)} · ${esc(c.context.degree)} · ${esc(c.context.plan_type)} ${esc(c.context.version)}</span>${c.reference_quality&&!['ready_visual','ready_native'].includes(c.reference_quality.state)?'<span class="candidate-reference-pending">التوصيف قيد المراجعة</span>':''}${c.available_contexts?.length>1?`<span class="candidate-context-count">متاح في ${c.available_contexts.length} سياقات دراسية</span>`:''}</button>`).join(''):'<p>لا توجد توصيفات ذات مفردات متاحة ضمن النطاق المختار. وسّع نطاق البحث.</p>';
   $('candidates').querySelectorAll('button').forEach(b=>b.onclick=()=>setTarget(b.dataset.id));
   $('searchNote').textContent=`عدد المرشحين: ${r.candidates.length} · نطاق البحث: ${r.scope_count} توصيفًا متاحًا. الترتيب لترشيح المقررات؛ لا يمثل نسبة معادلة.`;
   if(r.candidates.length)setTarget(r.candidates[0].id);
@@ -211,7 +211,7 @@ async function saveBeneficiary() {
 }
 function academicReason(pair,evidence) {
   if(evidence.provider==='exact_text'||/توحيد المسافات|حذف المسافات|المسافات والتشكيل/.test(pair.reason||''))return 'تتطابق المفردتان في الموضوع والنطاق.';
-  return pair.reason||'توافق موضوعي ضمن نطاق المفردتين.';
+  return (pair.adjudication?.state==='uncertain'?pair.adjudication.review?.reason||pair.reason:pair.reason)||'توافق موضوعي ضمن نطاق المفردتين.';
 }
 function showReport(r) {
   currentReport=r;
@@ -242,14 +242,22 @@ function showReport(r) {
       const nearest=pairs.filter(p=>p.target_id===t.id&&sources.has(p.source_id)).sort((a,b)=>b.score-a.score)[0];
       if(!nearest)return '<td class="matching-cell"><span class="match-state uncounted">غير محتسبة</span><span class="match-empty">لا مقابلة محتسبة في هذا الحساب</span></td>';
       const alternative=sources.get(nearest.source_id);
-      const explanation=nearest.score<threshold[mode]?'دون حد التوافق المطلوب في هذا الحساب.':'لا تُحتسب المفردة المصدرية نفسها لأكثر من مفردة هدف في الحساب الواحد.';
-      return `<td class="matching-cell"><span class="match-state uncounted">غير محتسبة · <bdi dir="ltr">${esc(nearest.score)}%</bdi></span><p>${esc(textOf(alternative))}</p><small>أقرب مقابلة · المصدر ص ${esc(pageOf(alternative))}</small><p class="match-reason">${esc(academicReason(nearest,evidence))}<br>${esc(explanation)}</p></td>`;
+      const pending=nearest.adjudication?.state==='uncertain';
+      const grade=pending?'قيد الاستكمال':esc(nearest.score)+'%';
+      const explanation=pending?'لم يثبت نطاق هذه المقابلة بما يكفي لاحتسابها.':nearest.score<threshold[mode]?'دون حد التوافق المطلوب في هذا الحساب.':'لا تُحتسب المفردة المصدرية نفسها لأكثر من مفردة هدف في الحساب الواحد.';
+      return `<td class="matching-cell"><span class="match-state uncounted">غير محتسبة · <bdi dir="ltr">${grade}</bdi></span><p>${esc(textOf(alternative))}</p><small>أقرب مقابلة · المصدر ص ${esc(pageOf(alternative))}</small><p class="match-reason">${esc(academicReason(nearest,evidence))}<br>${esc(explanation)}</p></td>`;
     }
     return `<td class="matching-cell"><span class="match-state ${mode}">محتسبة · <bdi dir="ltr">${esc(pair.score)}%</bdi></span><p>${esc(textOf(s))}</p><small>المصدر · ص ${esc(pageOf(s))}</small><p class="match-reason">${esc(academicReason(pair,evidence))}</p></td>`;
   };
   const rows=r.target.topics.map((t,i)=>{
     const topic=`<td class="target-topic"><span class="topic-order">${i+1}</span><p>${esc(textOf(t))}</p><small>الهدف · ص ${esc(pageOf(t))}</small>${textOf(t)==='أخرى'?'<span class="tag">موضوع غير محدد في المصدر</span>':''}</td>`;
-    if(insufficient) return `<tr>${topic}<td>المعلومات غير كافية للحكم على هذه المفردة.</td></tr>`;
+    if(insufficient) {
+      const alternatives=pairs.filter(p=>p.target_id===t.id&&sources.has(p.source_id));
+      const confirmed=alternatives.filter(p=>p.adjudication?.state==='confirmed').sort((a,b)=>b.score-a.score)[0];
+      const p=confirmed||alternatives[0],s=p?sources.get(p.source_id):null;
+      const state=confirmed?'نطاق المقابلة مثبت':p?'نطاق المقابلة غير محسوم':'المعلومات غير كافية للحكم على هذه المفردة.';
+      return `<tr>${topic}<td class="matching-cell"><span class="match-state uncounted">${esc(state)}</span>${s?'<p>'+esc(textOf(s))+'</p><small>المصدر · ص '+esc(pageOf(s))+'</small><p class="match-reason">'+esc(academicReason(p,evidence))+'</p>':''}</td></tr>`;
+    }
     const strict=!!calc.strict_matches?.[t.id],lenient=!!calc.lenient_matches?.[t.id];
     const note=strict&&lenient?'مستوفية لحد التوافق الدقيق والمتسامح.':strict?'مستوفية في المطابقة الدقيقة.':lenient?'مستوفية في المطابقة المتسامحة فقط.':'لا تدخل ضمن المفردات المتوافقة في النتيجة الإجمالية.';
 
@@ -258,7 +266,7 @@ function showReport(r) {
 
   const date=r.created_at?new Date(r.created_at):null;
   const dated=date&&!Number.isNaN(date.getTime())?date.toLocaleDateString('ar-SA-u-ca-gregory-nu-latn',{year:'numeric',month:'long',day:'numeric',timeZone:'Asia/Riyadh'}):'—';
-  const summary=insufficient?(calc.segmentation_review?'لم تحسم المعادلة لاختلاف تقسيم الموضوعات بين المقررين؛ يلزم توحيد نطاق المفردات قبل إصدار الحكم النهائي.':/غير محدد/.test(calc.reason||'')?'تتضمن مفردات المقرر موضوعًا غير محدد؛ لا تتوافر معلومات كافية لإصدار الحكم النهائي.':'المعلومات غير مكتملة؛ تعذر إصدار حكم نهائي لمعادلة المقرر.'):`تتطلب المعادلة تغطية ${required} من ${total} مفردة على الأقل. بلغ الاحتساب الدقيق ${count('strict')}، والمتسامح ${count('lenient')} مفردة.`;
+  const summary=insufficient?(calc.invalid_verse_scopes?'نطاق الآيات المذكور لا يتسق مع حدود السورة؛ يلزم تأكيده قبل إصدار الحكم النهائي.':calc.reference_review?'لم تكتمل مراجعة مفردات المرجع؛ يلزم استكمال نصه ونطاقه قبل إصدار الحكم النهائي.':calc.adjudication_review?'لم يحسم توافق بعض المفردات المركبة؛ يلزم استكمال دليل نطاقها قبل إصدار الحكم النهائي.':calc.segmentation_review?'لم تحسم المعادلة لاختلاف تقسيم الموضوعات بين المقررين؛ يلزم توحيد نطاق المفردات قبل إصدار الحكم النهائي.':/غير محدد/.test(calc.reason||'')?'تتضمن مفردات المقرر موضوعًا غير محدد؛ لا تتوافر معلومات كافية لإصدار الحكم النهائي.':'المعلومات غير مكتملة؛ تعذر إصدار حكم نهائي لمعادلة المقرر.'):`تتطلب المعادلة تغطية ${required} من ${total} مفردة على الأقل. بلغ الاحتساب الدقيق ${count('strict')}، والمتسامح ${count('lenient')} مفردة.`;
   const stamp=`<div class="report-stamp ${ready?'approved':'pending'}" role="img" aria-label="${ready?'معتمد — تقرير المعادلة':'قيد الاستكمال — تقرير المعادلة'}"><span>تقرير المعادلة</span><strong>${ready?'معتمد':'قيد الاستكمال'}</strong><small>منصة المعادلات</small></div>`;
   $('report').innerHTML=`<div class="equivalency-report" data-decision="${decision}"><header class="report-head"><div class="report-brand"><span class="report-mark" aria-hidden="true">م</span><div><span class="report-kicker">CourseMatch · منصة المعادلات</span><p>الجامعة المستهدفة: جامعة الطائف<br>${esc(r.target.context?.program||'دراسة توافق المقررات')} · ${esc(r.target.context?.degree||'')}</p></div><span class="report-edition">دراسة معادلة<br>المقررات الدراسية</span></div><h1>تقرير معادلة المقررات</h1><div class="report-reference"><span>تاريخ التقرير: ${esc(dated)}</span><span>رقم التقرير <bdi dir="ltr">${esc(r.id)}</bdi></span></div></header><section class="beneficiary-card" aria-label="بيانات المستفيد"><span class="report-section-number" aria-hidden="true">01</span><div><span class="report-kicker">اسم المستفيد</span><strong>${esc(r.beneficiary?.name||'غير مسجل')}</strong></div><div><span class="report-kicker">رقم المستفيد</span><strong><bdi dir="auto">${esc(r.beneficiary?.number||'غير مسجل')}</bdi></strong></div></section><section class="report-hero ${decision}">${stamp}<div><span class="report-kicker">نتيجة دراسة المفردات</span><h2>${esc(decisions[decision])}</h2><p>${esc(summary)}</p></div></section><section class="report-block"><div class="report-section-heading"><span class="report-section-number">02</span><div><h2>المقرران محل المعادلة</h2><p>المقارنة من محتوى المصدر إلى المقرر الهدف المحدد</p></div></div><div class="source-grid">${sourceCard(r.source,'المقرر المصدر','أ')}${sourceCard(r.target,'المقرر الهدف','ب')}</div></section><section class="report-block"><div class="report-section-heading"><span class="report-section-number">03</span><div><h2>ملخص تغطية المفردات</h2><p>عدد مفردات الهدف المحتسبة ÷ جميع مفردات الهدف × 100</p></div></div><div class="report-summary">${coverageCard('strict')}${coverageCard('lenient')}</div>${insufficient?'<div class="pending-explanation">النتيجة قيد الاستكمال لعدم كفاية المعلومات.</div>':`<div class="distribution-chart"><div class="distribution-heading"><h3>المحتسب والمتبقي من مفردات الهدف</h3><span>الخط المنقّط: حد القبول</span></div>${bar('strict')}${bar('lenient')}</div>`}<p class="report-note calculation-note">حد تغطية المقرر 80%؛ التوافق الدقيق للمفردة 80% والمتسامح 60%.</p></section><section class="report-block evidence-block"><div class="report-section-heading"><span class="report-section-number">04</span><div><h2>${insufficient?'مفردات الهدف قبل المقارنة':'تفصيل التوافق الموضوعي'}</h2><p>${insufficient?'معلومات المفردات اللازمة لاستكمال الحكم':'المفردات المقابلة وأسباب التوافق الموضوعي'}</p></div></div><div class="report-table-wrap"><table class="details-table"><thead><tr><th scope="col">مفردة المقرر الهدف</th>${insufficient?'<th scope="col">حالة المقارنة</th>':'<th scope="col">الحساب الدقيق · ≥80%</th><th scope="col">الحساب المتسامح · ≥60%</th><th scope="col">النتيجة</th>'}</tr></thead><tbody>${rows||`<tr><td colspan="${insufficient?2:4}">لا تتوافر مفردات موضوعية كافية لإصدار الحكم.</td></tr>`}</tbody></table></div></section><div class="report-end"><span>CourseMatch · تقرير معادلة المقررات</span><bdi dir="ltr">${esc(r.id)}</bdi></div></div>`;
   $('reportPanel').hidden=false;$('reportPanel').scrollIntoView({behavior:'smooth'});notice('اكتمل التقرير. يمكنك مراجعة الأدلة وطباعته.');
@@ -284,7 +292,30 @@ if($('saveBeneficiary')) $('saveBeneficiary').onclick=e=>action(e.target,saveBen
 if($('editBeneficiary')) $('editBeneficiary').onclick=()=>{$('beneficiaryName')?.closest('.beneficiary-panel')?.scrollIntoView({behavior:'smooth',block:'center'});$('beneficiaryName')?.focus({preventScroll:true});};
 $('printButton').onclick=e=>action(e.target,async()=>{await saveBeneficiary();window.print();});
 $('jsonButton').onclick=e=>action(e.target,async()=>{await saveBeneficiary();download('equivalency-'+currentReport.id+'.json',JSON.stringify(currentReport,null,2),'application/json');});
-$('htmlButton').onclick=e=>action(e.target,async()=>{await saveBeneficiary();const css=await(await fetch('/style.css')).text();const reportHTML=$('report').innerHTML.replace(/href="(\/pdf\/[^" ]+)"/g,(_,path)=>'href="'+esc(location.origin+path)+'"');const html='<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير معادلة المقررات</title><style>'+css+'</style><main><section class="panel" id="reportPanel"><article id="report">'+reportHTML+'</article></section></main></html>';download('equivalency-'+currentReport.id+'.html',html,'text/html');});
+let reportCSSPromise;
+async function standaloneReportCSS() {
+  if(!reportCSSPromise) reportCSSPromise=(async()=>{
+    const response=await fetch('/style.css');if(response.ok===false)throw new Error('تعذر تحميل تنسيق التقرير.');
+    let css=await response.text();
+    for(const file of ['IBMPlexSansArabic-Regular.ttf','IBMPlexSansArabic-SemiBold.ttf']) {
+      const path='/fonts/'+file;if(!css.includes(path))continue;
+      const font=await fetch(path);if(!font.ok)throw new Error('تعذر تحميل خط التقرير.');
+      const bytes=new Uint8Array(await font.arrayBuffer());let binary='';
+      for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+      css=css.split(path).join('data:font/ttf;base64,'+btoa(binary));
+    }
+    return css;
+  })().catch(error=>{reportCSSPromise=undefined;throw error;});
+  return reportCSSPromise;
+}
+$('htmlButton').onclick=e=>action(e.target,async()=>{
+  await saveBeneficiary();const id=currentReport.id,css=await standaloneReportCSS();
+  if(currentReport.id!==id)throw new Error('تغير التقرير؛ أعد تنزيل التقرير الحالي.');
+  await saveBeneficiary();
+  const reportHTML=$('report').innerHTML.replace(/href="(\/pdf\/[^" ]+)"/g,(_,path)=>'href="'+esc(location.origin+path)+'"');
+  const html='<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير معادلة المقررات</title><style>'+css+'</style><main><section class="panel" id="reportPanel"><article id="report">'+reportHTML+'</article></section></main></html>';
+  download('equivalency-'+id+'.html',html,'text/html');
+});
 (async()=>{
   try {
     const id=new URLSearchParams(location.search).get('report');

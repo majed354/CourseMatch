@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scripts.equivalency.ranges import topic_scopes, range_issues, required_scope_pairs
-from scripts.equivalency.engine import validate_pairs, compare, SYSTEM, PAIR_SCHEMA, RUBRIC_VERSION
+from scripts.equivalency.engine import validate_pairs, _propose_pairs as compare, SYSTEM, PAIR_SCHEMA, RUBRIC_VERSION
 
 
 def topic(tid,text):return {'id':tid,'text':text}

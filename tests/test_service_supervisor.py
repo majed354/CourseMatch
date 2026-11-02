@@ -30,6 +30,10 @@ class HostingFixture(unittest.TestCase):
         for name, text in [('index.html', '<html>CourseMatch</html>'), ('app.js', 'window.CourseMatch=true;'), ('style.css', 'body{color:#123}')]:
             (self.root / 'equivalency-pilot' / name).write_text(text)
             (self.dist / name).write_text(text)
+        for name in ('IBMPlexSansArabic-Regular.ttf','IBMPlexSansArabic-SemiBold.ttf','LICENSE.txt'):
+            for folder in (self.root / 'equivalency-pilot/fonts',self.dist / 'fonts'):
+                folder.mkdir(exist_ok=True)
+                (folder / name).write_bytes(b'public font fixture')
         catalog_text = json.dumps(self.catalog)
         (self.root / 'equivalency-pilot/catalog.json').write_text(catalog_text)
         (self.dist / 'catalog.json').write_text(catalog_text)
@@ -49,7 +53,7 @@ class PublishGuardTests(HostingFixture):
         routes = service.render_redirects('https://example-words.trycloudflare.com')
         (self.dist / '_redirects').write_text(routes)
         result = service.validate_publish(self.root, routes)
-        self.assertEqual(result['public_files'], 8)
+        self.assertEqual(result['public_files'], 11)
         self.assertEqual(result['pdf_files'], 1)
         self.assertFalse(result['private_files_included'])
         self.assertFalse(result['functions_included'])
@@ -84,7 +88,7 @@ class PublishGuardTests(HostingFixture):
             service.validate_publish(self.root)
 
     def test_stale_ui_catalog_or_pdf_bytes_stop_publication(self):
-        for path in ('app.js', 'catalog.json', self.pdf):
+        for path in ('app.js', 'catalog.json', self.pdf, 'fonts/IBMPlexSansArabic-Regular.ttf','fonts/LICENSE.txt'):
             original = (self.dist / path).read_bytes()
             (self.dist / path).write_bytes(b'changed source')
             with self.subTest(path=path), self.assertRaises(ValueError):

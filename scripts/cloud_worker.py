@@ -36,6 +36,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.equivalency.engine import RUBRIC_VERSION, calculate, compare, search, validate_pairs
+from scripts.equivalency.grounding import validate_evidence
+from scripts.equivalency.reference_quality import reference_pending, evidence_calculation
 from scripts.equivalency.extract import apply_readings, digest, extract_cached
 from scripts.equivalency.server import clean_beneficiary, clean_topics
 
@@ -310,7 +312,7 @@ class LeaseHeartbeat:
                 LOGGER.warning('lease_heartbeat_retry status=%s', error.status)
 
 
-SOURCE_FIELDS = {'id','name','code','hours','university','institution','context','context_id','topics','source_sha256','catalog_course_id','upload_pdf','warnings','status','reviewed','source_note','extraction_method','extractor','reading_note','transcription_model','transcription_model_digest','page_proof','excluded_rows','source_text_blocks','fixed_topic_curriculum','source_context','library_only','match_status'}
+SOURCE_FIELDS = {'id','name','code','hours','university','institution','context','context_id','topics','source_sha256','catalog_course_id','upload_pdf','warnings','status','reviewed','source_note','extraction_method','extractor','reading_note','transcription_model','transcription_model_digest','page_proof','excluded_rows','source_text_blocks','fixed_topic_curriculum','source_context','library_only','match_status','reference_review','reference_quality'}
 
 
 def public_source(value, *, catalog_pdf=None):
@@ -410,6 +412,11 @@ class Processor:
         elif value.get('source_pdf'):
             raise TaskInputError('لا يقبل العامل مسارات ملفات من بيانات المستفيد.')
         source = public_source(value, catalog_pdf=trusted.get('source_pdf') if trusted else None)
+        # Academic readiness is canonical: a saved/session source must not strip
+        # a curator hold or introduce student-supplied approval metadata.
+        for field in ('reference_review','reference_quality'):
+            source.pop(field,None)
+            if trusted and field in trusted: source[field]=copy.deepcopy(trusted[field])
         try:
             source['topics'] = clean_topics(source.get('topics', []), source.get('topics', []))
         except (TypeError, ValueError, KeyError):
@@ -474,8 +481,12 @@ class Processor:
                 source['topics'] = clean_topics(payload.get('source_topics', source['topics']), source['topics'])
                 target['topics'] = clean_topics(payload.get('target_topics', target['topics']), target['topics'])
                 beneficiary = clean_beneficiary(payload.get('beneficiary'))
-                evidence = compare(target, source, model=self.model, cache_dir=private_directory(directory / 'comparisons'))
-                result = {'id': task['id'], 'source': source, 'target': public_source(target, catalog_pdf=target.get('source_pdf')), 'evidence': evidence, 'calculation': calculate(target['topics'], source['topics'], evidence['pairs']), 'beneficiary': beneficiary, 'created_at': datetime.now(timezone.utc).isoformat(), 'catalog_id': self.catalog['catalog_id'], 'reviewed_by': 'user_confirmed_extraction'}
+                evidence = reference_pending(self.courses[payload['target_id']], trusted_source or source, RUBRIC_VERSION)
+                if evidence is None:
+                    evidence = compare(target, source, model=self.model, cache_dir=private_directory(directory / 'comparisons'))
+                if evidence['pairs']:
+                    validate_evidence(evidence,target['topics'],source['topics'])
+                result = {'id': task['id'], 'source': source, 'target': public_source(target, catalog_pdf=target.get('source_pdf')), 'evidence': evidence, 'calculation': evidence_calculation(target['topics'], source['topics'], evidence), 'beneficiary': beneficiary, 'created_at': datetime.now(timezone.utc).isoformat(), 'catalog_id': self.catalog['catalog_id'], 'reviewed_by': 'user_confirmed_extraction'}
                 self.course_path(target)
         except TaskInputError:
             raise
@@ -530,10 +541,15 @@ class Processor:
                     if not isinstance(pairs, list):
                         raise ValueError('invalid_checkpoint_pairs')
                     if pairs:
-                        validate_pairs(pairs, targets, sources)
+                        validate_evidence(evidence, targets, sources)
                     # Empty/unresolved topics legitimately return insufficient
                     # with no pairs; calculate owns that deterministic policy.
-                    if calculate(targets, sources, pairs) != report['calculation']:
+                    pending=reference_pending(target,self.sources.get(report['source'].get('catalog_course_id')) or report['source'],RUBRIC_VERSION)
+                    if pending is not None and evidence!=pending:
+                        raise ValueError('reference_readiness_changed')
+                    if evidence.get('provider')=='reference_pending' and evidence!=pending:
+                        raise ValueError('invalid_reference_hold')
+                    if evidence_calculation(targets, sources, evidence) != report['calculation']:
                         raise ValueError('checkpoint_calculation_changed')
                 except (ValueError, KeyError, TypeError, AttributeError):
                     raise TaskInputError('لم تعد نتيجة المقارنة المحفوظة صالحة للتحقق الحالي؛ أعد المقارنة لإصدار تقرير جديد.') from None

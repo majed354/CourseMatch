@@ -72,6 +72,26 @@ class CatalogTopicReviewTests(unittest.TestCase):
         self.assertEqual((self.root / 'data.json').read_bytes(), before_data)
         self.assertEqual(self.import_manifest.read_bytes(), before_import)
 
+    def test_source_only_library_can_be_reviewed_without_becoming_an_eligible_target(self):
+        source=copy.deepcopy(self.courses[0]);source.update(id='source-only',library_only=True)
+        self.catalog['library_sources']=[source];self.save_catalog()
+        self.entry['course_ids']=['source-only'];self.batch['catalog_base_id']=self.catalog['catalog_id'];self.save_batch()
+        review_catalog_topics(self.root,self.manifest,apply=True)
+        after=json.loads(self.catalog_path.read_text())
+        self.assertEqual(after['courses'],self.courses)
+        self.assertTrue(after['library_sources'][0]['library_only'])
+        self.assertEqual(after['library_sources'][0]['topics'],self.entry['topics'])
+
+    def test_incomplete_scope_is_retained_in_reference_provenance(self):
+        self.entry.update(comparison_readiness='scope_incomplete',readiness_reason='لم يتحدد نطاق التطبيقات')
+        self.save_batch();review_catalog_topics(self.root,self.manifest,apply=True)
+        after=json.loads(self.catalog_path.read_text())
+        self.assertEqual(after['courses'][0]['reference_review']['comparison_readiness'],'scope_incomplete')
+        self.assertEqual(after['courses'][0]['reference_review']['readiness_reason'],'لم يتحدد نطاق التطبيقات')
+
+    def test_non_ready_reference_requires_a_specific_reason(self):
+        self.entry['comparison_readiness']='scope_incomplete';self.reject('comparison_readiness_reason_required')
+
     def test_default_dry_run_does_not_change_any_file(self):
         before = {p.relative_to(self.root): p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
         proof = review_catalog_topics(self.root, 'review-batches/corrected-topics.json')

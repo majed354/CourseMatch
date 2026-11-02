@@ -15,6 +15,15 @@ def verify():
     clean = {k:v for k,v in catalog.items() if k != 'catalog_id'}
     assert hashlib.sha256(json.dumps(clean, ensure_ascii=False, sort_keys=True).encode()).hexdigest() == catalog['catalog_id'], 'Catalog ID mismatch'
     paths = {}
+    allowed_readiness={'ready_visual','ready_native','needs_review','no_fixed_topics','missing_source'}
+    for course in catalog['courses'] + catalog.get('library_sources', []):
+        quality=course.get('reference_quality')
+        if quality:
+            assert quality.get('state') in allowed_readiness, 'Invalid reference readiness'
+            assert quality.get('source_sha256')==course.get('source_sha256'), 'Reference readiness source changed'
+            expected=hashlib.sha256(json.dumps(course.get('topics',[]),ensure_ascii=False,sort_keys=True,allow_nan=False).encode()).hexdigest()
+            assert quality.get('topics_sha256')==expected, 'Reference topics changed after readiness review'
+
     for course in catalog['courses'] + catalog.get('library_sources', []):
         if not course.get('source_pdf'):
             continue
