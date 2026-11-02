@@ -1,0 +1,324 @@
+{
+  "batch_id": "equivalency-external-trials-20261102",
+  "completed_at_utc": "2026-11-02T08:54:06.242522+00:00",
+  "status": "six_sources_searched_four_real_local_model_comparisons_one_evidence_hold",
+  "sources_extracted_and_reviewed": 6,
+  "universities": 3,
+  "global_searches": 6,
+  "global_search_method": "hybrid_qwen3_embedding_0.6b",
+  "global_search_scope": "all college catalog contexts; exact duplicate sources grouped but contexts retained",
+  "real_local_model_comparisons": 4,
+  "model": "qwen3.8:27b-q8_0",
+  "model_digest": "8f5fb6b71ea00052cbe8545738c55ce61112c4e571cb60ca4dad00b131766039",
+  "model_seconds": 331.68,
+  "validated_pairs": 58,
+  "decisions": {
+    "not_equivalent": 4,
+    "insufficient": 1
+  },
+  "policy": {
+    "target_coverage": 80,
+    "strict_topic_score": 80,
+    "lenient_topic_score": 60,
+    "weighting": "target_topic_count",
+    "one_to_one_per_threshold": true
+  },
+  "inventory": [
+    {
+      "index": 1,
+      "code": "QS1101",
+      "pdf": "جامعة_أم_القرى/QS1101_مدخل_لعلوم_القرآن_الكريم.pdf",
+      "topic_pages": [
+        5,
+        6
+      ],
+      "extraction_method": "native_vector_grid",
+      "original_extracted_topics": 11,
+      "reviewed_topics": 12,
+      "corrected_rows": 3,
+      "reviewed_pages": [
+        5,
+        6
+      ],
+      "source_pdf_sha256": "22a5c1df34bfd4e48ab8f00a0705037d10361eef16edebac861265e622d1b4bf",
+      "source_university": "جامعة أم القرى"
+    },
+    {
+      "index": 2,
+      "code": "QS2108",
+      "pdf": "جامعة_أم_القرى/QS2108_أصول_التفسير_وقواعده.pdf",
+      "topic_pages": [
+        5,
+        6,
+        7
+      ],
+      "extraction_method": "native_vector_grid",
+      "original_extracted_topics": 15,
+      "reviewed_topics": 15,
+      "corrected_rows": 8,
+      "reviewed_pages": [
+        5,
+        6,
+        7
+      ],
+      "source_pdf_sha256": "6e3ac515ca1411a10972c230884d80cdfa112cad83114b5e53354892a57c8cb4",
+      "source_university": "جامعة أم القرى"
+    },
+    {
+      "index": 3,
+      "code": "361 سلم",
+      "pdf": "جامعة_الملك_سعود/361_سلم_أدلة_الأحكام.pdf",
+      "topic_pages": [
+        5,
+        6
+      ],
+      "extraction_method": "native_vector_grid",
+      "original_extracted_topics": 11,
+      "reviewed_topics": 12,
+      "corrected_rows": 2,
+      "reviewed_pages": [
+        5,
+        6
+      ],
+      "source_pdf_sha256": "67b1b17fd786b64da355ad72339768c42bc9791af3cfaf16a58f34f44c53190f",
+      "source_university": "جامعة الملك سعود"
+    },
+    {
+      "index": 4,
+      "code": "383 سلم",
+      "pdf": "جامعة_الملك_سعود/383_سلم_فقه_النكاح.pdf",
+      "topic_pages": [
+        5,
+        6
+      ],
+      "extraction_method": "native_vector_grid",
+      "original_extracted_topics": 12,
+      "reviewed_topics": 12,
+      "corrected_rows": 2,
+      "reviewed_pages": [
+        5,
+        6
+      ],
+      "source_pdf_sha256": "635e1b0b06166dd4f44af5cb35efa785e7d11f884dc67e70dc57f6eae182fcce",
+      "source_university": "جامعة الملك سعود"
+    },
+    {
+      "index": 5,
+      "code": "112 أصل 3",
+      "pdf": "جامعة_نجران/112_أصل_3_أصول_الفقه_1.pdf",
+      "topic_pages": [
+        5
+      ],
+      "extraction_method": "native_vector_grid",
+      "original_extracted_topics": 15,
+      "reviewed_topics": 15,
+      "corrected_rows": 12,
+      "reviewed_pages": [
+        5
+      ],
+      "source_pdf_sha256": "56eec16c68c57e420278209b218fcaf14168ce35e1e6b45cd5835849652e39c3",
+      "source_university": "جامعة نجران"
+    },
+    {
+      "index": 6,
+      "code": "132 قان 3",
+      "pdf": "جامعة_نجران/132_قان_3_القانون_الإداري.pdf",
+      "topic_pages": [
+        5
+      ],
+      "extraction_method": "native_vector_grid",
+      "original_extracted_topics": 9,
+      "reviewed_topics": 9,
+      "corrected_rows": 9,
+      "reviewed_pages": [
+        5
+      ],
+      "source_pdf_sha256": "5f625e1c422509a10fd060918d764b86bbf12443af3608b0086a69d78886ad55",
+      "source_university": "جامعة نجران"
+    }
+  ],
+  "comparisons": [
+    {
+      "source_index": 1,
+      "report_id": "e7c4fd1f8f145f89e9d52685cf01cf22",
+      "source": "مدخل لعلوم القرآن الكريم",
+      "university": "جامعة أم القرى",
+      "target": "علوم قرآن",
+      "target_id": "65581b0bfcd0673a90ea",
+      "context": {
+        "program": "الشريعة",
+        "degree": "بكالوريوس",
+        "plan_type": "قديمة",
+        "version": "38"
+      },
+      "source_topics": 12,
+      "target_topics": 15,
+      "pairs": 15,
+      "provider": "ollama_local",
+      "model": "qwen3.8:27b-q8_0",
+      "model_digest": "8f5fb6b71ea00052cbe8545738c55ce61112c4e571cb60ca4dad00b131766039",
+      "seconds": 100.42,
+      "strict_count": 6,
+      "lenient_count": 6,
+      "strict_coverage": 40.0,
+      "lenient_coverage": 40.0,
+      "decision": "not_equivalent",
+      "report_path": "output/equivalency-external-trials-20261102/report-1.json"
+    },
+    {
+      "source_index": 3,
+      "report_id": "c910765d4772274f81d0e0f81ef3a9b1",
+      "source": "أدلة الأحكام",
+      "university": "جامعة الملك سعود",
+      "target": "أدلة الأحكام الشرعية (١)",
+      "target_id": "d405e9a781e5f3accf7a",
+      "context": {
+        "program": "الشريعة",
+        "degree": "بكالوريوس",
+        "plan_type": "جديدة",
+        "version": "47"
+      },
+      "source_topics": 12,
+      "target_topics": 13,
+      "pairs": 13,
+      "provider": "ollama_local",
+      "model": "qwen3.8:27b-q8_0",
+      "model_digest": "8f5fb6b71ea00052cbe8545738c55ce61112c4e571cb60ca4dad00b131766039",
+      "seconds": 71.22,
+      "strict_count": 6,
+      "lenient_count": 8,
+      "strict_coverage": 46.15384615384615,
+      "lenient_coverage": 61.53846153846154,
+      "decision": "not_equivalent",
+      "report_path": "output/equivalency-external-trials-20261102/report-3.json"
+    },
+    {
+      "source_index": 4,
+      "report_id": "e0aa185bd17b9cf545ee865a1ccc2455",
+      "source": "فقه النكاح",
+      "university": "جامعة الملك سعود",
+      "target": "الفقه (6)",
+      "target_id": "0a6b3b71c8c063b2cacb",
+      "context": {
+        "program": "الشريعة",
+        "degree": "بكالوريوس",
+        "plan_type": "قديمة",
+        "version": "38"
+      },
+      "source_topics": 12,
+      "target_topics": 10,
+      "pairs": 15,
+      "provider": "ollama_local",
+      "model": "qwen3.8:27b-q8_0",
+      "model_digest": "8f5fb6b71ea00052cbe8545738c55ce61112c4e571cb60ca4dad00b131766039",
+      "seconds": 77.46,
+      "strict_count": 6,
+      "lenient_count": 6,
+      "strict_coverage": 60.0,
+      "lenient_coverage": 60.0,
+      "decision": "not_equivalent",
+      "report_path": "output/equivalency-external-trials-20261102/report-4.json"
+    },
+    {
+      "source_index": 6,
+      "report_id": "23e03104fbd808ab68b4291f14a5dbdc",
+      "source": "القانون الإداري",
+      "university": "جامعة نجران",
+      "target": "القانون الإداري",
+      "target_id": "62a456750b36182d1ace",
+      "context": {
+        "program": "الأنظمة",
+        "degree": "بكالوريوس",
+        "plan_type": "قديمة",
+        "version": "38"
+      },
+      "source_topics": 9,
+      "target_topics": 15,
+      "pairs": 15,
+      "provider": "ollama_local",
+      "model": "qwen3.8:27b-q8_0",
+      "model_digest": "8f5fb6b71ea00052cbe8545738c55ce61112c4e571cb60ca4dad00b131766039",
+      "seconds": 82.58,
+      "strict_count": 6,
+      "lenient_count": 6,
+      "strict_coverage": 40.0,
+      "lenient_coverage": 40.0,
+      "decision": "not_equivalent",
+      "report_path": "output/equivalency-external-trials-20261102/report-6.json"
+    }
+  ],
+  "reports": [
+    {
+      "file": "report-1.json",
+      "report_id": "e7c4fd1f8f145f89e9d52685cf01cf22",
+      "sha256": "3affe74d8cdb5ca2e7e47ecb306878e6fa097dece4533209b42b1545f5ddc702",
+      "source_pdf_sha256": "22a5c1df34bfd4e48ab8f00a0705037d10361eef16edebac861265e622d1b4bf",
+      "target_pdf_sha256": "4acf4a28013e63d71e6339202007dbba23248da06c58d019e89eb5b5fc2d12c5",
+      "source_id": "efe75e96e49a436462f788da5a858cce",
+      "source_pdf_copy": "runtime/equivalency/external-trials/sources/efe75e96e49a436462f788da5a858cce.pdf",
+      "decision": "not_equivalent",
+      "pair_count": 15,
+      "quotes_recalculated_verified": true
+    },
+    {
+      "file": "report-3.json",
+      "report_id": "c910765d4772274f81d0e0f81ef3a9b1",
+      "sha256": "a581abcb10c643efa30182f44b8a07fef5aad4b02a6c6b15933d6c6282d98912",
+      "source_pdf_sha256": "67b1b17fd786b64da355ad72339768c42bc9791af3cfaf16a58f34f44c53190f",
+      "target_pdf_sha256": "c3787a1a784863c34edeb8a335680ef762f312b106576feb305e456a81330b3e",
+      "source_id": "cfe6d2cb0d989b87136b70d317528360",
+      "source_pdf_copy": "runtime/equivalency/external-trials/sources/cfe6d2cb0d989b87136b70d317528360.pdf",
+      "decision": "not_equivalent",
+      "pair_count": 13,
+      "quotes_recalculated_verified": true
+    },
+    {
+      "file": "report-4.json",
+      "report_id": "e0aa185bd17b9cf545ee865a1ccc2455",
+      "sha256": "218380ceed386d1e911efb2b2dd8d0751743a32e04fee07da27911c6cabf5d4b",
+      "source_pdf_sha256": "635e1b0b06166dd4f44af5cb35efa785e7d11f884dc67e70dc57f6eae182fcce",
+      "target_pdf_sha256": "ce9b0d32e1c88aa1e7ab9f9046f5dc3f61a2480e8507f8356facb54a0d91f01f",
+      "source_id": "a43035dd1bf5ff1477ca2780679ab8e7",
+      "source_pdf_copy": "runtime/equivalency/external-trials/sources/a43035dd1bf5ff1477ca2780679ab8e7.pdf",
+      "decision": "not_equivalent",
+      "pair_count": 15,
+      "quotes_recalculated_verified": true
+    },
+    {
+      "file": "report-6.json",
+      "report_id": "23e03104fbd808ab68b4291f14a5dbdc",
+      "sha256": "f632a9786288fd9e20a9727ed8ea10a5a9233202c9405408efb8f20efa45b5e3",
+      "source_pdf_sha256": "5f625e1c422509a10fd060918d764b86bbf12443af3608b0086a69d78886ad55",
+      "target_pdf_sha256": "2c2c935a3d38ec4628db81d5235268c72973026ae89039eb6d731c86e7c6db81",
+      "source_id": "83c77cd664823936e18354a20cf54c59",
+      "source_pdf_copy": "runtime/equivalency/external-trials/sources/83c77cd664823936e18354a20cf54c59.pdf",
+      "decision": "not_equivalent",
+      "pair_count": 15,
+      "quotes_recalculated_verified": true
+    },
+    {
+      "file": "report-held.json",
+      "report_id": "1e85e789ab26e78e9d5c338a2b320eeb",
+      "sha256": "fbd7f71f1d392e93e22c08320ae86e1e5703fe7d2ff9776b84d3f49b5279417f",
+      "source_pdf_sha256": "22a5c1df34bfd4e48ab8f00a0705037d10361eef16edebac861265e622d1b4bf",
+      "target_pdf_sha256": "ab2a7b9c356bdb8468d4274bddf1d9dd9af1fa0d3b0a9cbfcdc0e69e11b29523",
+      "source_id": "efe75e96e49a436462f788da5a858cce",
+      "source_pdf_copy": "runtime/equivalency/external-trials/sources/efe75e96e49a436462f788da5a858cce.pdf",
+      "decision": "insufficient",
+      "pair_count": 0,
+      "quotes_recalculated_verified": true
+    }
+  ],
+  "canonical_data_changed": false,
+  "original_pdf_bytes_changed": false,
+  "target_catalog_changed": false,
+  "comparison_order": "sequential, no concurrent Qwen inference",
+  "source_transfer_instructions": "Copy each private sources/<source_id>.pdf and JSON to the destination runtime/equivalency/sources; copy each report as runtime/equivalency/reports/<report_id>.json. upload_pdf:true enables /pdf/<source_id>. Target PDF paths are relative published asset paths.",
+  "limitations": [
+    "Four real comparisons are a functional trial, not a benchmark judged by independent specialists.",
+    "Reviewed topic segmentation is recorded in reports; the catalog was not silently rewritten.",
+    "No acceptance outcome was forced; all four substantive target coverages remained below80%.",
+    "The global top Quran candidate contains undefined أخرى; it was held rather than accepted/rejected.",
+    "Source/target corrections are contextual visual readings; no academic committee approval is asserted."
+  ]
+}

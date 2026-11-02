@@ -1,0 +1,722 @@
+[
+  {
+    "source_index": 1,
+    "source": "مدخل لعلوم القرآن الكريم",
+    "method": "hybrid_qwen3_embedding_0.6b",
+    "seconds": 23.325,
+    "candidates": [
+      {
+        "rank": 1,
+        "id": "578aaf8c93f233073234",
+        "code": "2002252-2",
+        "name": "علوم القرآن العامة",
+        "context": {
+          "program": "الأنظمة",
+          "degree": "بكالوريوس",
+          "plan_type": "جديدة",
+          "version": "47"
+        },
+        "topics": 12,
+        "available_contexts_count": 5
+      },
+      {
+        "rank": 2,
+        "id": "65581b0bfcd0673a90ea",
+        "code": "2002230-2",
+        "name": "علوم قرآن",
+        "context": {
+          "program": "الشريعة",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 15,
+        "available_contexts_count": 2
+      },
+      {
+        "rank": 3,
+        "id": "c83c0ab60f3a7b4d8674",
+        "code": "2002131-2",
+        "name": "علوم القرآن (1)",
+        "context": {
+          "program": "القرآن وعلومه",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 13,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 4,
+        "id": "91b3376b463bd7415e89",
+        "code": "2002232-2",
+        "name": "علوم القرآن (2)",
+        "context": {
+          "program": "القرآن وعلومه",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 16,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 5,
+        "id": "1e7fb8129ea84f278b16",
+        "code": "2002853-2",
+        "name": "دراسات في علوم القرآن",
+        "context": {
+          "program": "الدراسات القرآنية المعاصرة",
+          "degree": "ماجستير",
+          "plan_type": "جديدة",
+          "version": "1"
+        },
+        "topics": 15,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 6,
+        "id": "d74d3c28298f7c4c1ba1",
+        "code": "2002131-2",
+        "name": "علوم القرآن (1)",
+        "context": {
+          "program": "القراءات",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 16,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 7,
+        "id": "3aead7570d9322c90b72",
+        "code": "2002250-2",
+        "name": "أصول التفسير ومناهجه",
+        "context": {
+          "program": "القراءات",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 3,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 8,
+        "id": "c7c3e00498dc91fb2814",
+        "code": "2002131-2",
+        "name": "علوم القرآن (1)",
+        "context": {
+          "program": "الدراسات الإسلامية",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 13,
+        "available_contexts_count": 1
+      }
+    ]
+  },
+  {
+    "source_index": 2,
+    "source": "أصول التفسير وقواعده",
+    "method": "hybrid_qwen3_embedding_0.6b",
+    "seconds": 0.347,
+    "candidates": [
+      {
+        "rank": 1,
+        "id": "dc79383c923b2461143b",
+        "code": "2002250-2",
+        "name": "أصول التفسير ومناهجه",
+        "context": {
+          "program": "الدراسات الإسلامية",
+          "degree": "بكالوريوس",
+          "plan_type": "جديدة",
+          "version": "47"
+        },
+        "topics": 15,
+        "available_contexts_count": 3
+      },
+      {
+        "rank": 2,
+        "id": "9dac8554f53324c3a88e",
+        "code": "20022250-2",
+        "name": "أصول التفسير",
+        "context": {
+          "program": "القرآن وعلومه",
+          "degree": "بكالوريوس",
+          "plan_type": "جديدة",
+          "version": "47"
+        },
+        "topics": 12,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 3,
+        "id": "b9c078410caa416542de",
+        "code": "2002851-4",
+        "name": "أصول التفسير",
+        "context": {
+          "program": "الدراسات القرآنية المعاصرة",
+          "degree": "ماجستير",
+          "plan_type": "جديدة",
+          "version": "1"
+        },
+        "topics": 15,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 4,
+        "id": "5d7dd6eb9347604d8563",
+        "code": "2002250-2",
+        "name": "أصول التفسير ومناهجه",
+        "context": {
+          "program": "الدراسات الإسلامية",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 15,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 5,
+        "id": "0cce2e78990653637e6a",
+        "code": "2001445-2",
+        "name": "أصول الفقه",
+        "context": {
+          "program": "القراءات",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 14,
+        "available_contexts_count": 2
+      },
+      {
+        "rank": 6,
+        "id": "f9a0724aed9de14d2a5a",
+        "code": "2002250-2",
+        "name": "أصول التفسير ومناهجه",
+        "context": {
+          "program": "الشريعة",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 12,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 7,
+        "id": "a4219a382ec2a3e954e7",
+        "code": "20042106-2",
+        "name": "أصول فقه (1)",
+        "context": {
+          "program": "الدراسات الإسلامية",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 13,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 8,
+        "id": "1a4b54e5d1b75c9c0357",
+        "code": "2002250-2",
+        "name": "أصول التفسير ومناهجه",
+        "context": {
+          "program": "القرآن وعلومه",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 12,
+        "available_contexts_count": 1
+      }
+    ]
+  },
+  {
+    "source_index": 3,
+    "source": "أدلة الأحكام",
+    "method": "hybrid_qwen3_embedding_0.6b",
+    "seconds": 0.278,
+    "candidates": [
+      {
+        "rank": 1,
+        "id": "d405e9a781e5f3accf7a",
+        "code": "2001250-4",
+        "name": "أدلة الأحكام الشرعية (١)",
+        "context": {
+          "program": "الشريعة",
+          "degree": "بكالوريوس",
+          "plan_type": "جديدة",
+          "version": "47"
+        },
+        "topics": 5,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 2,
+        "id": "0cce2e78990653637e6a",
+        "code": "2001445-2",
+        "name": "أصول الفقه",
+        "context": {
+          "program": "القراءات",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 14,
+        "available_contexts_count": 2
+      },
+      {
+        "rank": 3,
+        "id": "a4219a382ec2a3e954e7",
+        "code": "20042106-2",
+        "name": "أصول فقه (1)",
+        "context": {
+          "program": "الدراسات الإسلامية",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 13,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 4,
+        "id": "e86e5cb20925609e11ae",
+        "code": "20042104-2",
+        "name": "علوم القرآن (2)",
+        "context": {
+          "program": "الدراسات الإسلامية",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 14,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 5,
+        "id": "e211d4c27684f9d370b8",
+        "code": "2001414-4",
+        "name": "القياس",
+        "context": {
+          "program": "الشريعة",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 15,
+        "available_contexts_count": 3
+      },
+      {
+        "rank": 6,
+        "id": "f2f9dc0273c32bebdd6d",
+        "code": "2001330-2",
+        "name": "أصول الفقه (2)",
+        "context": {
+          "program": "القرآن وعلومه",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 13,
+        "available_contexts_count": 2
+      },
+      {
+        "rank": 7,
+        "id": "2bcf19066387652b95f7",
+        "code": "20012106-2",
+        "name": "أصول فقه (1)",
+        "context": {
+          "program": "الدراسات الإسلامية",
+          "degree": "بكالوريوس",
+          "plan_type": "جديدة",
+          "version": "47"
+        },
+        "topics": 14,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 8,
+        "id": "e14cc3058c5f2ec01650",
+        "code": "2001261-2",
+        "name": "أدلة الأحكام الشرعية (٢)",
+        "context": {
+          "program": "الشريعة",
+          "degree": "بكالوريوس",
+          "plan_type": "جديدة",
+          "version": "47"
+        },
+        "topics": 3,
+        "available_contexts_count": 1
+      }
+    ]
+  },
+  {
+    "source_index": 4,
+    "source": "فقه النكاح",
+    "method": "hybrid_qwen3_embedding_0.6b",
+    "seconds": 0.311,
+    "candidates": [
+      {
+        "rank": 1,
+        "id": "0a6b3b71c8c063b2cacb",
+        "code": "2001321-4",
+        "name": "الفقه (6)",
+        "context": {
+          "program": "الشريعة",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 10,
+        "available_contexts_count": 3
+      },
+      {
+        "rank": 2,
+        "id": "6a9e7c0966b64b58e35b",
+        "code": "20043204-2",
+        "name": "الفقه (5)",
+        "context": {
+          "program": "الدراسات الإسلامية",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 13,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 3,
+        "id": "3c0580d674e72b4a3e3d",
+        "code": "2001411-4",
+        "name": "الفقه (7)",
+        "context": {
+          "program": "الشريعة",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 10,
+        "available_contexts_count": 3
+      },
+      {
+        "rank": 4,
+        "id": "c25096f63f2421e66ccf",
+        "code": "2001127-2",
+        "name": "الحكم الشرعي والتكليف",
+        "context": {
+          "program": "الشريعة",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 5,
+        "available_contexts_count": 3
+      },
+      {
+        "rank": 5,
+        "id": "c87cbca1275756aaa0d1",
+        "code": "2001421-4",
+        "name": "الفقه (8)",
+        "context": {
+          "program": "الشريعة",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 10,
+        "available_contexts_count": 3
+      },
+      {
+        "rank": 6,
+        "id": "a5f38b01ad525b134bf8",
+        "code": "20042204-2",
+        "name": "الفقه (3)",
+        "context": {
+          "program": "الدراسات الإسلامية",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 13,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 7,
+        "id": "bb7150650ea8f6a4eb11",
+        "code": "20043104-2",
+        "name": "الفقه (4)",
+        "context": {
+          "program": "الدراسات الإسلامية",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 13,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 8,
+        "id": "6914b07853e8a6a9efe3",
+        "code": "2001424-2",
+        "name": "الفقه (4)",
+        "context": {
+          "program": "القرآن وعلومه",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 13,
+        "available_contexts_count": 1
+      }
+    ]
+  },
+  {
+    "source_index": 5,
+    "source": "أصول الفقه 1",
+    "method": "hybrid_qwen3_embedding_0.6b",
+    "seconds": 0.232,
+    "candidates": [
+      {
+        "rank": 1,
+        "id": "2e0e70e7fd248e0289e3",
+        "code": "2001113-2",
+        "name": "أصول الفقه (1)",
+        "context": {
+          "program": "الأنظمة",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 14,
+        "available_contexts_count": 3
+      },
+      {
+        "rank": 2,
+        "id": "a4219a382ec2a3e954e7",
+        "code": "20042106-2",
+        "name": "أصول فقه (1)",
+        "context": {
+          "program": "الدراسات الإسلامية",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 13,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 3,
+        "id": "2bcf19066387652b95f7",
+        "code": "20012106-2",
+        "name": "أصول فقه (1)",
+        "context": {
+          "program": "الدراسات الإسلامية",
+          "degree": "بكالوريوس",
+          "plan_type": "جديدة",
+          "version": "47"
+        },
+        "topics": 14,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 4,
+        "id": "0cce2e78990653637e6a",
+        "code": "2001445-2",
+        "name": "أصول الفقه",
+        "context": {
+          "program": "القراءات",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 14,
+        "available_contexts_count": 2
+      },
+      {
+        "rank": 5,
+        "id": "2d981fb5668e0ecf5080",
+        "code": "2001812-2",
+        "name": "تخريج الفروع على الأصول",
+        "context": {
+          "program": "الفقه",
+          "degree": "ماجستير",
+          "plan_type": "جديدة",
+          "version": "1"
+        },
+        "topics": 15,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 6,
+        "id": "28d5b13c5d6760af38a6",
+        "code": "2003220-2",
+        "name": "المدخل لدراسة الأنظمة",
+        "context": {
+          "program": "الدراسات الإسلامية",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "39"
+        },
+        "topics": 15,
+        "available_contexts_count": 2
+      },
+      {
+        "rank": 7,
+        "id": "1460b6e1e6434a6577e2",
+        "code": "2001110-2",
+        "name": "المقدمات الأصولية",
+        "context": {
+          "program": "الشريعة",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 1,
+        "available_contexts_count": 3
+      },
+      {
+        "rank": 8,
+        "id": "3aead7570d9322c90b72",
+        "code": "2002250-2",
+        "name": "أصول التفسير ومناهجه",
+        "context": {
+          "program": "القراءات",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 3,
+        "available_contexts_count": 1
+      }
+    ]
+  },
+  {
+    "source_index": 6,
+    "source": "القانون الإداري",
+    "method": "hybrid_qwen3_embedding_0.6b",
+    "seconds": 0.234,
+    "candidates": [
+      {
+        "rank": 1,
+        "id": "62a456750b36182d1ace",
+        "code": "2003243-3",
+        "name": "القانون الإداري",
+        "context": {
+          "program": "الأنظمة",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 14,
+        "available_contexts_count": 2
+      },
+      {
+        "rank": 2,
+        "id": "150e4c80e2284aa3128a",
+        "code": "2003381-3",
+        "name": "القضاء الإداري",
+        "context": {
+          "program": "الأنظمة",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 17,
+        "available_contexts_count": 2
+      },
+      {
+        "rank": 3,
+        "id": "3ef6bdd4a4e748662d20",
+        "code": "2003821-2",
+        "name": "أصول التأديب الإداري وضماناته",
+        "context": {
+          "program": "القانون",
+          "degree": "ماجستير",
+          "plan_type": "جديدة",
+          "version": "1"
+        },
+        "topics": 15,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 4,
+        "id": "905ac4871e7f14115abe",
+        "code": "2003441-3",
+        "name": "الحقوق العينية",
+        "context": {
+          "program": "الأنظمة",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 6,
+        "available_contexts_count": 2
+      },
+      {
+        "rank": 5,
+        "id": "e16e80222c37a275d8c7",
+        "code": "2003225-2",
+        "name": "المنظمات الدولية",
+        "context": {
+          "program": "الأنظمة",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 15,
+        "available_contexts_count": 1
+      },
+      {
+        "rank": 6,
+        "id": "e30c0d04a594168470b4",
+        "code": "2003492-3",
+        "name": "إجراءات التنفيذ القضائي",
+        "context": {
+          "program": "الأنظمة",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 5,
+        "available_contexts_count": 2
+      },
+      {
+        "rank": 7,
+        "id": "1d6b06990c50e883b642",
+        "code": "2003111-3",
+        "name": "مبادئ القانون",
+        "context": {
+          "program": "الأنظمة",
+          "degree": "بكالوريوس",
+          "plan_type": "قديمة",
+          "version": "38"
+        },
+        "topics": 23,
+        "available_contexts_count": 2
+      },
+      {
+        "rank": 8,
+        "id": "84b56559194e9bbce76f",
+        "code": "2003805-2",
+        "name": "المعاملات العقارية",
+        "context": {
+          "program": "القانون",
+          "degree": "ماجستير",
+          "plan_type": "جديدة",
+          "version": "1"
+        },
+        "topics": 16,
+        "available_contexts_count": 1
+      }
+    ]
+  }
+]

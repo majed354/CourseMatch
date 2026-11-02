@@ -1,0 +1,1896 @@
+{
+  "date": "2026-11-02",
+  "source_repository": "https://github.com/majed354/courseOfShar3ah.git",
+  "source_base_commit": "923586da75d95d72fe925ae46e4faa5255cc2c1b",
+  "destination_repository": "https://github.com/majed354/CourseMatch.git",
+  "copied_files": [
+    {
+      "path": "data.json",
+      "sha256": "3e4b0edb2e96a5ff1a0816b36a2b2561ee4b90b6f2905662c988dcf2f0a05cd3"
+    },
+    {
+      "path": "site-edits.json",
+      "sha256": "406e9052d7c5782d0e70febbe2a12d5a9e72046854bdac2684c4c7909900ddc3"
+    },
+    {
+      "path": "assets/js/site-edits.js",
+      "sha256": "7d3302d843d9aa41781d4bba9ca644a8723151848b3f625a34d3b4660f44fa5a"
+    },
+    {
+      "path": "scripts/extract_course_outcomes.py",
+      "sha256": "d871f5ac640c349b0fe13b383d14703d83c1e106a6e8c438e00a4e88c50121ee"
+    },
+    {
+      "path": "scripts/pdf_font_recovery.py",
+      "sha256": "1b84ebd184c194e0c91b47b0d4cfcce1a0185bf1cad32180122cf468c8bd64a9"
+    },
+    {
+      "path": "tests/test_course_equivalency.py",
+      "sha256": "3ade9c7a98cfb14cfaf666f0410b06249ced555c71da2a2020f35676f0cd9c45"
+    },
+    {
+      "path": "tests/test_equivalency_external_extraction.py",
+      "sha256": "3951ea4cc8a4e601b8aafb35509fe9be010ac4d86fd14ea0845a5a114ffb2717"
+    },
+    {
+      "path": "tests-js/equivalency-ui.test.mjs",
+      "sha256": "200328e3adb7f3081deb6574158c994a6b445acb074fdfdf8497df4b660da449"
+    },
+    {
+      "path": "scripts/equivalency/server.py",
+      "sha256": "ca1e2f288055475fac8b1aae082be7dde6fb4b15e74a8ca30085f9fb32878ba5"
+    },
+    {
+      "path": "scripts/equivalency/recovery.py",
+      "sha256": "c924d1793c9dcfe1ade024b418922503b0074eae17c1145780869355d2bd271d"
+    },
+    {
+      "path": "scripts/equivalency/__init__.py",
+      "sha256": "be8e5b43cfb2fd355738800e1fde93e841e1d9817687acd4c4e1d4cd3d6d455b"
+    },
+    {
+      "path": "scripts/equivalency/engine.py",
+      "sha256": "63320ddcb440f1dfeae4c2640ac0090217ab6317b43af18f896ea096baa2a678"
+    },
+    {
+      "path": "scripts/equivalency/extract.py",
+      "sha256": "c863e1bb3b380a99dd4bdb5a53910a490820371137f964aa54752b27ed71ae3f"
+    },
+    {
+      "path": "scripts/equivalency/__main__.py",
+      "sha256": "fe2eec43cd2598b0b1eb8b74474023e9b1cc84546f9885df56f49dc424080a01"
+    },
+    {
+      "path": "equivalency-pilot/index.html",
+      "sha256": "5ff4eaa5832e8d806d61d61ec790b9bdcefd68bebbd43e697078aa33d064dc9f"
+    },
+    {
+      "path": "equivalency-pilot/requirements.txt",
+      "sha256": "124d6ed9a5d499deaf339c1f0d757dae32557aba9ddfafbc328bb3bf07b6d1a4"
+    },
+    {
+      "path": "equivalency-pilot/start.command",
+      "sha256": "066185e3686e7c07fe228673f953a8fb49c78bc5fbdc1b382691d34a8909c340"
+    },
+    {
+      "path": "equivalency-pilot/README_AR.md",
+      "sha256": "8e648e50089a08538dbebc4c108502f4380636a83b9daa4e45804cba04466fdd"
+    },
+    {
+      "path": "equivalency-pilot/style.css",
+      "sha256": "ee9ef61b7a6282efeacf571b664e11b40e69cf0f6649ab1683238af1ad7852c8"
+    },
+    {
+      "path": "equivalency-pilot/catalog.json",
+      "sha256": "17ee8db9f0ce6b495d4121e6c8cef3e7b6c4b0f5599495e886487ac66a509ab7"
+    },
+    {
+      "path": "equivalency-pilot/topic-readings.json",
+      "sha256": "4cc57d917fc0fd6d8069d7c0f038e7c19828eb07c467e99d55807259fcaec20c"
+    },
+    {
+      "path": "equivalency-pilot/app.js",
+      "sha256": "d141dde1744ad7dcf64e78c67c3215540f97e9777143482807f1f02e4cfc5879"
+    },
+    {
+      "path": "assets/course-specifications/2001114-2.pdf",
+      "sha256": "12bdab814d979eed5c7f21892649cd0924c3d4846b6253da258ba88954eda421"
+    },
+    {
+      "path": "assets/course-specifications/20021304-2.pdf",
+      "sha256": "3fefee2751520576fb0752449bec11cd659e327668857f985de6b9f0c1d489da"
+    },
+    {
+      "path": "assets/course-specifications/20031301-2.pdf",
+      "sha256": "5ca08149acf36e81a8851ddd642e35432305a6723bd7167b2f83729e3ed74fda"
+    },
+    {
+      "path": "assets/course-specifications/2004112-2.pdf",
+      "sha256": "54d82463d753bad7e4f628ee60463e6d61f69ad07f779b6265c20ab716835997"
+    },
+    {
+      "path": "assets/course-specifications/20041302-2.pdf",
+      "sha256": "20ed27a1b0aba126f1167a8eec922cad342010d9976dd8751e0e9ed91f9dc067"
+    },
+    {
+      "path": "assets/course-specifications/20041303-2.pdf",
+      "sha256": "47e9239f95b6f87e5e13da72237e01db51f1c34e2b9e11bfe94aa56e9e3fc368"
+    },
+    {
+      "path": "assets/course-specifications/2004313-2.pdf",
+      "sha256": "b1390d0186c2077a61f241580f5b9b93440fa10e73237973e8e6a9b97aaf82a0"
+    },
+    {
+      "path": "assets/course-specifications/20043207-2.pdf",
+      "sha256": "8b79c78a231dc75f369afc023b5713de66eec6eb79d702b1e96040380cab3193"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001110-2--sharia-all.pdf",
+      "sha256": "b81949b00e6aa13f5befac72cfbfd9062b7c95877f0f6f2ea35bc91cae3915dd"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001115-4--sharia-new-v47.pdf",
+      "sha256": "ca08b916a669e1a338e12976e0364c20b353bcbe3f719695a27be736752ca16b"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001116-4--sharia-new-v47.pdf",
+      "sha256": "663458e7e0a7815698fdb8f4af068b6d7fc8f3ab053e0f23cf951803c9ca6b23"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001128-2--sharia-new-v47.pdf",
+      "sha256": "3d77c056414d74c9a39c820b8527808b19528885a3ce2eee920d063f0ac3969d"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001148-2--sharia-all.pdf",
+      "sha256": "d1922269e16bf310d87bd9baaa54f52bb5405372cb3b7bb5bf115812394519a2"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001215-4--sharia-new-v47.pdf",
+      "sha256": "6550ca84bf6f8682487d4c09bdf338444c9709ffed807c1e3dccd52de509a240"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001216-4--sharia-new-v47.pdf",
+      "sha256": "d7e24194e3a0254072169c75410f99c5c2b3ae7d4a02842d76f961d6fa69ef91"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001256-2--sharia-new-v47.pdf",
+      "sha256": "89202ced39296a715984e9ab52142f9f9e71080fd1710af71ade6f95f51286ec"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001257-2--sharia-new-v47.pdf",
+      "sha256": "025f65a60dfa7d69f78dee7fd6b8e4d4f19dab9bbbc4b95c63ac779510abbbac"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001311-4--sharia-new-v47.pdf",
+      "sha256": "ceddd0c27ef40505ad2a98d6e9f72df78f517addd069f8c1329282a574a64963"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001321-4--sharia-new-v47.pdf",
+      "sha256": "ce9b0d32e1c88aa1e7ab9f9046f5dc3f61a2480e8507f8356facb54a0d91f01f"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001346-2--sharia-new-v47.pdf",
+      "sha256": "e47bf4e3ebd2b9651b6b90f10327b8f23bfbb6a24247eccc8446a04485a6fbf8"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001411-4--sharia-new-v47.pdf",
+      "sha256": "46990136898f5a9b33349b167b12f26fdc580bc5944e1584ca106e1af7465634"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001465-2--sharia-new-v47.pdf",
+      "sha256": "fc2ae80d9c5af2f93593673ccbdeb50fdb19a3799cd0197d86a39c603f3b6673"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001700-2--usul-master.pdf",
+      "sha256": "1b1729dd88bdbe9fc02598730f60711ff82be7fee12f68d16b027c05dc0f367e"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001701-3--usul-master.pdf",
+      "sha256": "e802ca66de97f421fba0cb6cfa245e7bed5e6b9001fa0f44c6539bf217fa262f"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001704-2--usul-master.pdf",
+      "sha256": "60505ec4415daaf43726eec84f54d3170b3d3808e4700c38577c62306ad3782a"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001706-2--usul-master.pdf",
+      "sha256": "377403a8f429932e16059880bdc2100f29df471e2414cd99b4ed60805172819a"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001710-4--usul-master.pdf",
+      "sha256": "5cbe5a19c92aa0692e2e7b8436fc3ba61f2d4ac9311ead1504ff45c827efa696"
+    },
+    {
+      "path": "assets/course-specifications/clo-plo-corrections-20260901/2001711-4--usul-master.pdf",
+      "sha256": "636626124c0c1fd9a7dfdff2cc5d6ce5fc0811db84534bdb783c2c826a2979f3"
+    },
+    {
+      "path": "assets/course-specifications/creed-master-1447/2001711-2.pdf",
+      "sha256": "288718f7c8fe913a574983e392cba2c7a9b977f69451239a0428664e501f5831"
+    },
+    {
+      "path": "assets/course-specifications/creed-master-1447/2001712-3.pdf",
+      "sha256": "078814996aa9b4605293adf012285175573785487b8317079ac7f532da281fb7"
+    },
+    {
+      "path": "assets/course-specifications/creed-master-1447/2001713-3.pdf",
+      "sha256": "4eaad0928501c188ab6bd5b73b518c41f9d3e5cd39397c24dcad16863c490193"
+    },
+    {
+      "path": "assets/course-specifications/creed-master-1447/2001715-2.pdf",
+      "sha256": "321c79af1fecb75f4b49467882d39917d20a081c886902d756756444aa61875f"
+    },
+    {
+      "path": "assets/course-specifications/creed-master-1447/2001717-2.pdf",
+      "sha256": "bf2647e054988269474820a5201970295f182c2c37294e1f6b2622b66b3ecd78"
+    },
+    {
+      "path": "assets/course-specifications/creed-master-1447/2001721-2.pdf",
+      "sha256": "0fbff588db66fbb5dd2b44d6cc97c44521d43af60a5a0ca7b1ac16f8e696b92e"
+    },
+    {
+      "path": "assets/course-specifications/creed-master-1447/2001725-2.pdf",
+      "sha256": "1ccb3ad4688f9a7b93b9507b3a7aa419a02e96e2d154115ea0c0c542c9a1fb5e"
+    },
+    {
+      "path": "assets/course-specifications/creed-master-1447/2001726-2.pdf",
+      "sha256": "d2fb79b317f033997cdac3c35a03c383f58982653286b2b0844eb0d08ba276c3"
+    },
+    {
+      "path": "assets/course-specifications/creed-master-1447/2001731-2.pdf",
+      "sha256": "afd629e13289dc6a23ca35a0c94d47539d8abaf9f531a478326f9792b29ed71f"
+    },
+    {
+      "path": "assets/course-specifications/creed-master-1447/2001732-3.pdf",
+      "sha256": "b3358779bea278d3ab38b376cc20c20908981f5a864604652d5d747651905e49"
+    },
+    {
+      "path": "assets/course-specifications/creed-master-1447/2001733-2.pdf",
+      "sha256": "3c45a18bee0ba1978d43538a7e00c5e9ca1ae5d4d9a28fb0f62d34fdf2e2f829"
+    },
+    {
+      "path": "assets/course-specifications/creed-master-1447/2001734-2.pdf",
+      "sha256": "048430cf5ae5ccd1233ffbd0330e4373d66521ea1c5e9740ba8329bcad04f245"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/20021202-2--islamic-studies-new-v47.pdf",
+      "sha256": "1cfe33d8a86b41048d64ffec86f7f49f23b490f3b88c61b0c8aada8360b25a5b"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002128-1--sharia-old-v38-v39.pdf",
+      "sha256": "9fee0cb861566c28190f5ae0950d2c90b4c446bda112cb9d0003d722f72e956e"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002129-1--sharia-old-v38-v39.pdf",
+      "sha256": "8a581d5b68050408abe0809216de795a6284c4082a128ff393c4d8b9c20801a9"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002202-2--islamic-studies-new-v47.pdf",
+      "sha256": "86272acf787df2654f0f4e9e2e48613f00cdc58409aa7d2f9d384dd7d53cb7d4"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/20022103-2--islamic-studies-old-v39.pdf",
+      "sha256": "612863e407d9a66cad530804e52b9a7a654962e25760ddd975c93bda271b7c9a"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002211-1--sharia-old-v38-v39.pdf",
+      "sha256": "a3e75e87ffa9c1ac24f7cc574df9b23a8d48f276b5d27d4d2468069865fb1fb6"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002220-2--islamic-studies-new-v47.pdf",
+      "sha256": "d97fcf287ff02180b539ec90b6f8d632de851362543cb04022ae15ed503b74cc"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002220-2--sharia-new-v47.pdf",
+      "sha256": "3c8724053dd2c0929f97a781cae8198421243249c67cd18b6de4e31ebb131e16"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002221-1--sharia-old-v38-v39.pdf",
+      "sha256": "f1a8b2d4b6acc7cadbf757e3d57e44f768141db77ff5cf2b89bbc29812b00c17"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002221-2--sharia-new-v47.pdf",
+      "sha256": "a14f6e140cb4e08f8d3c52ba7d943927d35f0ed5038b19079b3df091a9c6c8da"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002225-2--islamic-studies-new-v47.pdf",
+      "sha256": "362f9494d8f0e6d2e7e3775461c41eb0d78afda02bdd2efad6211408c55dc564"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002225-2--sharia-new-v47.pdf",
+      "sha256": "c31e4deb337c0cc640065dacaa1ab33cacbabfaeb1052e464300e3d8a7784734"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002226-2--islamic-studies-new-v47.pdf",
+      "sha256": "7293c551811a7ebe9e6286b13c00432d1fd185ab2e6444f8ef2b7f0d1d0220ff"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002226-2--sharia-new-v47.pdf",
+      "sha256": "b0c101cab3a63ad1b052495061ce89529fe8a802bd450c9f7995aeaff6dd9209"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002228-2--islamic-studies-new-v47.pdf",
+      "sha256": "f99bd3fa9d951bd93e2bb21efcb102256b1ba452344de34648fd3ac2604e9e66"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002229-2--islamic-studies-new-v47.pdf",
+      "sha256": "408eb35ecab64333d7bebe5e0fe42cdf8bb5b6dde4abf000892167c04732bc37"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002235-2--islamic-studies-new-v47.pdf",
+      "sha256": "e0562a2773b06bfc5e1d99de10ac3c2dde4dc66581b2a56f26dc3477a8af4510"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002236-2--islamic-studies-new-v47.pdf",
+      "sha256": "048252d0a7638a9008fc15aac44a3bf3e0ae00a3ce7062662e767c33eaf65d52"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002311-1--sharia-old-v38-v39.pdf",
+      "sha256": "9bc06350bb1cf39776720f5544e1364cc3c586fba4bcaf77a6c13cc9b9c5b1da"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002312-1--sharia-old-v38-v39.pdf",
+      "sha256": "f3ddd53b2bfa9269ff4c1261072ffe2b6f10f927c1f0e3ddf826ddf5995c37e2"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/2002411-1--sharia-old-v38-v39.pdf",
+      "sha256": "4442c277ecbecfedade2d375aad4b3676c1d6df58d62349ea07ff82adc0476ed"
+    },
+    {
+      "path": "assets/course-specifications/cross-program-updates-20260914/20041201-2--islamic-studies-old-v39.pdf",
+      "sha256": "e6cdffa1b836cf205c38e7381655fc548527bf23597178ec0ab863ce7c0d6bef"
+    },
+    {
+      "path": "assets/course-specifications/eight-course-completion-20260915/2001113-2.pdf",
+      "sha256": "9e022d9c62ccc2a737d6007a86c927a0fbd8a313c073d11d2e8edb624f0e9e63"
+    },
+    {
+      "path": "assets/course-specifications/fiqh-master-1446/2001801-2.pdf",
+      "sha256": "5cc12074cd46800ce4b8d69ef1451cb1ce0b2225277dc0bfba906a66322d01c2"
+    },
+    {
+      "path": "assets/course-specifications/fiqh-master-1446/2001803-2.pdf",
+      "sha256": "eace25d916d3057e23023308310ea5b90be3aa128b42a0ae7fb596e8deba0b83"
+    },
+    {
+      "path": "assets/course-specifications/fiqh-master-1446/2001812-2.pdf",
+      "sha256": "da2ef6df91fab0e44ada2e12a3bf5e13bcf93353910f9dd0a53d1680e055f27d"
+    },
+    {
+      "path": "assets/course-specifications/fiqh-master-1446/2001824-2.pdf",
+      "sha256": "f7b854a33003812127c53597354f5da973be34525f6fa4af83b3eb204c42d78a"
+    },
+    {
+      "path": "assets/course-specifications/fiqh-master-1446/2001832-4.pdf",
+      "sha256": "670d4876f9996e0620016078b394932c67e73d8cc09e3c73e9b59cc57622c1ad"
+    },
+    {
+      "path": "assets/course-specifications/fiqh-master-1446/2001833-4.pdf",
+      "sha256": "f35f9851019b97d0f0432b7df76be767fef057dcc22cbfee39a0db819604a775"
+    },
+    {
+      "path": "assets/course-specifications/fiqh-phd-1446/2001905-3.pdf",
+      "sha256": "34d91cb0ac2e227edcf914aae7ad1bede05e43c4ebe8c2ef2f9a3d6f6c93f860"
+    },
+    {
+      "path": "assets/course-specifications/fiqh-phd-1446/2001906-3.pdf",
+      "sha256": "0ffe7cce4f26697115a5fc3f0a50b8843e94a0dca5dda1d4dff50bd105f16fbb"
+    },
+    {
+      "path": "assets/course-specifications/fiqh-phd-1446/2001907-3.pdf",
+      "sha256": "2f235480e16de8d63e9a530d8b6aa77ee6058c82084cc3a46912ecf74a021ab5"
+    },
+    {
+      "path": "assets/course-specifications/fiqh-phd-1446/2001908-3.pdf",
+      "sha256": "4f4c63a0731c348f5f63b67fed3e7b9f46bc416a1488d996498206911d509e39"
+    },
+    {
+      "path": "assets/course-specifications/fiqh-phd-1446/2001909-28.pdf",
+      "sha256": "e3313056f8cde426ca1df5c46323cc1681e6dcccaab7ccd01a261b0793453b60"
+    },
+    {
+      "path": "assets/course-specifications/graduate-all-20260823/fiqh-usul/2001713-4.pdf",
+      "sha256": "4f05e22dbd897a727e8ae45430a293ed7b138ef23902587023f7fdcda45111ac"
+    },
+    {
+      "path": "assets/course-specifications/graduate-all-20260823/fiqh-usul/2001802-2.pdf",
+      "sha256": "2d2f70c2bf82584bc192902a37e8fce2de78d58a89c43f08d1f51a65ed17acc9"
+    },
+    {
+      "path": "assets/course-specifications/graduate-all-20260823/fiqh-usul/2001804-2.pdf",
+      "sha256": "8218065f1b048b48fbe11bdb3d7bccff057f6eb647978e06409c260244b7a7ab"
+    },
+    {
+      "path": "assets/course-specifications/graduate-all-20260823/fiqh-usul/2001813-2.pdf",
+      "sha256": "57eaf8d040301dde8afad87b9b16042c73a0330034f5b640572d1468a64a151c"
+    },
+    {
+      "path": "assets/course-specifications/graduate-all-20260823/fiqh-usul/2001814-2.pdf",
+      "sha256": "84c99034ba98aa3478c7af9882e0b080afc33071cc945c50ddf6fdbdb6fe1000"
+    },
+    {
+      "path": "assets/course-specifications/graduate-all-20260823/fiqh-usul/2001822-2.pdf",
+      "sha256": "e38ed3b2a75f719f86153564cce50c43e109f7c9123e2c336057bf2f0ffe11df"
+    },
+    {
+      "path": "assets/course-specifications/graduate-all-20260823/fiqh-usul/2001823-2.pdf",
+      "sha256": "740b626c64a9cedd0c236ff3fbe6ae51fb33c6bbd30d5d69e25c8a40961a63bb"
+    },
+    {
+      "path": "assets/course-specifications/graduate-all-20260823/fiqh-usul/2001831-4.pdf",
+      "sha256": "ab3872a2401ac44061dfe035d9f9b1583649b12ba69254b0ae15e6a2957ab98a"
+    },
+    {
+      "path": "assets/course-specifications/graduate-all-20260823/law/2001880-2.pdf",
+      "sha256": "b877c75f16377dcc57b25801b2e9458d467b1543b3716546a8dde1d56a2cb15a"
+    },
+    {
+      "path": "assets/course-specifications/graduate-all-20260823/law/2001881-2.pdf",
+      "sha256": "cfc10f0fa758086b52d26999e8071a2ba1c8abd8780a0f439fb0b22649787c8a"
+    },
+    {
+      "path": "assets/course-specifications/graduate-all-20260823/quran-qiraat/2002831-4.pdf",
+      "sha256": "372dd4996f11beef2b8d44f24f5c3c731058afbd8d1d018ad6677a416fd7bab7"
+    },
+    {
+      "path": "assets/course-specifications/identity-resolutions-20260829/20024102-2.pdf",
+      "sha256": "fb4b03e82e5367304e4c2dd7d6c9298cb5ff8ff9a71ff1c9902d60f97bf41770"
+    },
+    {
+      "path": "assets/course-specifications/identity-resolutions-20260829/2002454-2--quran.pdf",
+      "sha256": "aba2cb946d9a3fc3aa7ad56dec56e30116a7c1e344dc7664a9fe0d226928ecca"
+    },
+    {
+      "path": "assets/course-specifications/identity-resolutions-20260829/2002703-2.pdf",
+      "sha256": "98610fcf556f87f2adebeb189d057df2a62a29479882a2710dd04237ee45e1bd"
+    },
+    {
+      "path": "assets/course-specifications/identity-resolutions-20260829/2003347-2.pdf",
+      "sha256": "e8d7f3ea70195617d09246ed60d649c40ed0635e6f57f758a07996995e04e14c"
+    },
+    {
+      "path": "assets/course-specifications/institutional-recovery-20260911/2001205-2.pdf",
+      "sha256": "b15bf07d186a839ab17ae65398f1f878ccd2a362994c342049eb00769daecb2d"
+    },
+    {
+      "path": "assets/course-specifications/institutional-recovery-20260911/2001209-2.pdf",
+      "sha256": "e5bc393aed47e6b6815a97b628f35860ae54933c42e13d0ff116ce3022a0b4cd"
+    },
+    {
+      "path": "assets/course-specifications/institutional-recovery-20260911/2001221-2.pdf",
+      "sha256": "5af1f5156e692f0fbb9613a5c173d87288d6ffdb0961a1f32f0e7100a8009a97"
+    },
+    {
+      "path": "assets/course-specifications/institutional-recovery-20260911/2001317-2.pdf",
+      "sha256": "73e4cee7969dda4fd52573c6dae75ffc81d979ca9a30235153ea9821bb30d063"
+    },
+    {
+      "path": "assets/course-specifications/institutional-recovery-20260911/2001320-2.pdf",
+      "sha256": "17c56438a42c73275978c91863e4663dd09fe12f03f534084d8a7c12f6d01142"
+    },
+    {
+      "path": "assets/course-specifications/institutional-recovery-20260911/2001322-2.pdf",
+      "sha256": "5708e98e83bd129d0bf06c11a30bca983a1a495d543a517e2c6d4ce1ee1c1287"
+    },
+    {
+      "path": "assets/course-specifications/institutional-recovery-20260911/2001330-2.pdf",
+      "sha256": "e6deafae09bb141750ff95ca9f064a7b53f1286efa1d79e3d8cbe991a7fe061a"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20013105-2.pdf",
+      "sha256": "170fd159dd2cf9b2adabf8aad46f9717c3ebccd22eef8b78ffa981260f2c2798"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20013106-2.pdf",
+      "sha256": "edc6c264c453ee33ad87c3f1d2761520757c154d712966541e0b28c546b97308"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20013108-2.pdf",
+      "sha256": "b28499cdd52f0af2db2c0dc2e39d711b96786f6a81ff9f9197d9107035c8988e"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20013202-2.pdf",
+      "sha256": "a1fe27d4e6e3e6045b2b1ccec658f80fe3f56e84ce8113b2ef50070d2000476d"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20014206-2.pdf",
+      "sha256": "58c18c89b64ee9fc1d86bba0bed78bd8007bb5e61c27ddb3913a9d81f67e0309"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20021105-2.pdf",
+      "sha256": "ba64f58a75d9ae34506312adb51c8b41c3cd531148417b5448c34c23e3bd7fc7"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20021201-2.pdf",
+      "sha256": "1bef62d3ae09791d755d8bb3991eb65d5e20e68571ff7b339efd31d71d187a10"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20022203-2.pdf",
+      "sha256": "450d50decad4ff9f527c52986cc87eb15ce7bed90ea3000983995ff77073f9fe"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20023203-2.pdf",
+      "sha256": "d8fd3841c49b86519109fc42c53f628d5868538cb787fd4e67248ea469adf4ec"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20024103-2.pdf",
+      "sha256": "5dacaccdddb0cc9aea32645e8cebb603e57875412944a106b71c5bcb436b50d4"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20024203-2.pdf",
+      "sha256": "17b8f4ffb5690c01ae0dcc3ab46cfee2d37f771e69c5582860c60fd4a91775be"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20041103-2.pdf",
+      "sha256": "5469cdfd897c035cdcbe26eb6f81d751890f2e8f6797202e40d251edba7687ac"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20041104-2.pdf",
+      "sha256": "12d118ea9f805bea1eb46bde303bdb7506b863292d2b78d9017a1e902957a365"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20041204-2.pdf",
+      "sha256": "387c725e5d9787f5f76107636415ae9ff1cecd4fca01483a2fa5a254559be4ff"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20041205-2.pdf",
+      "sha256": "a0975856f8331a101593be51406945ba6fe97032d41950c74155db23310331a9"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20041206-2.pdf",
+      "sha256": "8540cca7f8c65d2dc7cb47b4db3051ec00a43519a25df5b164ca6b2df1aa8a47"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20042102-2.pdf",
+      "sha256": "bdacca7b4f4708289d50de39889badb7667bc356be5523c5a61e3e674a030cc5"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20042104-2.pdf",
+      "sha256": "0e609c9c5adaa1575df152adda14c48f8a3bf7cbcfdb263ae2f0175e02cf3d07"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20042105-2.pdf",
+      "sha256": "376d3b6d9d976e59ceb04537c2894617a6b3eceee1f00f9c17384fe7af7fed09"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20042201-2.pdf",
+      "sha256": "b3d418646c9ce0bebfdd390e2c64e82c514ecd78501a839a88a1edb03b39fd2b"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20042202-2.pdf",
+      "sha256": "30ca2ad39646ae794709607ba27351e5625c4edc8dc49dad488e784d58755018"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20042203-2.pdf",
+      "sha256": "78704a87135418cf5b321e7326aaecef6134c7f4a618e86d32384aa52aaeac26"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20042204-2.pdf",
+      "sha256": "002b05373ad27c12bc80df620ee0c66098dc95a6fa8d7a789688d3270f1f0b74"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20042205-2.pdf",
+      "sha256": "655e3944a25d277a94a11ac301f9efe819de5ef1a3a2729d40d80a4b4a4571c5"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20042206-2.pdf",
+      "sha256": "50c0a8fdfb4bd2c4270ba618253e51df048c69d3018b418aecaed0e46154e6d5"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20043101-2.pdf",
+      "sha256": "59107153b32bd1baae4e8b5c85039376fa51cf6581fb390340881496cc7d933f"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20043102-2.pdf",
+      "sha256": "736b2bfc8b8220c91fa5354d4e07dc735b1cf37011e589c3df486b401df6ddfd"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20043103-2.pdf",
+      "sha256": "829dbc8ac700b1a8f9d17d3371137dac417ce88214346f21492dd8d4c201f6af"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20043104-2.pdf",
+      "sha256": "01879e5d4fc0f094eec18c0f7e86acb616c5780e9b3866bf73486a6e9867205f"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20043107-2.pdf",
+      "sha256": "bfc55ab63194a4fdf7b957458c145686cdb3cf30d3d967ae5f2182fc26c7c9ee"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20043201-2.pdf",
+      "sha256": "9fe5111b261abf4e38da88fab306e9867f5d6a2d120c41116900622a537835a7"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20043203-2.pdf",
+      "sha256": "ce732aaa81d597addb1e339b93d89b2078ad53afe771e089da1b92e05f8b50cd"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20043204-2.pdf",
+      "sha256": "de968ea247ac9ec10b398c6ee8cb1098577d4c595990807cac7d1ccbe556f06e"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20043205-2.pdf",
+      "sha256": "bfd71f4633414b8c0ab0207bb1844e7c1c7ad2fb7564ae5d5948980e31fdff6a"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20043206-2.pdf",
+      "sha256": "84c789a8764c70e9c7c5348442fd47e066e04cb2f1eb795acedc944f0d0f75a0"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20044102-2.pdf",
+      "sha256": "f9047d66a635dfac1a007746e63ee8d36b605e9cb57db0a621e0902253e93603"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20044103-2.pdf",
+      "sha256": "8144d1414dd86df652d6f12311285a6bf9d89218c76c7bcdd4ebac3dc27805f8"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20044104-2.pdf",
+      "sha256": "93400bdf3b6317c175480c9d77fe05549474a3de8097c6719445a70a78b528b9"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20044105-2.pdf",
+      "sha256": "5c3828e076f04c6319efa323137f7d0b6857b7228074facd263e52b1b478b9bd"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20044106-2.pdf",
+      "sha256": "2e1be0434f8898c7dbaec45a17b6587ca8d97bb1186068bc30ba3045625d43e5"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20044107-2.pdf",
+      "sha256": "d7d4ccd4a63d2d0625dbff055e7af682d88cf20429cef3643673f40e9c9a8e96"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20044201-2.pdf",
+      "sha256": "36878dd58f4d05bb8b4ba8d695fd888f1c3b68fbfc430f9563b21d9f06b8c5a3"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20044203-2.pdf",
+      "sha256": "4128b0ccf955797100810d9867d6d02008ff57c25e06eaa4446d52c3f3e424f2"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20044205-2.pdf",
+      "sha256": "4bc36fabcfc12deee4bdcfd2e47a689a50ba7bd4858a39744d3c1073c7aee03a"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20044207-2.pdf",
+      "sha256": "96bf7a71fe2553e383811698a96c3e8e6ab9dfe0fe7c6dbfd53f3e660d5f34c7"
+    },
+    {
+      "path": "assets/course-specifications/islamic-studies-bundle-1444/20044208-2.pdf",
+      "sha256": "0e8f11515ab13aa3ebf2b0fc6ab454960872b28ea88fdc45ef5cbf59c432660f"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443-catalog-only/2003802-2--commercial-company-rules.pdf",
+      "sha256": "d9e821f16e86e782d09ca08dc93319c3324a5e65364e2d39f3d1448990ced703"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443-catalog-only/2003803-2--research-methods.pdf",
+      "sha256": "e688da614e8dd65e2eb80eafb0512920fc98d3b3c66a7f03f8a601ab9047b018"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443-catalog-only/2003804-2--real-estate-transactions.pdf",
+      "sha256": "55dc5bcac4222b52df7ed1887d2a34074c7c41abd077592c6beae1436861353f"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443-catalog-only/2003811-2--civil-liability.pdf",
+      "sha256": "b200669ea6b16e6433b4fdb858a4960fbd01e0009a498776746a5cb1f7634f37"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443-catalog-only/2003812-2--legal-training-1-civil.pdf",
+      "sha256": "d09680ce990375da7d2d3fd57688554504e3dcef16505d5a7d6ba2407f1ccd51"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443-catalog-only/2003821-2--commercial-dispute-resolution.pdf",
+      "sha256": "b908a48a3a5468ef372279c1389a2fb324c0061d19eecefdbcb9025acfd5c5b8"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443-catalog-only/2003824-2--zakat-tax-law.pdf",
+      "sha256": "c856a7328dedd71240a59541c3be7756ab4510af15740db67b26b7f37a5c71c7"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443-catalog-only/2003832-2--administrative-discipline.pdf",
+      "sha256": "d81431869766b5416b74e3d5b09ae7e8496ecd014b0147a7caff1c86587fba52"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443-catalog-only/2003832-2--international-trade-investment-law.pdf",
+      "sha256": "ef18753f166eacc1297a523d8343295e7a95575dc354d46a8d0384a3814a07f6"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443-catalog-only/2003832-2--legal-training-3-administrative.pdf",
+      "sha256": "c9049a20bda3dfdaaadde9643a5b2e486ce52ccab8419c0e345c20a512be5fab"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443-catalog-only/2003833-4--research-project.pdf",
+      "sha256": "0a66cf594efac7c3595b8708ea3aec54797e113a099afe8c475960dd76100939"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443-catalog-only/2003841-2--government-contracting.pdf",
+      "sha256": "f04dd3cc3712825de29d226c80c76b84a366836e01c054ea51e81e94013c6e40"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443-catalog-only/2003851-2--criminal-investigation-procedures.pdf",
+      "sha256": "5fed484ab056722918bfa3fafd85dbec3302603886162887d542e2ef6eca23e0"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443-catalog-only/2003852-2--criminal-liability.pdf",
+      "sha256": "54aaf59119f78606049a7fc47bf55dfd14e03c0f8698a5239afd8dbb1ce5d8e6"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443-catalog-only/2003853-2--legal-training-4-criminal.pdf",
+      "sha256": "7534fe22dbae7f8eb80c92f353878b9488da58faef930a989fb8e5168961b90d"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443/2003801-2.pdf",
+      "sha256": "d53bce9830395fae316150a82891e44e7b6a798556747dc1e113ad7f9827b8b3"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443/2003813-2.pdf",
+      "sha256": "6ef76c754ea264ccc497ec72a1d1767e77d187593eff4ae74b4d79efb9ffc3e4"
+    },
+    {
+      "path": "assets/course-specifications/law-master-1443/2003814-2.pdf",
+      "sha256": "ca3512be7930712fe97da42f8757706ebaf02f84368344b1fd7fdee7bbb4fabd"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/fiqh-master/2001811-2.pdf",
+      "sha256": "8be2333b822d6d3a6e7e56f63e8fc05f387db5612bebdfccebac5cfe2d6f9dbe"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-bachelor/2001276-3.pdf",
+      "sha256": "9dfe9fef37b31c7a4e32b8591d8ac2cd0b1cbb2d915d7a5911f0afcd953ca908"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-bachelor/2003104-3.pdf",
+      "sha256": "7cdb3d4e31767ac70dcde08a624cc8d4a10f05da130d6c3470bfaa0009be8112"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-bachelor/2003105-3.pdf",
+      "sha256": "54e11a651c18a53dd6b7bd7d99642d9e4e8d34d0f84600e836faa24b1575cf5f"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-bachelor/2003202-2.pdf",
+      "sha256": "ed68bdf65247573f7e2d496ad35e504df7d6abdffed676518a45f5aec102bad9"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-bachelor/20032022-3.pdf",
+      "sha256": "4c431ad2f5e45e8d2d1f0e1d0f012d06a56e877cfe82959406bd725f434dd72d"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-bachelor/2003203-3.pdf",
+      "sha256": "941b9175d0647d0ddf4e6410d2520538c04218877774fecab22bbf3357bb0310"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-bachelor/2003211-3.pdf",
+      "sha256": "0001dfe1692e2b2fa2d938dc964ed4b53ee1105302edbdc4eca7162ec1467a6c"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-bachelor/2003227-3.pdf",
+      "sha256": "975a983c5883fb81c2d7ddaca278186a2961e571e9c622e9657438d06a523069"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-bachelor/20033303-2.pdf",
+      "sha256": "4f6953b80e08e34ea642a8ae7483248c2080b27743ebdac4c55f15807c079a3c"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-bachelor/2003380-3.pdf",
+      "sha256": "4f7fa640db76f389a86be1335da2228321b0d608f7738c2a5f8f8d18f73bc8a8"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-bachelor/2003382-4.pdf",
+      "sha256": "249a051d81f67c76a863d0ece14aaea32107b5ffe3444b3646368ffb5a76f1c6"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-bachelor/20034201-2.pdf",
+      "sha256": "e59a0396e311ecd9e2cd5b92f86307e43339042730b51c9e4414310ddc20504d"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-bachelor/2003441-3.pdf",
+      "sha256": "8bd559cfb63b6fffd79e1ecd7aa910130ef6aee6275737f8a88ed3724b42c085"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2001714-3.pdf",
+      "sha256": "c0cde4dbda420dfadf8d4e87e68b0b4a1f38ad63ff16beb68280c75b3fbdbcd2"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003802-2.pdf",
+      "sha256": "9319c7d489a2a4e72cded853e93fe775903bff038f58990045675d1d758e21dd"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003803-2.pdf",
+      "sha256": "301c03301021c3672c642aca57ce8765741244328db6d10c2abe21d392aca9dd"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003804-2.pdf",
+      "sha256": "a00b45eb7ab222c28b99b8a69150777a90f92fa1c89c342d133c5708faf326bf"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003805-2.pdf",
+      "sha256": "7af78e20544876c381d28caef4187c45c818de09d869dd47ce581219d5be1958"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003811-2.pdf",
+      "sha256": "b05e1c6ce2c8a8efcdd615e725ab4e129ef84d1a7fd60f1a3e2d6d56a7036bba"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003812-2.pdf",
+      "sha256": "00b1af29f0d9f83f48963d4e7c8f9352cb4f1837c0d41eb966b81355bf220d1b"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003815-2.pdf",
+      "sha256": "960e5462b31a3f8ba51564aba78a6560b3e69e9c7680eaa16f7ae3f32bbc7d76"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003816-2.pdf",
+      "sha256": "60f437a2f713198df636321dac66ede1c4b3e7c4cca554641e379784fdd998f8"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003821-2.pdf",
+      "sha256": "935466d0addccfb95bac246a57e39eeb22e748032f16f8decbecf75ebf4a962c"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003822-2.pdf",
+      "sha256": "3b0c2d84bf49ae0ed243c5d8b2992fd200d23a72863325d55bc5ae6241291a75"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003823-2.pdf",
+      "sha256": "0cdb0663fa754c9de8372fe0cd6de63dcc82d0027c561f81fd85d7f7d5a1de5b"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003824-2.pdf",
+      "sha256": "5853c194167a826446113a3bdd5e90d2ffac2d3e31a1e0c414d1f2e5f5eb1100"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003831-2.pdf",
+      "sha256": "ab587b0b395c49ec80ee4d5150d55da680c18966b4f3cb4668e79761f02793d2"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003832-2.pdf",
+      "sha256": "a66e444c15731f38b37f200d847cca62478bd824edaaeb508f4dd5fd17261964"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003833-4.pdf",
+      "sha256": "e8ef7fc1b4093c85767c3d6ab4fe717bd4983a471188d4c516cd6e2d570d7f94"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/law-creed-master/2003834-2.pdf",
+      "sha256": "b4a32f7459f43bb612e8d78c40943115b6d94b7453aff55b96c3589ff14f1e7f"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/quran-culture/2001716-3.pdf",
+      "sha256": "a0dcf8e3d2fa5cf0fb12e0c786844b56ca365dc63faef5994fabfedced4b249e"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/quran-culture/2002700-4.pdf",
+      "sha256": "ba528e998da4d971a1bbca4820af3cfc815ae79a87baadd08c972b062604e150"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/quran-culture/2002701-4.pdf",
+      "sha256": "2da8842b555012a47537a2d3e3d45b58c1b4a95e44f28c231d20a73cecc336e1"
+    },
+    {
+      "path": "assets/course-specifications/local-gap-completion-20260822/quran-culture/2002702-2.pdf",
+      "sha256": "6d48f0dbb3d42db1ad04ca637cf485337a500bf91556c547f92fadc6ff659a22"
+    },
+    {
+      "path": "assets/course-specifications/new-course-specifications-20260928/2004269-4.pdf",
+      "sha256": "58bbfab8b14486332429aed3bbf567bb177972a51f290b92d9865d906cbaac6e"
+    },
+    {
+      "path": "assets/course-specifications/new-plan-updates-20261002/20021203-2--new-v47.pdf",
+      "sha256": "327ccf2d1af85ab4262d6c6a4229e458df739711f176288b4effde22140d1e27"
+    },
+    {
+      "path": "assets/course-specifications/new-plan-updates-20261002/2002200-2--new-v47.pdf",
+      "sha256": "a6d3164affe8900e62dc4cc17fcd1c106f5c4a542518a86cc47fba7078a9d30d"
+    },
+    {
+      "path": "assets/course-specifications/new-plan-updates-20261002/2002210-2--new-v47.pdf",
+      "sha256": "cc0be3952fd357dcde89035777b1966ade5a661bab1550471249a8495ff7fb24"
+    },
+    {
+      "path": "assets/course-specifications/new-plan-updates-20261002/2002250-2--new-v47.pdf",
+      "sha256": "86f970a66ac2c868081c4af2e3797ea13276a62023db5865c188a4e7d45235af"
+    },
+    {
+      "path": "assets/course-specifications/new-plan-updates-20261002/2002252-2--new-v47.pdf",
+      "sha256": "ab2a7b9c356bdb8468d4274bddf1d9dd9af1fa0d3b0a9cbfcdc0e69e11b29523"
+    },
+    {
+      "path": "assets/course-specifications/new-plan-updates-20261002/2002310-3--new-v47.pdf",
+      "sha256": "959dbad023e4b85b540264174ed53227712bed4b081d87c970ed43bbabb63139"
+    },
+    {
+      "path": "assets/course-specifications/new-plan-updates-20261002/20023101-3--new-v47.pdf",
+      "sha256": "1baa6b121ba5352b1a8bfae7e618cd8564f5075b3d26af4902b2d233d2b25917"
+    },
+    {
+      "path": "assets/course-specifications/new-plan-updates-20261002/20023205-2--new-v47.pdf",
+      "sha256": "c65bf1c34b1232a52623b2df24e1832575c5c7239cc496ac03f5008341571688"
+    },
+    {
+      "path": "assets/course-specifications/new-plan-updates-20261002/2002352-2--new-v47.pdf",
+      "sha256": "04e455b5f65ee52432e583fcc87bc51b1378aa1a34253f22a9f805f6639fe92e"
+    },
+    {
+      "path": "assets/course-specifications/new-plan-updates-20261002/2002429-2--new-v47.pdf",
+      "sha256": "52ace6c6a84f1dba5f474acc521b33db3ee3c960e31af811d5464330893ba303"
+    },
+    {
+      "path": "assets/course-specifications/new-plan-updates-20261002/2002456-2--new-v47.pdf",
+      "sha256": "e3b833b5e654a8262e15c521f7b1bd9da5caf6b57e7e3765d01b84358674cb36"
+    },
+    {
+      "path": "assets/course-specifications/new-plan-updates-20261002/20031301-2--new-v47.pdf",
+      "sha256": "db576ae46c2b6874a6bb6cbf2ba123fa56b1492e3b1bb49d7159ec24f486efaf"
+    },
+    {
+      "path": "assets/course-specifications/new-plan-updates-20261002/2003220-2--new-v47.pdf",
+      "sha256": "5f4af50df786bdf80872a5f79b024344142eae3227e304f652429bd8aa337956"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-master-1445/2002801-8.pdf",
+      "sha256": "3535a080f3b9f011a1e23289da576cbb491abf6cd434908d1961ba5aad3ac85e"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-master-1445/2002802-2.pdf",
+      "sha256": "ca85f9d128c56a3868a02e6e95c6c3057f6d31a45e0dfd3d7a95f25812b2f60d"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-master-1445/2002803-2.pdf",
+      "sha256": "7c7b9f5d429eb37804fff90cb4c9c017089ca35e95fb90065c88400e63bf0ea6"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-master-1445/2002811-8.pdf",
+      "sha256": "479153b85f1ee73965768b19124ca28606bcc57e071c691bfdaaddb40ce85f0a"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-master-1445/2002812-2.pdf",
+      "sha256": "3a24638c55a9cbbb3b64f14f58569f7ab498e751b9acd867c331cb5c6bd03987"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-master-1445/2002813-2.pdf",
+      "sha256": "3f80b50f80bb11671def44f31905d54e35e572b28eefd7c9bfd01763cf060aa5"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-master-1445/2002821-8.pdf",
+      "sha256": "7c2ec99ec9cc1ffb52b8022102165cd4c96e00413381ee656480be1f66a093d3"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-master-1445/2002831-4.pdf",
+      "sha256": "d5e15feae05c811a29d341a2ab37f0810ce4bfd94bad59391130d227e2fb86fc"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002102-4.pdf",
+      "sha256": "a08eb8a2050b8f02dacb45590143538ae61f68957d52021c538157b16c39d74a"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002104-2.pdf",
+      "sha256": "8acc7c92e0bf3ec4add2939914ffb8dbae97420759ba3c5652cf35a0237008a8"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002105-4.pdf",
+      "sha256": "8b24571f8b3ebeda0fe34be5edf9921231a7ed99952b6d651d1c10d1d7df9c0a"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002201-2.pdf",
+      "sha256": "d58b3f99e804044f55451d77ebbbdc6d52fca12f3cc03738a56649c472bb87be"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002203-4.pdf",
+      "sha256": "d39c6bdf8b6c383a84fa6aef58c98fe5ac56bbb89a3b24d30a54570be1b6ec88"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002206-2.pdf",
+      "sha256": "65c7b6ed3957a2b86f4eb3771f4cee07eca6d10a2905779eb44730adfa88c12a"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002207-4.pdf",
+      "sha256": "a3d75131f0ef0882be3c307f946e9b8270b14a36dd27a02e68a6883efaa0aa4d"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002301-2.pdf",
+      "sha256": "b90d3c5860b059c3cce7b0926c6baaba04d66e20d6eaaf6fdcc01893b4a476b3"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002302-4.pdf",
+      "sha256": "6e633151510172d0a1d16cf01c4c10c02fb76cc1f474b122dd20045fe470867a"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002305-2.pdf",
+      "sha256": "af533485fbb3ff2e27c549fe3d2d513697f9c658d04ac89d6bf74731547c9662"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002307-2.pdf",
+      "sha256": "4ceae91ca6091ddcb534b5abd606244a474d06aad8b9019c0a0efb5a6f35157b"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002308-4.pdf",
+      "sha256": "44f22d14d04793f273ce409a843d9636bc230379a045156f1e58df66d02f9f4f"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002309-2.pdf",
+      "sha256": "30f62144b1d305ca2eef8d3b3816d87cde8f226dbaa58a8c42b429a35b64d28f"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002401-2.pdf",
+      "sha256": "34486b29cf1546f6a1ae4c047d7bfd53eebd097c0d8459b6e747f87e66706e28"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002402-4.pdf",
+      "sha256": "32fe4de375023b6093e422269037b0d0c80b6f675ac35a2d558dd30f895f3fac"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002405-2.pdf",
+      "sha256": "4bb2afac4cb2e58640fae15b9b0e19c2f1b4b5df6225c30788cbc03b1e65c68a"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002406-2.pdf",
+      "sha256": "e31c1940a60ab8c45d612fee733cfa594ceea9dbeb9bfce21b2f24b73d98a28d"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002407-2.pdf",
+      "sha256": "5ac57aafc06e1dd1bca5a6ff3ad83c64f417175317270d70adbb80bbcd1a643b"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002408-4.pdf",
+      "sha256": "421f0f92f2193d2f59db457b65ab51fc87a2fab007232e2e28fec7e99d8a4d98"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002409-2.pdf",
+      "sha256": "06cecc4a2b22c20af8a3db02388a91fb95a75f95134665df6399cacf2df4e32d"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002410-2.pdf",
+      "sha256": "0aac7acfac04fe0b18bc9b5416647cea36dccaab05f14ee351557ea7a5a09ea7"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002425-2.pdf",
+      "sha256": "b09abcb1a568925549433c1e7038b39f083a5a707b55770bb3da625bcd2a8da6"
+    },
+    {
+      "path": "assets/course-specifications/qiraat-source-1445/2002503-2.pdf",
+      "sha256": "ce0249f53ac35ece30a2dbcd2055c18390dab50646f2ff86eeb7e0d8a3ffcab0"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002110-2.pdf",
+      "sha256": "edd1a2904afa6c7c2535f8e00e80c459f556eddc1f837f925f9a23a86d8bebbf"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002114-2.pdf",
+      "sha256": "cee252f37ec9349f4bd2741dff50e57ccc8ae3dfb1ec1e3fd6e7f3d7b1dd2a69"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002115-2.pdf",
+      "sha256": "eb3290e22bddb2bfb5461f93646469249dd975e63dc421cb7d7995bdfa8f7951"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002116-2.pdf",
+      "sha256": "43c2e07ab9ce30152720ed6713ec562e5722083670c69b4d61edaa7e04ffb131"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002117-2.pdf",
+      "sha256": "f019611c2345e5a0e477e2f26de6b23db4d4dd07377795c5f4863327ecdf4a9c"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002124-2.pdf",
+      "sha256": "7524ed21f60b23ed48473dbae05f52c6132bdb70f3ae4c69be0562a3df7f96bb"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002125-2.pdf",
+      "sha256": "b610dc4337244aa2a781ceed178f12e6addf3f46f8ed28702903135462298cb9"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002131-2.pdf",
+      "sha256": "6e9378b55144fbaa578d8462b4b69be6e02e3b0a6f20d57aed7a70c6357f157d"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002204-2.pdf",
+      "sha256": "67c82d86b6650dbec18980e6f37be8ae7f86adb00a660b165a40cad4fbb35a8d"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002208-2.pdf",
+      "sha256": "9618a32fc67faafd222c970c14733811505d3e865909ec5b42bd94ee1a80126a"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002212-2.pdf",
+      "sha256": "c8ef0846391bf499ee3c980a0a8bc80ecb69c59f7f5f9252c73a35cfae28e374"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002215-2.pdf",
+      "sha256": "5d4f05de99aa6d7a7d0e5efd2373086b45678b66d66dc474916221d783f15da8"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002222-2.pdf",
+      "sha256": "53d2fb5157a972ba279b4193c4f1248c5626df7eaf3f06a1dfbd3fae2b8ecd03"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002223-2.pdf",
+      "sha256": "a54c5fd2c82bdc3ab41469ac705ad72fdf26f30d7a707adc97ea5469e38648ba"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002224-2.pdf",
+      "sha256": "f293de8dafc2be63484f7e83d858d7978aa025789664fff7ff8da83c735ee39f"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002232-2.pdf",
+      "sha256": "f3a245130ed9a23e5f83d74d6c994b419b6e86658d2701216e5db789c454cd16"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002240-2.pdf",
+      "sha256": "9fcea5ae3da9cafaf18143f454867b92308bed41953799940eef1bf71968d6b7"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002250-2.pdf",
+      "sha256": "fbbb9cc68bcb0cdd30b3484ccc91dd107a86a603cc1d90918d508c1895010426"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002306-2.pdf",
+      "sha256": "398f826dcf8f7586dd616873459bb99cd5933711ce5a6dd840c68bdbb6d3be90"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002314-2.pdf",
+      "sha256": "4b1bf5860d6b85f4931063da23b7b71cd73eca96792af333e8350ec505232711"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002317-2.pdf",
+      "sha256": "c4c1d8f56dd957dc9decb602e7c679ba040aff177d41421bea1d44b8554d579e"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002318-2.pdf",
+      "sha256": "fe9375cacd755098965a43e3eab8546a08adc3ddc8d87d978e54137c9e18ae4c"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002325-2.pdf",
+      "sha256": "875707c0195289d63e367a99ae899582d2d6e2f304e7187aee136de7ddd6299c"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002326-2.pdf",
+      "sha256": "24064fa09ccc11b56aa5e7fcd58a88fcf024db64011a3b2cb10fe0d5834e162c"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002327-2.pdf",
+      "sha256": "dda30229afbfa025162d895b74ca8e50d1c2bb78a3ebf91c20b889d6175ef7bf"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002333-2.pdf",
+      "sha256": "5c81d64d19889256d8a46fd35d4a302cb0e224de0e6dae87d9169125d9f5f060"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002412-2.pdf",
+      "sha256": "95c9befe72b86d637e9a355b941839ca1555c746a3ee754418fae80e300841ac"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002413-2.pdf",
+      "sha256": "c48bda4913f541a3cf07215caea71528e7171efa118233f8fd99b13a7cc49ae4"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002414-2.pdf",
+      "sha256": "b3ac65c88a6c4380e901c01b17e387eff61eb4f3bb192d5835e5043818d12355"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002415-2.pdf",
+      "sha256": "3de84b645d6c551a673d3feaea810c97c6413e0f1ff89543c1cc6a36d6f7ef4f"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002416-2.pdf",
+      "sha256": "7aec5c0733e0d5749839f2872a2c6d1b942350c6c7385d18df572f66cdccdfd0"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002419-2.pdf",
+      "sha256": "9c665b5f0350eccd44a9e6156893bd654fe76ff92d8a1f089196ce5076feb426"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002420-2.pdf",
+      "sha256": "9c49788839ed37e693512425f9a3aaa39c1f5823fc240ab4ba3353bbff2cea32"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002427-2.pdf",
+      "sha256": "98e94d90d4afbfe5eb3022e17ded34c1238f0dbc4e5b98d1d51465861fe01de0"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002429-2.pdf",
+      "sha256": "1b10097e1dfcdb80dbd91f7d2654a924f0ff0d15ebae1d9f8e2e763fd1a3f29d"
+    },
+    {
+      "path": "assets/course-specifications/quran-old-v39/2002456-2.pdf",
+      "sha256": "5bd5124dd8ca980f88f27be92769992b97dce58065f19246baae7055196816ad"
+    },
+    {
+      "path": "assets/course-specifications/quranic-course-updates-1446/20021204-2.pdf",
+      "sha256": "211a70b9d8ff013bdfd89cdd2ee20048dce308c970f265e03adb17c8b65755c6"
+    },
+    {
+      "path": "assets/course-specifications/quranic-course-updates-1446/20022201-2.pdf",
+      "sha256": "5c4938dd01a2b530cb214dc36562f76f4633f29795b9c9bc1445746787758829"
+    },
+    {
+      "path": "assets/course-specifications/quranic-course-updates-1446/20022250-2.pdf",
+      "sha256": "116729839e37b623923e3b5490b2b599a5def79a3b117dcf78ccf8f4921682b9"
+    },
+    {
+      "path": "assets/course-specifications/quranic-course-updates-1446/2007314-2.pdf",
+      "sha256": "fc4f1736389e89ed6e673a348fdfea5f82f33785621bd92642b269874917ca4f"
+    },
+    {
+      "path": "assets/course-specifications/quranic-doctorate-single-domain-20261016/courses/2002705-3/course-specification.pdf",
+      "sha256": "bb95b74a535b9150d4a4c13221ed55921bc6b4c9c1f0d89ac5076502ad7e89c3"
+    },
+    {
+      "path": "assets/course-specifications/quranic-doctorate-single-domain-20261016/courses/2002706-3/course-specification.pdf",
+      "sha256": "32251759bdc6125440d1624104c45ec34e09e29c2501486456e09f5ea6fc44bb"
+    },
+    {
+      "path": "assets/course-specifications/quranic-doctorate-single-domain-20261016/courses/2002707-3/course-specification.pdf",
+      "sha256": "f92bb8d5d78cb34d57eef9d1768704a16d6d881f73248bbe988c8370e13b5ee8"
+    },
+    {
+      "path": "assets/course-specifications/quranic-doctorate-single-domain-20261016/courses/2002708-3/course-specification.pdf",
+      "sha256": "9f09a116c9613463f1d9e81023d1810fed085d4894f8d051f32e865bf6e6f9b4"
+    },
+    {
+      "path": "assets/course-specifications/quranic-master-single-domain-20261015/courses/2002851-4/course-specification.pdf",
+      "sha256": "0aa4edf7e2d22b30b4732ee4846e05ff61d87d0f1581f0519aea3911be2f3132"
+    },
+    {
+      "path": "assets/course-specifications/quranic-master-single-domain-20261015/courses/2002852-2/course-specification.pdf",
+      "sha256": "f7b59d3e5070d8b22d25a90f93360f3b2699f0163e6800dfb2dcbf5473798dd6"
+    },
+    {
+      "path": "assets/course-specifications/quranic-master-single-domain-20261015/courses/2002853-2/course-specification.pdf",
+      "sha256": "e698fcdc7edc4015404826f4e3189a886afdb393664657bc44408eb593a5a19c"
+    },
+    {
+      "path": "assets/course-specifications/quranic-master-single-domain-20261015/courses/2002854-2/course-specification.pdf",
+      "sha256": "31d1f3038e4538339ba570dc7f3f32c6b3b0cee7004d26145d7ac64066411188"
+    },
+    {
+      "path": "assets/course-specifications/quranic-master-single-domain-20261015/courses/2002855-2/course-specification.pdf",
+      "sha256": "53d8075b5f639236ba9770c8015a2f317dfc24ecc9cb86a46a38fc31eb792da1"
+    },
+    {
+      "path": "assets/course-specifications/quranic-master-single-domain-20261015/courses/2002861-4/course-specification.pdf",
+      "sha256": "7ca756967db8de1d838d4631840f9b8cb5726f963e5c442803fca8164dbf82a4"
+    },
+    {
+      "path": "assets/course-specifications/quranic-master-single-domain-20261015/courses/2002862-2/course-specification.pdf",
+      "sha256": "9cbd23f27ba4dfc453d315284cae24dabe3c34d5b3b4042a09cfa7a771739ad6"
+    },
+    {
+      "path": "assets/course-specifications/quranic-master-single-domain-20261015/courses/2002863-2/course-specification.pdf",
+      "sha256": "20f4907cb71e6e8de83c45a1706e490292e74b67ea00a7dd6669b1cbb55b9403"
+    },
+    {
+      "path": "assets/course-specifications/quranic-master-single-domain-20261015/courses/2002864-2/course-specification.pdf",
+      "sha256": "ddf2b6550b66f2c2f178772fcbe502a940fcfbda01c453b3e70c92cedfc901c1"
+    },
+    {
+      "path": "assets/course-specifications/quranic-master-single-domain-20261015/courses/2002871-2/course-specification.pdf",
+      "sha256": "5a811a224006855d798f200bee4445cac9d2214db682c4166944c199d9af9e54"
+    },
+    {
+      "path": "assets/course-specifications/quranic-master-single-domain-20261015/courses/2002872-2/course-specification.pdf",
+      "sha256": "e80423f3ff76e8148766f8f1857c8af9e031b086034f99103b9656b9da661b38"
+    },
+    {
+      "path": "assets/course-specifications/quranic-master-single-domain-20261015/courses/2002873-2/course-specification.pdf",
+      "sha256": "e82e3f4fcdc432957b4964be0f064d1e3a5ba8ab7cf93ca407aac70069595529"
+    },
+    {
+      "path": "assets/course-specifications/quranic-master-single-domain-20261015/courses/2002874-2/course-specification.pdf",
+      "sha256": "b018959686d91115919c46e6d79078acbd1822993c672f8ff170d99ddbf8115d"
+    },
+    {
+      "path": "assets/course-specifications/quranic-master-single-domain-20261015/courses/2002888-4/course-specification.pdf",
+      "sha256": "01d2057142e2fef14fc58e5d7b713424d0fca2eac0b8b818b7fa7b4c27ffe6e3"
+    },
+    {
+      "path": "assets/course-specifications/quranic-studies-master-1447/2002863-2--manhaj-al-bahth.pdf",
+      "sha256": "af73190b7cd6304a8db57a47913e7fad7316f433f0a3a322b06420bf3de82b2d"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/103131-3.pdf",
+      "sha256": "92203326a17446100a957a2afb719e76b1414cd3ef069be5a3a4b8f40e2498bf"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/103213-3.pdf",
+      "sha256": "e431caf05b3433e9a9cb260a62d00306d4e3ccdaff17a7eba4c7b92bc3b45759"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2001171-2.pdf",
+      "sha256": "eb30e68a2a7009d77d0b86cef15a4755b33ee96e5c372bd33f1def2a4027eb71"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2001237-4.pdf",
+      "sha256": "40924902df0719b1bee2babbd434873ffb7c34adfa1638148c9f9a340e1e3bdb"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2001250-4.pdf",
+      "sha256": "c3787a1a784863c34edeb8a335680ef762f312b106576feb305e456a81330b3e"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2001255-2.pdf",
+      "sha256": "75546f5fcef613416566c46f46c6c7efabb59f4fb161ed0d65b97490ceec34f7"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2001258-2.pdf",
+      "sha256": "84e4018a6158f6901860bf6f4a14377d7454534758a7ef2c0c636535679e57bc"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2001259-2.pdf",
+      "sha256": "329a3a9f3d3969354f58729383d4b4f6467c92e403897f8d80976450448ac85c"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2001261-2.pdf",
+      "sha256": "22978d5a352aa2e4fb5bff48ec08c3415e7e9b24f3f1ec3ae7a98d7e5fc70fca"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2001263-4.pdf",
+      "sha256": "16f41c0ce7e81e36e2809911003ce52b8f2f03ab62a3b52ef8d99d7d65f07afc"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2001350-2.pdf",
+      "sha256": "844d1e27ce0befc7dc27c7dd8b355bf8cd922f6987482abd134ecb6de0eb8bbf"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2001413-2.pdf",
+      "sha256": "81bfed5f47f432baed2bebfdab883a108227d90d8c634e26e0f4066235cba846"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2001414-4.pdf",
+      "sha256": "bad5fe6305ec867f8a084fdf9a6c5cbe900b541d450950e388a195543b15ee87"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2001421-4.pdf",
+      "sha256": "a08d001c8f4e1df4e259e63365fe4a59deed75016e723c7f64cd74626dcbbf3f"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2001433-2.pdf",
+      "sha256": "e841882b6256c1068a28cb65d0aeddd00117c50b4d12815654711997d0d641de"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2001445-2.pdf",
+      "sha256": "413ea59cbdf22fef7fc6e52d37bf45dff965028f5da510683b99a546b83324c5"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/20023110-2.pdf",
+      "sha256": "8e9f19fcafb9f644691be80c0dc45c3c8c0376248633ff7ee60a6da188736812"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2003229-2.pdf",
+      "sha256": "177cebf8a7a122b8da09b8967f87daa9cf7b44c275f6e088ce8a9ab127adcdcb"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/2003230-2.pdf",
+      "sha256": "92c96f53e7d7a472034dd7cd4e5176645542f96f63f80f48addff0cc22f67e2e"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/20034102-2.pdf",
+      "sha256": "fb81eb4006c03e45e07a7f66e2e1a6483648df9284508addc4d25b3aab485192"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/20042106-2.pdf",
+      "sha256": "125fd82938e18355dca30033f182b368733c6f0b6ef0594235752f8ee5723075"
+    },
+    {
+      "path": "assets/course-specifications/raw-recovery-20260827/20043106-2.pdf",
+      "sha256": "f142ecf4b76990ab091f773365f662c0cb9cb51a39cc0396c5149f2b744f1dcb"
+    },
+    {
+      "path": "assets/course-specifications/reviewed-import-20260909/2002310-2.pdf",
+      "sha256": "caf662d4fc7f024321cba07e605533f8a5c74d066f5bcd47cf4af31a7741ebf9"
+    },
+    {
+      "path": "assets/course-specifications/reviewed-import-20260909/2002421-1.pdf",
+      "sha256": "27439c582ea253d88046f2c7fa9a9d15e9203ee2dfa39f824481ca99bdf85e83"
+    },
+    {
+      "path": "assets/course-specifications/reviewed-import-20260909/20041203-2.pdf",
+      "sha256": "12fa49a945cdf487c5ff7e6fcff4e4bb730db4f9c006519221ca9b4cf79435fe"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/103141-2--1c6f7cf5ab.pdf",
+      "sha256": "29b5bf1b3e26622fb99f59171afe089965f36c10792e594945b399954221529a"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/103171-2--e6212e6733.pdf",
+      "sha256": "bc20efd841258c7739e47238b30b127c27ff660724577c87fdbc896f51fbe33f"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/103245-2--5bfae92e84.pdf",
+      "sha256": "6ce6706e6812814e90bd7dd30e6c9bf327a0dc9420adadbf0ce927236cf949f5"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/103281-2--7f1c8633ae.pdf",
+      "sha256": "e5ef5d40a852f2b29c59024f41dd71d0338d0556e34134108805b1e004c222f7"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/103282-2--2866481d7d.pdf",
+      "sha256": "1f9126cf9dc5116231d807e3df3ab1442dcbf7207c4d18875d7fba2ecbee655d"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/103349-2--c415381484.pdf",
+      "sha256": "c8a03c4973bfa07c8d4ffa0f385918a2d3fc7efc4e7eb5dd7ab0c965c09b230b"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/103411-2--543d71045c.pdf",
+      "sha256": "5b71f906d65c23307622337ad1e2f8220d43635873a0eccf62d3639e52d6f3a9"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/105115-2--4d1816f13a.pdf",
+      "sha256": "3429fc7bd9740ce6f2d001909a1f38e11ebbac6ce199eb507168859300816589"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2001101-2--6acb2da09b.pdf",
+      "sha256": "2d11736ec5abb476e3bbb7d8a6791f970d75f8355e938b7755c2972247b26a5a"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2001101-2--d9cbe34ece.pdf",
+      "sha256": "75e5d156564765ed25e1d6dd7c958b99da9c68067b5b6efeff07519d3e3dbe30"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2001106-2--e60bb6d945.pdf",
+      "sha256": "3e55f828344e05e955531d3feffe36355943a95a963b4ea7ff2071cbe73a24b6"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2001106-2--ec42a4ad0f.pdf",
+      "sha256": "9001d925890ea9bf6cd89ceb79a4d0eecfbf33afcfc450a466ff216dbb0fe143"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2001112-2--4d2365da36.pdf",
+      "sha256": "428c475459cbf0837f46e85b02d57ec12c4358cc7f3d5abb98dae71c8af9dfd9"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2001245-2--489519a71e.pdf",
+      "sha256": "edda5b7ad2cf88af916971347d9c28fa8aca09bb3de066f215160632056b5162"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2001340-2--16914d8743.pdf",
+      "sha256": "1821c53090b26931f2578bbf38ad6d1aea8564c7fde7a1cd78e673ece7352707"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2001373-2--5fabcf002b.pdf",
+      "sha256": "bf7b1c4479c2aad668fdaa24be9d2c86ff1df787799a71c374b672f678ba474d"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2001403-2--44c6cd2809.pdf",
+      "sha256": "c4d1a14487ea8ae34b4efeafdb50a25403f56e2c2e289b2378bdf33a881cc98f"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2001403-2--8974cd99a2.pdf",
+      "sha256": "b92485cff86c860b2e17237791f0a6c25476410a3988c88b31e7499ef831138a"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2001474-2--e61babee37.pdf",
+      "sha256": "8242c78b4c00a3b062114833ae77f6ef4d194fc7a66646dd8723408aca969d53"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002103-2--a0656c3488.pdf",
+      "sha256": "b89d857c727cdb7a761852bdfb73f489cf3c9ee8cdc235101a7fadccf5135ce8"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002106-2--edb228fda6.pdf",
+      "sha256": "4edd682a63addeb31c5dd97dcea38ed806247b16ab40f9aa23ca6d9249f8c7ff"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002110-2--c42081827a.pdf",
+      "sha256": "aefb96cb5e5251231b257143f68cbb21c348d6250fa14d095b014a70edfa2d95"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002131-2--a1db18da1a.pdf",
+      "sha256": "8812c1775436453ec8f5b23385ff8442b2065ea1a039a6156dc94c43d2a52279"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002131-2--ccf975e910.pdf",
+      "sha256": "4bbe52b5460842099e3ad945f60bb3159c94b4281b5b84b5571a7821dbc7389b"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002204-2--4d1600d600.pdf",
+      "sha256": "eafcf5121e52b7d5a3e9724c3ce077d655a92b95962bece1cf675db846edaabe"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002208-2--1e36d32d21.pdf",
+      "sha256": "99c77794cfddf093f9f79d87b20c727563dcb93ebd1187669c26fdbae2c1a083"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002232-2--bbeaa2bbaf.pdf",
+      "sha256": "a152cae5b1ef3c01350fc5fd25a577550778fbe36b34bd11ac935729f501478b"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002250-2--244d678f13.pdf",
+      "sha256": "101125d7c376dcc0d0f43fb400583ec5626c463d3942af03927ace124d9ccc4a"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002250-2--9159a193ac.pdf",
+      "sha256": "d30cb41edf0e24b237db28a5f5a4179989eed9d285e00ff46e88799f90eb781c"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002250-2--a6427ad49e.pdf",
+      "sha256": "9cf366abbdede7c727a4a3ffafb47c472c7e59a8c57e9bc6727999ee44bcc2fe"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002306-2--2888e589ee.pdf",
+      "sha256": "4bf64a99ef8c189e751317af3d1a20ef5e549a0fe81b029b411892dd36dedb4d"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002318-2--dd9ba82454.pdf",
+      "sha256": "4627f85d286a978cedc7801b6f41cdafa2b373ae94578d08733c68f0ab0bfdfd"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002412-2--d6190d3290.pdf",
+      "sha256": "955e9b9d1b91733f1672df913a69a6ac3b515179826b2e78d8d604b670c7d791"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002416-2--e9243b6609.pdf",
+      "sha256": "f883b9369e5156ee0d24b4e905a3c62758c355bb022766cd84ffc7fc6a8f947a"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002419-2--1b8ce7dd97.pdf",
+      "sha256": "b94fed8fbd2e307e6c5885a1ddef3275909eb88aa5c3c6c2b396a5d5cd93bf90"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002454-2--9a1f2d1042.pdf",
+      "sha256": "5c4a6266098f6b48f22faefecd491425352559765a6255914c1b9e25a92417c9"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2002456-2--3b6c8f3dc2.pdf",
+      "sha256": "b1935f12576c22a1119e54fc280173bc8d4a2b3c19e6b7693aab453735f550ec"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2003215-2--36892394ce.pdf",
+      "sha256": "c6a671d9f8e9907167caeabf956c8c45c5b4f03e9a1878f6ef8b76bafeb6b605"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2003215-2--c3309552e0.pdf",
+      "sha256": "6dc75ac9b22a9a6850243fc80c79a2d7b662950ce59b4c0fac013b2d76501807"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/20041102-2--834f4539dd.pdf",
+      "sha256": "9983ff41b716ba066d370c75d043087aa93fca104c1f09acf24b49a21984bf83"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2004111-2--491175c9d0.pdf",
+      "sha256": "2f377d09cf47cd12dd91fef5e08cff1c0746f882e6b66a4f512e12bb335d235d"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/20042107-2--6d6b769825.pdf",
+      "sha256": "503c38b6a1c1470ca991976a05ace01b0b18eef569eb7ffdb28310e094e7b9f4"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2004245-2--094f106c1e.pdf",
+      "sha256": "05c76b9bd0a98c9fb9a52a242455655dba6cdc22833208bd371841a6594a331e"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2004258-2--c05def4cf6.pdf",
+      "sha256": "6efe2ca3ee1ac66488a79cbf901ac812bdd09594f58e6bb7f19dafbcfd040801"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2004273-2--abbd6684d2.pdf",
+      "sha256": "2a6c097c6b27e9baa46c3b84cf2b77161d974a07236770a48ddd1574175d1ed9"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2004373-2--e6d9fbc6d8.pdf",
+      "sha256": "b03c0919fe84f044bb152f9a17521cc16f7ab9e04cce4baaf47e8493f8934e03"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2004414-2--8b9b1d8598.pdf",
+      "sha256": "e77767fab6f42f40055197ac0d349ffc53c1e3cb8f2193ffd7666b88333c4dc3"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/20044204-2--1027654cd6.pdf",
+      "sha256": "5fedae47429f0b3aebc0042091b837404acd295ddcefcbc027ddaf32b32add00"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/20044204-2--7e7d605198.pdf",
+      "sha256": "0da2d8a43c208322721eec8a8ffb5096e16155f9b96afb58fb3270e68619934a"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2004474-2--34842f86c3.pdf",
+      "sha256": "99930ac4abbba652e1ae980e3e54907e598595bd8c6f1d003bce257e88bb4b0e"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/2004493-2--5440369ca1.pdf",
+      "sha256": "44fc00bf108832614c266afaf4642022d9bc0dd6bab55413bba6b646fe4bba34"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/6602322-2--b6c6c5fe76.pdf",
+      "sha256": "2c13fe2152ece589173572f76c3959be76410ff5bba752483a97b5b9848b227f"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/990113-2--74025fe683.pdf",
+      "sha256": "fc695a78bf93e4b90167744a60544f0adf556bd6b110cca05d5814364e9bffe8"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/990311-2--4ecc998b5f.pdf",
+      "sha256": "cb9b0868cd13b7fc9879b8d1a22659ad36f4c41e0a4691256fb050cd97286f84"
+    },
+    {
+      "path": "assets/course-specifications/shared-course-blank-plo-20260905/990415-2--7f04cc9f03.pdf",
+      "sha256": "e30d0aefc581cf7cbcfe4922300122cb937756b8be3f5b894cd6d07a452b25cc"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001107-2.pdf",
+      "sha256": "95ef78b046997277268a99a022c502d90d4871057a7ebcf6a996b8dd91e68a96"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001108-2.pdf",
+      "sha256": "4e7ec5bedc9580fc21e1432adc1af49281f3df2ac25125d0d9c2409c3e64db64"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001126-2.pdf",
+      "sha256": "ca984ae280e183557225bc23d7e01d868351ae72cf77276570c81e7fb4356cde"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001127-2.pdf",
+      "sha256": "f023e7d1800c3647202aaabbf64ad206c95d8bfc9e350b8b05dc2d49d034eb3f"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001210-2.pdf",
+      "sha256": "8ee4e95ccdfadf6fc252ba55cacde9bdff6e7bbd87fb226016ade811bbcbe1a6"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001225-2.pdf",
+      "sha256": "f2975a60b90de0fd7c0d0d3be3bffc0b1d4c27fdae433db11511ffdea47ecd09"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001260-2.pdf",
+      "sha256": "868c1cb26975c9119b00157ce8b14cd01e67d70bf98cf18ad113e88cd572cfe2"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001281-2.pdf",
+      "sha256": "ead3bd7040b94e221a818d35a4ce5c4506ff0990593edfda1560c17845752d64"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001310-2.pdf",
+      "sha256": "bc783e189acca5ea394696fa6698694258a2a87b9f5aa122cb9c7082d8403115"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001312-2.pdf",
+      "sha256": "be76432aac7a4a2b15f524fac73913113be0a89b850d36b3c563b414fda3ba3e"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001319-3.pdf",
+      "sha256": "bbd3a5760a7e66c0770d083942fa08e89c3698916aa9bd607e54ffa37916bc05"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001326-2.pdf",
+      "sha256": "dc199a3115c4d72446ff560975d3e34dadbd83b73b0068caba7f45c8c1109487"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001351-3.pdf",
+      "sha256": "b3b2a9fde6d3a84a2a3a5513066d4e70773a28eacb260c0f3687a0d5b9634260"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001352-2.pdf",
+      "sha256": "089fe341af76c007041bedd83015b72cad2c17f00c724cd0d33c6cf3c484e699"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001375-2.pdf",
+      "sha256": "f4791d7fed44abce1b6477ed34ecf04fd8616655a30e1a1884a4c0a101a36202"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001383-2.pdf",
+      "sha256": "62a759802ca365895a5a05a7d67b203a592967ef22d6ed9c6914d3e139e2712d"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001419-2.pdf",
+      "sha256": "82d7b33d25046db49e36827d9984ed5a32083e32f0cc93c42558c92ba36ef6ab"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001425-2.pdf",
+      "sha256": "e1df81d061a377d69f2b80b932f3085617d53977078a982bddf35765a6be827c"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001476-2.pdf",
+      "sha256": "1addbadca36628d9ef7dbaddb91446cc242b5b2b5ec74190917e706f8db333ac"
+    },
+    {
+      "path": "assets/course-specifications/sharia-ba-1445/2001482-2.pdf",
+      "sha256": "57e6bc853277a4ed953e81269441afd2a06c6f8a22d38342de21fdaa97fddc2b"
+    },
+    {
+      "path": "assets/course-specifications/specialty-recovery-20260826/20012102-2.pdf",
+      "sha256": "c6c31b6d763d38cbf57de03bdbbd0b476462f0e560b69534f19986ea25a224b8"
+    },
+    {
+      "path": "assets/course-specifications/specialty-recovery-20260826/20012106-2.pdf",
+      "sha256": "1022395a7b641b3a2e0550749d19964c51199e4f412464e6f17a9bbb377bfa2d"
+    },
+    {
+      "path": "assets/course-specifications/specialty-recovery-20260826/20014101-2.pdf",
+      "sha256": "ff8e6edba79fb53f8c05e9a37fdd6e2e2aacbe65a94b3abd646e136868651afb"
+    },
+    {
+      "path": "assets/course-specifications/specialty-recovery-20260826/2002313-2.pdf",
+      "sha256": "52c5b6568e00e83cd981ff8e443ed15422c881b2db27a7b53bdea3ebef4eeaae"
+    },
+    {
+      "path": "assets/course-specifications/specialty-recovery-20260826/2003442-3.pdf",
+      "sha256": "0e81f70213d19bb6daa93ba4f489dde9cde4b80df34610bfc915903bde5fbfb8"
+    },
+    {
+      "path": "assets/course-specifications/specialty-recovery-20260826/20044202-2.pdf",
+      "sha256": "a44e0da5dfb8f8796d35a6e4dfd541672dd0f1e8afda79a01cd5f560ffc2ae06"
+    },
+    {
+      "path": "assets/course-specifications/systems-law-completion-20260915/2003102-3--from-2003417-3.pdf",
+      "sha256": "3c85b65ab0a9284012a85346ffe65e7c0cbc340a715a07b4bacacb913856b0b2"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003111-3.pdf",
+      "sha256": "aab0e7bb741ecd766d3e39cd955f3ba4c44a0fe5c0f890f243f352b1d8eb4b86"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003112-2.pdf",
+      "sha256": "63d0c542b23582e5bf4001df5543367fb96295b20c6d277b3cc49f96f55aa0d9"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003114-2.pdf",
+      "sha256": "3b9bd82d315a3da0e0ddbf2e2bee75cbfe332f4e03b38eaaf3ec1f0900f6bdd0"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003216-2.pdf",
+      "sha256": "4f1f1169a30fdae1c46ceb051e40dd5a360f3835f368d808d068311f7900fc4a"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003221-2.pdf",
+      "sha256": "eaeeae265dbee4cefa256ad72a51a5bc47cf46768a68a9427f51a20cf2e2ddf4"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003222-3.pdf",
+      "sha256": "8746fd10322eb97e78f4c1b7d0fb1e97ea73fce0c3597cbd174c9b173364f539"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003225-2.pdf",
+      "sha256": "689963b1d9942a5b427f0ea8a8dee6ec6212408989f451c66df59511f94987da"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003226-3.pdf",
+      "sha256": "d339414f826da13511b3c82c5b1c8b17a3e07f473de4bbcb2cd301e6c6a469fb"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003313-3.pdf",
+      "sha256": "6a603ab513d0b20b072b611aee192a535676a465836561cee40f46792e6ae790"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003315-3.pdf",
+      "sha256": "68621b89f12d44921a626416aa8a37b71cc986fb943e728a896c64a60b6f90fd"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/20033201-3.pdf",
+      "sha256": "078d59076a457717451a1ae22e176138c554493c43162ce37bb813142a40d509"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003323-3.pdf",
+      "sha256": "00a8cf4bc888b0e1563388ffa359955720a3d9bd04fa8fa65484baa0d8113ec3"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003329-2.pdf",
+      "sha256": "87590f9a9dd8dd3bbe1eb237877973193f5d1f459f7db4e559ebd676745589b5"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003352-2.pdf",
+      "sha256": "1d50125c5a07148e0df77010c9605a85f3f5e33ca1aece9b58d1730e9d3b35b9"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003403-2.pdf",
+      "sha256": "c492196691008217136af36d6bb106578c9fc2fdcc62c21bdd5761c6d50b069c"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003404-2.pdf",
+      "sha256": "4fb681cba2412e85937af29302c228965071dcaebf68f1ef921ed4111670c42f"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/20034101-3.pdf",
+      "sha256": "2ce86851733b337936a124275dec18bd6f648f39e3c68764ccdce1e2e382f01a"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003417-3.pdf",
+      "sha256": "7f26ed7fbd9ebc76539ff4c3bb88ba80e929cb3bfc8ff2568f92969267a0cc6c"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003426-2.pdf",
+      "sha256": "de116160ae6dada4f581a84d06f4f3cfa9a49e6cca94930990ac31a2fcb03734"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003453-3--nizam-al-murafaat.pdf",
+      "sha256": "01ab8fc03cd0f428f80564cfb304bc73fe504358d1c31c62d39f261bfdfb424d"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003456-2.pdf",
+      "sha256": "acf63416c3c2dd1fb75e002c005b864c0d1555611738508699701e59c4e22eab"
+    },
+    {
+      "path": "assets/course-specifications/systems-source-2022/2003489-3.pdf",
+      "sha256": "aa9960951fcd27dab64fa98474669a605b480b186c0bf4d18ae9a7b145714d69"
+    },
+    {
+      "path": "assets/course-specifications/systems-updates-1446/2003210-3.pdf",
+      "sha256": "eb83bef04a636f78feb4a7c58e53b9cd78c107f7547c61d44d8f1bf7b7641511"
+    },
+    {
+      "path": "assets/course-specifications/systems-updates-1446/2003231-3.pdf",
+      "sha256": "92bcd42f1d1286df6a778ff2182876f4893a74a60e95d9b905289bff950a6479"
+    },
+    {
+      "path": "assets/course-specifications/systems-updates-1446/2003243-3.pdf",
+      "sha256": "2c2c935a3d38ec4628db81d5235268c72973026ae89039eb6d731c86e7c6db81"
+    },
+    {
+      "path": "assets/course-specifications/systems-updates-1446/2003321-3.pdf",
+      "sha256": "4c7a8532ab262fb27029c67089171597e0f6bef48f80d3602c3be710e41bdd5a"
+    },
+    {
+      "path": "assets/course-specifications/systems-updates-1446/2003381-3.pdf",
+      "sha256": "0b2df4f6084cb747194d2ac81deab8fc847e2dc73d859b6cd5c8398f149bc687"
+    },
+    {
+      "path": "assets/course-specifications/systems-updates-1446/2003433-3.pdf",
+      "sha256": "5c5e8b9818820a1a448268ccce8a3b6db6f8ad50827a552048a6980f10313215"
+    },
+    {
+      "path": "assets/course-specifications/systems-updates-1446/2003492-3.pdf",
+      "sha256": "b2e59f52b9b991b7419ee04448020ac66af80b7f5b6d9f09e7e33840db7f3c93"
+    },
+    {
+      "path": "assets/course-specifications/university-omnibus-recovery-20260910/2002230-2.pdf",
+      "sha256": "4acf4a28013e63d71e6339202007dbba23248da06c58d019e89eb5b5fc2d12c5"
+    },
+    {
+      "path": "assets/course-specifications/university-omnibus-recovery-20260910/2002241-2.pdf",
+      "sha256": "7018b937db8fc3ca596275430f3d5d80ec65feb08b8c05958988aa79303c5731"
+    },
+    {
+      "path": "assets/course-specifications/university-omnibus-recovery-20260910/2002242-2.pdf",
+      "sha256": "b869365425cb353963eadf0ee057f221c4ad304a9b9536d88a8a963bac2f1536"
+    },
+    {
+      "path": "assets/course-specifications/university-omnibus-recovery-20260910/2002343-2.pdf",
+      "sha256": "fbf64b72b02d693558e1ca1b5691a6e6e82fc1ee0c9fc0cbd35c4a621d904e91"
+    },
+    {
+      "path": "assets/course-specifications/usul-master-1446/2001702-2.pdf",
+      "sha256": "494b7537babb5b6784b8bcae14f14297d22ff54e1481f0e4e8da7c17486367ab"
+    },
+    {
+      "path": "assets/course-specifications/usul-master-1446/2001703-2.pdf",
+      "sha256": "b5fe2cf6a1016d0dba876c8408103e98554c0d5103ac87fcb0ce9d189fa51b76"
+    },
+    {
+      "path": "assets/course-specifications/usul-master-1446/2001705-3.pdf",
+      "sha256": "2df7956bd21087b8a24e357d3f9c56f3e7e2442322ebc580f6cd3729b6a21615"
+    },
+    {
+      "path": "assets/course-specifications/usul-master-1446/2001707-2.pdf",
+      "sha256": "4d2ec7704aa970360eaffc525fe4b41b0b90c0d30ba5e01cb9bcf91a6c2cbc99"
+    },
+    {
+      "path": "assets/course-specifications/usul-master-1446/2001708-2.pdf",
+      "sha256": "85b6fcf98cc0d13bedfad866196e840f767e9d88abfd39b68b7a17d6e3c5272d"
+    },
+    {
+      "path": "assets/course-specifications/usul-master-1446/2001709-3.pdf",
+      "sha256": "392f51b5fd7dd6a33e00493f0da2fdc57780125fbeb6de2621f3104d3bd58a63"
+    },
+    {
+      "path": "assets/course-specifications/usul-master-1446/2001712-2.pdf",
+      "sha256": "650ff5d4e564a40f877f8f738b45823e3aa9e2a3850f8b4477010744180b6757"
+    },
+    {
+      "path": "assets/course-specifications/usul-master-1446/2001715-3.pdf",
+      "sha256": "a208a9f4a62ea4595e8567e091dae4701d238f7f610c5655fef8ce4305174b3b"
+    },
+    {
+      "path": "assets/course-specifications/usul-phd-1446/2001900-3.pdf",
+      "sha256": "816323425c11b9320068036b9eda47eafdf6c5a9dabe128e152daffacbd1201d"
+    }
+  ],
+  "policy_unchanged": {
+    "coverage_threshold": 80,
+    "strict_topic_threshold": 80,
+    "lenient_topic_threshold": 60,
+    "weighting": "topic_count",
+    "direction": "uploaded_to_target"
+  },
+  "note": "includes in-progress formal-report and global-search enhancements authorized by user; per-file hashes are transfer authority. Private examples/caches are copied separately and not committed."
+}
