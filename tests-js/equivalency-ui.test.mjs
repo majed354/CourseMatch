@@ -941,3 +941,18 @@ test('incomplete evidence audit renders a formal pending report without zero cov
   for(const privateValue of ['audit_incomplete','facet_review','qwen3.8','gemma4','PRIVATE_RAW_VALIDATION_ERROR','uncertain_empty_bounds','PRIVATE_RUBRIC_ID'])assert.ok(!html.includes(privateValue),privateValue+' must remain outside the formal report');
   assert.equal(JSON.stringify(input),before,'rendering must not convert the preserved audit failure into scores or modify its evidence');
 });
+
+test('unresolved semantic alternatives cannot appear as a rejection or zero coverage in the report',()=>{
+  const input=reportFixture({decision:'insufficient',total:13});
+  for(const pair of input.evidence.pairs)pair.adjudication={state:'confirmed'};
+  input.calculation={...input.calculation,strict_count:0,lenient_count:0,strict_coverage:null,lenient_coverage:null,
+    rejection_review:{pending_target_ids:['t1','t6']},reason:'PRIVATE_CANDIDATE_GRAPH_DIAGNOSTIC'};
+  const before=JSON.stringify(input),{html}=renderedReport(input);
+  assert.ok(html.includes('تعذر الحسم لعدم كفاية أدلة التوافق بين مفردات المقررين.'));
+  assert.ok(html.includes('report-stamp pending'));assert.ok(!html.includes('report-stamp approved'));
+  assert.ok(html.includes('لم تُحسب التغطية'));assert.ok(!html.includes('coverage-gauge'));
+  assert.ok(!html.includes('نطاق المقابلة مثبت'));
+  assert.ok(!html.includes('PRIVATE_CANDIDATE_GRAPH_DIAGNOSTIC'));
+  assert.doesNotMatch(html,/(?:^|[^\d٠-٩])(?:0(?:[.,]0+)?|٠(?:[٫,]٠+)?)\s*%/u);
+  assert.equal(JSON.stringify(input),before);
+});

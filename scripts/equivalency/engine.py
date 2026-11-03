@@ -219,6 +219,17 @@ def calculate(target_topics, source_topics, pairs, *, reviewed=True):
                               segmentation_review={'direction':'split_source_units','target_ids':sorted(split),
                                                    'distinct_source_matching':len(possible_lenient)})
                 return result
+            # A generated candidate graph is not proof that every semantic
+            # alternative was exhausted. A positive unresolved bound prevents
+            # using that incomplete graph to issue a definitive rejection.
+            # Hard range exclusions retain no positive bound and stay final.
+            pending=sorted({p['target_id'] for p in pairs
+                            if p.get('adjudication',{}).get('state')=='uncertain'
+                            and 'lenient' in p['adjudication']['possible_tiers']})
+            if pending:
+                result.update(reason='لم تثبت أدلة كافية لحسم توافق بعض مفردات المقررين.',
+                              rejection_review={'pending_target_ids':pending})
+                return result
             decision='not_equivalent'
         else:
             result.update(reason='لم يثبت نطاق بعض المفردات المركبة بما يكفي لحسم المعادلة؛ يلزم استكمال دليل المحتوى.',

@@ -1,6 +1,6 @@
 {
   "date": "2026-11-03",
-  "status": "final_release_prepared",
+  "status": "negative_uncertainty_guard_prepared",
   "policy_changed": false,
   "diagnosed_release": "72d805b",
   "cases": [
@@ -195,6 +195,50 @@
       "approved_control_pages": 3,
       "all_10_pages_visually_reviewed": true,
       "academic_content_and_first_page_report_ID_preserved": true
+    }
+  },
+  "final_public_regression": {
+    "release": "57b8662873a4013723f42f87c17bc57cead48e9b",
+    "deploy_id": "6aea3644da0ad8185443aab8",
+    "github_actions_run": 41703745077,
+    "github_actions_conclusion": "success",
+    "input": "public API comparison of the same automatically verified original upload, not a fresh student upload",
+    "source_topics": 15,
+    "target_topics": 13,
+    "visual_verification_status": "completed",
+    "terminal_status": "done",
+    "decision_as_issued": "not_equivalent",
+    "strict_count_as_issued": 0,
+    "lenient_count_as_issued": 3,
+    "academic_validity": "not established; omitted a serious uncertain alternative for target5 from source7",
+    "raw_result_preserved": true,
+    "GET_socket_interruptions": 3,
+    "unexpected_HTTP_failures": 0,
+    "expected_ownership_404": 6,
+    "POST_count": 1,
+    "replayed_POST": 0,
+    "existing_KSU_UQU_calculations_unchanged": true,
+    "all_11_pdf_pages_visually_reviewed": true,
+    "academic_accept_or_reject_demonstrated": false
+  },
+  "negative_uncertainty_guard": {
+    "status": "prepared_not_publicly_verified",
+    "reason": "A finite generated graph with unresolved positive semantic possibilities is not proof that all plausible alternatives were exhausted.",
+    "behavior": "Definitive rejection becomes insufficient with null coverage when any adjudicated uncertain pair retains a lenient positive possibility.",
+    "hard_numeric_exclusion_unchanged": true,
+    "confirmed_accept_and_lenient_thresholds_unchanged": true,
+    "model_scores_rewritten": false,
+    "manual_candidates_injected_in_production": false,
+    "catalog_or_PDF_changed": false,
+    "known_compound_facet_limitation": "Some broad titles were reviewed as a single related facet despite detailed multi-part target wording; these partial pair estimates are not an academic accuracy benchmark.",
+    "local_verification": {
+      "python_passed": 441,
+      "node_chrome_enabled_passed": 186,
+      "skipped": 0,
+      "pdf_import_verified": 448,
+      "independent_guard_tests": 6,
+      "API_tests": 45,
+      "private_raw_reports_mutated": false
     }
   }
 }

@@ -520,3 +520,62 @@ test('manual, canonical and completed uploads keep their existing final report a
     assert.equal((await s.post('/api/reports/'+id+'/beneficiary',{beneficiary:{number:'SAFE-FINAL'}},a)).status,200);
   }
 });
+
+const uncertainRejectionNotice='لم تثبت أدلة كافية لاعتماد حكم الرفض.';
+const pendingPositiveEvidence=()=>({provider:'ollama_local',pairs:[{target_id:'t1',source_id:'t1',score:null,candidate_only:true,
+  reason:'PRIVATE_UNRESOLVED_REASON',adjudication:{state:'uncertain',possible_tiers:['lenient'],review:{reason:'PRIVATE_RAW_REVIEW'}}}]});
+
+test('new definitive rejection with a serious unresolved lenient alternative cannot be published',async()=>{
+ for(const possible_tiers of [['lenient'],['strict','lenient']]){
+  const s=setup(),a=await s.bootstrap(),source=await s.source(a);
+  const {id}=await(await s.post('/api/jobs',{source_id:source.id,target_id:course.id,review_mode:'automatic'},a)).json();
+  const task=(await(await s.worker('claim',{worker_id:'uncertain-rejection-guard'})).json()).task;
+  const evidence=pendingPositiveEvidence();evidence.pairs[0].adjudication.possible_tiers=possible_tiers;
+  const result={source,target:course,catalog_id:catalog.catalog_id,evidence,calculation:{decision:'not_equivalent',strict_coverage:0,lenient_coverage:0}};
+  const before=structuredClone(result),response=await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result});
+  assert.equal(response.status,400);assert.equal((await response.json()).error,uncertainRejectionNotice);assert.deepEqual(result,before);
+  const state=await(await s.request('/api/jobs/'+id,{cookie:a.cookie})).json();assert.equal(state.status,'running');assert.equal(state.result,undefined);
+  assert.equal([...s.repository.artifacts.values()].filter(r=>r.kind==='report').length,0);
+ }
+});
+
+test('historical uncertain rejection cannot be read or updated while raw evidence and ownership remain intact',async()=>{
+ const s=setup(),a=await s.bootstrap(),b=await s.bootstrap(),source=await s.source(a);
+ const {id}=await(await s.post('/api/jobs',{source_id:source.id,target_id:course.id,review_mode:'automatic'},a)).json();
+ const task=(await(await s.worker('claim',{worker_id:'historical-negative-guard'})).json()).task;
+ const result={source,target:course,catalog_id:catalog.catalog_id,evidence:pendingPositiveEvidence(),calculation:{decision:'insufficient'}};
+ assert.equal((await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result})).status,200);
+ // Test fixture only: represent the exact pre-guard historical verdict.
+ const rawTask=[...s.repository.tasks.values()].find(r=>r.id===id),artifact=[...s.repository.artifacts.values()].find(r=>r.id===id);
+ rawTask.result.calculation={decision:'not_equivalent',strict_count:0,lenient_count:0,total_topics:13,strict_coverage:0,lenient_coverage:0};
+ artifact.value.calculation=rawTask.result.calculation;
+ const savedTask=structuredClone(rawTask),savedArtifact=structuredClone(artifact);
+ const response=await s.request('/api/jobs/'+id,{cookie:a.cookie});assert.equal(response.status,200);
+ const blocked=await response.json();assert.deepEqual(blocked,{id,status:'error',message:uncertainRejectionNotice,error:uncertainRejectionNotice});
+ assert.equal(blocked.result,undefined);assert.equal(JSON.stringify(blocked).includes('PRIVATE_'),false);assert.ok(!blocked.message.includes('قراءة'));
+ let updates=0;const update=s.repository.updateBeneficiary.bind(s.repository);s.repository.updateBeneficiary=async(...args)=>{updates++;return update(...args)};
+ const denied=await s.post('/api/reports/'+id+'/beneficiary',{beneficiary:{name:'تعديل لا يعتمد',number:'DENIED'}},a);
+ assert.equal(denied.status,400);assert.equal((await denied.json()).error,uncertainRejectionNotice);assert.equal(updates,0);
+ assert.equal((await s.request('/api/jobs/'+id,{cookie:b.cookie})).status,404);assert.equal((await s.post('/api/reports/'+id+'/beneficiary',{beneficiary:{number:'FOREIGN'}},b)).status,404);
+ assert.deepEqual(rawTask,savedTask);assert.deepEqual(artifact,savedArtifact);assert.equal(rawTask.status,'done');assert.equal(rawTask.result.calculation.decision,'not_equivalent');
+});
+
+test('positive verdicts, pending studies and definitive weak or excluded rejections retain public routes',async()=>{
+ const cases=[
+  {decision:'equivalent',adjudication:{state:'uncertain',possible_tiers:['lenient']}},
+  {decision:'lenient',adjudication:{state:'uncertain',possible_tiers:['strict','lenient']}},
+  {decision:'insufficient',adjudication:{state:'uncertain',possible_tiers:['lenient']}},
+  {decision:'not_equivalent',adjudication:{state:'confirmed',possible_tiers:[],review:{verdict:'weak'}}},
+  {decision:'not_equivalent',adjudication:{state:'uncertain',possible_tiers:[],kind:'deterministic_atomic_scope'}},
+  {decision:'not_equivalent',adjudication:undefined}
+ ];
+ for(const fixture of cases){
+  const s=setup(),a=await s.bootstrap(),source=await s.source(a),{id}=await(await s.post('/api/jobs',{source_id:source.id,target_id:course.id,review_mode:'automatic'},a)).json();
+  const task=(await(await s.worker('claim',{worker_id:'definitive-evidence-guard'})).json()).task;
+  const evidence={pairs:[{target_id:'t1',source_id:'t1',score:40,...(fixture.adjudication?{adjudication:fixture.adjudication}:{})}]};
+  const result={source,target:course,catalog_id:catalog.catalog_id,evidence,calculation:{decision:fixture.decision}};
+  assert.equal((await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result})).status,200,JSON.stringify(fixture));
+  const returned=await(await s.request('/api/jobs/'+id,{cookie:a.cookie})).json();assert.equal(returned.status,'done');assert.equal(returned.result.calculation.decision,fixture.decision);assert.deepEqual(returned.result.evidence,evidence);
+  const saved=await s.post('/api/reports/'+id+'/beneficiary',{beneficiary:{name:'مستفيد محفوظ',number:'SAFE'}},a);assert.equal(saved.status,200);assert.deepEqual((await saved.json()).evidence,evidence);
+ }
+});

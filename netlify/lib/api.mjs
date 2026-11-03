@@ -7,12 +7,18 @@ const outputHeaders = {'Content-Type':'application/json; charset=utf-8','Cache-C
   'Referrer-Policy':'no-referrer','Vary':'Cookie','Cross-Origin-Resource-Policy':'same-origin'};
 const hidden = new Set(['input_pdf_key','pdf_key','worker_token','session_secret','local_path']);
 const unreadableReportMessage = 'تعذر اعتماد هذا الحكم لعدم ثبوت قراءة أحد التوصيفين.';
+const uncertainRejectionMessage = 'لم تثبت أدلة كافية لاعتماد حكم الرفض.';
 function unverifiedUpload(value) {
   return plain(value) && value.upload_pdf === true && ['unavailable','uncertain'].includes(value.visual_verification_status);
 }
 function unsafeFinalReport(value, ...trustedInputs) {
-  return plain(value) && ['equivalent','lenient','not_equivalent'].includes(value.calculation?.decision)
-    && [value.source,value.target,...trustedInputs].some(unverifiedUpload);
+  if (!plain(value) || !['equivalent','lenient','not_equivalent'].includes(value.calculation?.decision)) return null;
+  if (value.calculation.decision === 'not_equivalent' && Array.isArray(value.evidence?.pairs)
+      && value.evidence.pairs.some(pair => pair?.adjudication?.state === 'uncertain'
+        && Array.isArray(pair.adjudication.possible_tiers) && pair.adjudication.possible_tiers.includes('lenient'))) {
+    return uncertainRejectionMessage;
+  }
+  return [value.source,value.target,...trustedInputs].some(unverifiedUpload) ? unreadableReportMessage : null;
 }
 
 function publicValue(value) {
@@ -110,7 +116,8 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
       ready.target_mode = uploaded ? 'uploaded' : 'catalog';
       if (uploaded) ready.target = publicValue(structuredClone(original));
       else Object.assign(ready.target,{id:original.id,code:original.code,name:original.name,context_id:original.context_id,context:original.context,source_pdf:original.source_pdf});
-      if (unsafeFinalReport(ready,task.payload.source_visual_verification)) throw new HttpError(400,unreadableReportMessage);
+      const unsafeMessage = unsafeFinalReport(ready,task.payload.source_visual_verification);
+      if (unsafeMessage) throw new HttpError(400,unsafeMessage);
       ready.beneficiary = beneficiary(task.payload.beneficiary);
     }
     return ready;
@@ -218,10 +225,11 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
       if (request.method === 'GET' && operationPath) {
         const row = await repository.getTask(scope,operationPath[2],session.id,now);
         if (!row || (operationPath[1] === 'jobs') !== (row.kind === 'compare')) throw new HttpError(404,'الطلب غير موجود أو انتهت صلاحيته');
-        // Historical evidence stays untouched in storage, but a final verdict
-        // from an unverified uploaded reading must not be displayed again.
-        if (row.kind === 'compare' && unsafeFinalReport(row.result,row.payload?.source_visual_verification,row.payload?.target_mode === 'uploaded' ? row.payload.target : undefined)) {
-          return respond({id:row.id,status:'error',message:unreadableReportMessage,error:unreadableReportMessage});
+        // Historical evidence stays untouched; a definitive verdict must still
+        // satisfy today's reading and negative-evidence publication gates.
+        const unsafeMessage = row.kind === 'compare' && unsafeFinalReport(row.result,row.payload?.source_visual_verification,row.payload?.target_mode === 'uploaded' ? row.payload.target : undefined);
+        if (unsafeMessage) {
+          return respond({id:row.id,status:'error',message:unsafeMessage,error:unsafeMessage});
         }
         return respond({id:row.id,status:row.status,message:row.error || messages[row.status],...(row.result ? {result:publicValue(row.result)} : {}),...(row.error ? {error:row.error} : {})});
       }
@@ -239,7 +247,8 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
         const report = await repository.getArtifact(scope,beneficiaryPath[1],session.id,now,'report');
         if (!report) throw new HttpError(404,'التقرير غير موجود أو انتهت صلاحيته');
         const task = await repository.getTask(scope,beneficiaryPath[1],session.id,now);
-        if (unsafeFinalReport(report.value,task?.payload?.source_visual_verification,task?.payload?.target_mode === 'uploaded' ? task.payload.target : undefined)) throw new HttpError(400,unreadableReportMessage);
+        const unsafeMessage = unsafeFinalReport(report.value,task?.payload?.source_visual_verification,task?.payload?.target_mode === 'uploaded' ? task.payload.target : undefined);
+        if (unsafeMessage) throw new HttpError(400,unsafeMessage);
         return respond(publicValue(await repository.updateBeneficiary(scope,beneficiaryPath[1],session.id,beneficiary(data.beneficiary),now)));
       }
       if (!['/api/sources','/api/search','/api/jobs'].includes(pathname)) throw new HttpError(404,'المسار غير موجود');

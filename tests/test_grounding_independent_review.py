@@ -222,7 +222,10 @@ class IndependentGroundingReviewTests(unittest.TestCase):
             elif ps * 100 < 240 <= cl * 100:
                 expected = 'lenient'
             elif pl * 100 < 240:
-                expected = 'not_equivalent'
+                # Exhaustive assignments of the supplied graph do not prove
+                # that a semantic candidate generator exhausted all sources.
+                expected = ('insufficient' if any(r['verdict']=='uncertain' for r in reviews)
+                            else 'not_equivalent')
             else:
                 expected = 'insufficient'
             with self.subTest(graph=case, bounds=counts):
