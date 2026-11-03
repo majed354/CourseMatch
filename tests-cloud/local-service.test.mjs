@@ -63,3 +63,52 @@ test('public entry point has a bounded aggregate request rate while the local wo
   assert.equal(await call('/api/catalog'),429);
   assert.equal(await call('/api/worker/claim','127.0.0.1:8800'),200);
 });
+
+test('HTTP responses frame Arabic JSON, binary PDF, health and rejects with exact byte lengths',async t=>{
+  const json=JSON.stringify({name:'مقرر التفسير',reason:'لا يمكن معادلته؛ تغطية ٦٠٪',topics:['أسباب النزول','القراءات']});
+  assert.notEqual(Buffer.byteLength(json),json.length);
+  const pdf=Buffer.concat([Buffer.from('%PDF-1.7\n'),Buffer.from([0,255,128,13,10]),Buffer.from('%%EOF')]);
+  const server=createLocalServer({origin:'https://example.net',api:async request=>new Response(new URL(request.url).pathname.startsWith('/pdf/')?pdf:json,{
+    status:202,headers:{'Content-Type':new URL(request.url).pathname.startsWith('/pdf/')?'application/pdf':'application/json; charset=utf-8','Content-Length':'99999','Transfer-Encoding':'chunked','Set-Cookie':'fixture=private; HttpOnly; Secure','X-Fixture':'unchanged'}
+  })});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const call=(route,headers={})=>new Promise((resolve,reject)=>{
+    const request=http.request({hostname:'127.0.0.1',port:server.address().port,path:route,headers:{Host:'example.net',...headers}},response=>{
+      const chunks=[];response.on('data',chunk=>chunks.push(chunk));response.on('error',reject);
+      response.on('end',()=>resolve({status:response.statusCode,headers:response.headers,body:Buffer.concat(chunks),complete:response.complete}));
+    });request.on('error',reject);request.end();
+  });
+  for(const [route,headers,status,expected] of [
+    ['/api/catalog',{},202,Buffer.from(json)],
+    ['/pdf/'+'a'.repeat(32),{},202,pdf],
+    ['/healthz',{},200,Buffer.from('{"ok":true,"service":"CourseMatch"}')],
+    ['/private',{},404,Buffer.from(JSON.stringify({error:'الطلب غير مسموح'}))],
+    ['/api/catalog',{Host:'foreign.example'},400,Buffer.from(JSON.stringify({error:'الطلب غير مسموح'}))],
+    ['/api/worker/claim',{},403,Buffer.from(JSON.stringify({error:'الطلب غير مسموح'}))]
+  ]) {
+    const response=await call(route,headers);
+    assert.equal(response.status,status);assert.equal(response.complete,true);
+    assert.deepEqual(response.body,expected);assert.equal(response.headers['content-length'],String(expected.length));
+    assert.equal(response.headers['transfer-encoding'],undefined);
+    if(status===202){assert.equal(response.headers['x-fixture'],'unchanged');assert.deepEqual(response.headers['set-cookie'],['fixture=private; HttpOnly; Secure']);}
+  }
+});
+
+test('HTTP adapter finishes reading response bytes before committing its status and headers',async t=>{
+  const expected=Buffer.from('اكتملت الاستجابة العربية');
+  let release,started;const ready=new Promise(resolve=>{started=resolve;}),gate=new Promise(resolve=>{release=resolve;});
+  const server=createLocalServer({origin:'https://example.net',api:async()=>new Response(new ReadableStream({
+    async start(controller){started();await gate;controller.enqueue(expected);controller.close();}
+  }),{status:202,headers:{'Content-Type':'application/json'}})});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
+  let responseStarted=false;
+  const result=new Promise((resolve,reject)=>{
+    const request=http.request({hostname:'127.0.0.1',port:server.address().port,path:'/api/catalog',headers:{Host:'example.net'}},response=>{
+      responseStarted=true;const chunks=[];response.on('data',chunk=>chunks.push(chunk));response.on('error',reject);
+      response.on('end',()=>resolve({status:response.statusCode,headers:response.headers,body:Buffer.concat(chunks)}));
+    });request.on('error',reject);request.end();
+  });
+  await ready;await new Promise(resolve=>setImmediate(resolve));assert.equal(responseStarted,false);release();
+  const response=await result;assert.equal(response.status,202);assert.deepEqual(response.body,expected);
+  assert.equal(response.headers['content-length'],String(expected.length));assert.equal(response.headers['transfer-encoding'],undefined);
+});

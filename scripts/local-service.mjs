@@ -63,13 +63,19 @@ export function createLocalServer({api,origin,port=8800,clock=()=>Date.now()}) {
   const publicHost=new URL(origin).host,localHost='127.0.0.1:'+port;
   const buckets=new Map();
   return http.createServer({maxHeaderSize:16*1024,requestTimeout:30_000,headersTimeout:15_000},async(req,res)=>{
-      const reject=(status)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...(status===429?{'Retry-After':'30'}:{})});res.end(JSON.stringify({error:status===429?'طلبات كثيرة؛ حاول لاحقًا':'الطلب غير مسموح'}));};
+    const sendBuffered=(status,headers,body)=>{
+      const bytes=Buffer.isBuffer(body)?body:Buffer.from(body);
+      const framed=Object.fromEntries(Object.entries(headers).filter(([key])=>!['content-length','transfer-encoding'].includes(key.toLowerCase())));
+      res.writeHead(status,{...framed,'Content-Length':bytes.length});
+      res.end(bytes);
+    };
+    const reject=(status)=>sendBuffered(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...(status===429?{'Retry-After':'30'}:{})},JSON.stringify({error:status===429?'طلبات كثيرة؛ حاول لاحقًا':'الطلب غير مسموح'}));
     try {
       if(![publicHost,localHost].includes(req.headers.host)||!req.url.startsWith('/')||req.url.startsWith('//'))return reject(400);
       const url=new URL(req.url,origin);
       if(url.origin!==origin)return reject(400);
       if(url.pathname==='/healthz' && req.method==='GET') {
-        res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end('{"ok":true,"service":"CourseMatch"}');
+        return sendBuffered(200,{'Content-Type':'application/json','Cache-Control':'no-store'},'{"ok":true,"service":"CourseMatch"}');
       }
       if(!url.pathname.startsWith('/api/')&&!/^\/pdf\/[a-f0-9]{20,32}$/.test(url.pathname))return reject(404);
       const worker=url.pathname.startsWith('/api/worker/');
@@ -88,8 +94,10 @@ export function createLocalServer({api,origin,port=8800,clock=()=>Date.now()}) {
       const headers=new Headers();
       for(const [key,value] of Object.entries(req.headers))if(value!==undefined&&!['host','connection','transfer-encoding','content-length'].includes(key))headers.set(key,Array.isArray(value)?value.join(', '):value);
       const response=await api(new Request(url,{method:req.method,headers,...(chunks.length?{body:Buffer.concat(chunks)}:{})}));
-      res.writeHead(response.status,Object.fromEntries(response.headers));
-      res.end(Buffer.from(await response.arrayBuffer()));
+      // Finish reading the Response before committing headers. Explicit byte
+      // lengths avoid an inherited/chunked frame and keep body errors recoverable.
+      const bytes=Buffer.from(await response.arrayBuffer());
+      sendBuffered(response.status,Object.fromEntries(response.headers),bytes);
     } catch(error) {console.error('local_service_request_failed',error?.name||'Error');if(!res.headersSent)reject(503);else res.end();}
   });
 }
