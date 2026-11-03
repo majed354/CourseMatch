@@ -145,3 +145,14 @@ textarea[readonly]{background:#f5f8fa;border-color:#dce6eb;cursor:default}.refer
  .curriculum-details-table .curriculum-witnesses:before,.curriculum-details-table .curriculum-verdict:before{display:block;font-size:10px;font-weight:bold;color:var(--report-navy);margin-bottom:7px}
  .curriculum-details-table .curriculum-witnesses:before{content:'شواهد المصدر'}.curriculum-details-table .curriculum-verdict:before{content:'التوافق والاحتساب'}
 }
+
+/* Compact curriculum evidence in print without changing type sizes or content. */
+@media print{
+ .equivalency-report .curriculum-details-table td{padding:6px 7px}
+ .curriculum-details-table .source-witness+.source-witness{margin-top:4px;padding-top:4px}
+ .curriculum-details-table .source-quotation{margin:3px 0}
+ .curriculum-details-table .source-quotation+.source-quotation{padding-top:2px}
+ .curriculum-details-table .target-topic>p{margin:3px 0}
+ .curriculum-details-table .curriculum-accounting{margin-top:4px}
+}
+/* End compact curriculum print evidence. */

@@ -105,19 +105,32 @@
       "minor_character_omissions": 2,
       "semantics_rewritten": false
     },
-    "academic_judgments_audited": 8,
+    "academic_judgments_audited": 14,
     "academic_judgments_total": 14,
     "C01_initial": {
       "decision": "lenient",
       "strict_count": 9,
       "lenient_count": 14,
       "target_topics": 14,
-      "status": "completed_academic_audit_and_PDF_pending",
+      "status": "completed_diagnostic_audit",
       "known_unjustified_downgrades": [
         "t5",
         "t7"
       ],
-      "accepted_as_accuracy_demonstration": false
+      "accepted_as_accuracy_demonstration": false,
+      "whole_course_tolerance_academically_defensible": true,
+      "strict_per_topic_counts_not_accuracy_benchmark": true,
+      "original_PDF_pages": 4,
+      "local_print_density_pages": 3,
+      "original_target_rows_preserved": 14,
+      "academic_audit": {
+        "target_rows": 14,
+        "part_observations": 84,
+        "literal_quotes": 87,
+        "foreign_source_quotes": 0,
+        "unannounced_open_dharai_claim": false,
+        "raw_categories_rebuilt_calculation": true
+      }
     }
   },
   "independent_CPU_audit": {
@@ -177,5 +190,16 @@
     "new_regression_subcases": 4,
     "independent_review_passed": true,
     "old_cache_and_traces_preserved": true
+  },
+  "verified_revised_release": {
+    "python": 557,
+    "node_chrome": 202,
+    "skipped": 0,
+    "import_PDFs": 448,
+    "initial_C01_original_PDF_pages": 4,
+    "local_print_density_PDF_pages": 3,
+    "visual_pages_reviewed": 3,
+    "font_size_or_text_reduced": false,
+    "published_or_activated": false
   }
 }
