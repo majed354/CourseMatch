@@ -298,7 +298,7 @@ class ServiceSupervisor:
     def start_tunnel(self):
         self.stop_child('tunnel')
         atomic_text(self.runtime / 'cloudflared.yml', 'no-autoupdate: true\n')
-        command = [self.config['cloudflared_executable'], '--config', str(self.runtime / 'cloudflared.yml'), 'tunnel', '--url', f"http://127.0.0.1:{self.config['port']}", '--http-host-header', urllib.parse.urlsplit(self.config['public_origin']).netloc, '--no-autoupdate']
+        command = [self.config['cloudflared_executable'], '--config', str(self.runtime / 'cloudflared.yml'), 'tunnel', '--url', f"http://127.0.0.1:{self.config['port']}", '--http-host-header', urllib.parse.urlsplit(self.config['public_origin']).netloc, '--no-autoupdate', '--protocol', 'http2']
         process = self.spawn('tunnel', command, pipe=True)
         def pump():
             for raw in iter(process.stdout.readline, b''):

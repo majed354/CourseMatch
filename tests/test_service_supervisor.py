@@ -275,6 +275,21 @@ class ProcessTests(HostingFixture):
         index = command.index('--http-host-header')
         self.assertEqual(command[index + 1], 'coursematch.example')
 
+    def test_tunnel_uses_http2_with_public_host_and_worker_route_protection(self):
+        instance = self.supervisor()
+        instance.stop_child = Mock()
+        instance.spawn = Mock(return_value=SimpleNamespace(pid=201, stdout=io.BytesIO(b''), poll=lambda: None))
+        with patch('scripts.service_supervisor.threading.Thread'):
+            instance.start_tunnel()
+        command = instance.spawn.call_args.args[1]
+        self.assertEqual(command.count('--protocol'), 1)
+        self.assertEqual(command[command.index('--protocol') + 1], 'http2')
+        self.assertEqual(command[command.index('--url') + 1], 'http://127.0.0.1:8800')
+        self.assertEqual(command[command.index('--http-host-header') + 1], 'coursematch.example')
+        self.assertTrue(instance.spawn.call_args.kwargs['pipe'])
+        self.assertEqual(service.render_redirects('https://words.trycloudflare.com').splitlines()[0],
+                         '/api/worker/* /404.html 404!')
+
     def test_only_process_handles_started_by_the_supervisor_are_stopped(self):
         instance = self.supervisor()
         process = SimpleNamespace(pid=54321, poll=lambda: None, wait=Mock(), terminate=Mock())
