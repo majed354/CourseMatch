@@ -138,7 +138,13 @@ class Pilot:
                     raise ValueError("التجربة تقبل توصيف مقرر واحد لا يزيد عن 40 صفحة")
             cache=self.runtime/'extraction'
             cache.mkdir(parents=True,exist_ok=True)
-            source = apply_readings(extract_cached(pdf,cache,vision=True), self.root)
+            from .image_input import extract_image_pdf, verify_pdf_topics
+            if data.get('input_kind') == 'image':
+                source = extract_image_pdf(pdf,cache)
+                source['source_media_kind'] = 'image'
+            else:
+                source = apply_readings(extract_cached(pdf,cache,vision=True), self.root)
+                source = verify_pdf_topics(pdf,source,cache)
             source.update(name=str(data.get("name") or "المقرر المرفوع")[:200], upload_pdf=True)
         else:
             source = {"name": str(data.get("name") or "المقرر المدخل")[:200], "topics": clean_topics(data.get("topics", [])),
@@ -154,7 +160,7 @@ class Pilot:
         self.verify_course(target)
         if source.get("catalog_course_id"):
             self.verify_course(self.sources[source["catalog_course_id"]])
-        if data.get("reviewed") is not True:
+        if data.get("review_mode") != 'automatic' and data.get("reviewed") is not True:
             raise ValueError("راجع مفردات المقررين وأكد صحة النص قبل المقارنة")
         source["topics"] = clean_topics(data.get("source_topics", source["topics"]), source["topics"])
         target["topics"] = clean_topics(data.get("target_topics", target["topics"]), target["topics"])
@@ -168,7 +174,7 @@ class Pilot:
                 result = {"id": key, "source": source, "target": target, "evidence": evidence,
                           "beneficiary": beneficiary, "created_at": datetime.now(timezone.utc).isoformat(),
                           "calculation": evidence_calculation(target["topics"], source["topics"], evidence),
-                          "catalog_id": self.catalog["catalog_id"], "reviewed_by": "user_confirmed_extraction",
+                          "catalog_id": self.catalog["catalog_id"], "reviewed_by": "automated_pipeline" if data.get('review_mode') == 'automatic' else "user_confirmed_extraction", "human_reviewed": data.get('review_mode') != 'automatic',
                           "notice": "نتيجة تجريبية للمفردات وفق سياسة 80/80/60؛ درجات توافق المفردات تقدير آلي يحتاج اعتماد المختص. الساعات واللوائح خارج هذا الحكم."}
                 self.verify_course(target)
                 self.save_report(result)
@@ -205,9 +211,9 @@ def serve(root=ROOT, port=8799, model="qwen3.8:27b-q8_0"):
                 return self.send(403, {"error": "مضيف غير مصرح"})
             route = urlparse(self.path).path
             try:
-                if route in ("/", "/app.js", "/style.css"):
+                if route in ("/", "/image-upload.js", "/app.js", "/style.css"):
                     name = "index.html" if route == "/" else route[1:]
-                    mime = {"index.html": "text/html", "app.js": "text/javascript", "style.css": "text/css"}[name] + "; charset=utf-8"
+                    mime = {"index.html": "text/html", "image-upload.js":"text/javascript", "app.js": "text/javascript", "style.css": "text/css"}[name] + "; charset=utf-8"
                     return self.send(200, (pilot.root / "equivalency-pilot" / name).read_bytes(), mime)
                 if route == "/api/catalog":
                     pilot.verify_catalog()

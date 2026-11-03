@@ -61,6 +61,7 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
       topics(ready.topics);
       ready.id = task.id;
       ready.upload_pdf = !!task.pdf_key;
+      if(task.pdf_key) ready.source_media_kind = task.payload.input_kind === 'image' ? 'image' : 'pdf';
       if (task.payload.catalog_id) {
         const original = sources.get(task.payload.catalog_id);
         ready.catalog_course_id = original.id;
@@ -94,6 +95,8 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
       if (!Array.isArray(ready.target.topics)) throw new HttpError(400,'مفردات تقرير المرجع غير صالحة');
       referenceTopics(original,ready.target.topics);
       ready.id = task.id;
+      ready.reviewed_by = task.payload.review_mode === 'automatic' ? 'automated_pipeline' : 'user_confirmed_extraction';
+      ready.human_reviewed = task.payload.review_mode !== 'automatic';
       Object.assign(ready.target,{id:original.id,code:original.code,name:original.name,context_id:original.context_id,context:original.context,source_pdf:original.source_pdf});
       ready.beneficiary = beneficiary(task.payload.beneficiary);
     }
@@ -175,7 +178,7 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
         if (!session) { session = codec.create(now); cookie = codec.cookie(session); }
         await repository.ensureSession(scope,session,now);
         const online = await repository.workerOnline(scope,now);
-        return respond({catalog_url:'/catalog.json',token:codec.csrf(session),capabilities:{queued:true,max_upload_mb:4,worker_online:online,reference_editable:false}},200,cookie ? {'Set-Cookie':cookie} : {});
+        return respond({catalog_url:'/catalog.json',token:codec.csrf(session),capabilities:{queued:true,max_upload_mb:4,image_upload:true,pdf_visual_verification:true,worker_online:online,reference_editable:false}},200,cookie ? {'Set-Cookie':cookie} : {});
       }
       if (!session) throw new HttpError(401,'افتح المنصة لبدء جلسة صالحة');
       if (request.method === 'POST') {
@@ -205,6 +208,7 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
         kind = 'source';
         const modes = Number(data.catalog_id !== undefined) + Number(data.pdf_base64 !== undefined) + Number(data.topics !== undefined);
         if (modes !== 1) throw new HttpError(400,'اختر مصدرًا واحدًا للمقرر');
+        if (data.input_kind !== undefined && (data.input_kind !== 'image' || data.pdf_base64 === undefined)) throw new HttpError(400,'نوع الملف المرفوع غير صالح');
         payload = {name:string(data.name,'اسم المقرر',200,{optional:true})};
         if (data.catalog_id !== undefined) {
           if (typeof data.catalog_id !== 'string' || !sources.has(data.catalog_id)) throw new HttpError(400,'المقرر المصدر غير موجود');
@@ -214,6 +218,10 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
           pdfKey = `${storePrefix}/${session.id}/${id}.pdf`;
           payload.has_pdf = true;
           payload.input_pdf_key = pdfKey;
+          if(data.input_kind==='image') {
+            payload.input_kind='image';
+            payload.original_filename=string(data.original_filename,'اسم الملف',200,{optional:true});
+          }
         } else payload.topics = topics(data.topics);
       } else {
         const source = await ownedSource(data.source_id,session.id,now);
@@ -224,8 +232,9 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
         } else {
           kind = 'compare';
           if (typeof data.target_id !== 'string' || !targets.has(data.target_id)) throw new HttpError(400,'المقرر الهدف غير موجود في الخطة');
-          if (data.reviewed !== true) throw new HttpError(400,'أكد مراجعة مفردات المقررين قبل المقارنة');
-          payload = {source_id:source.id,target_id:data.target_id,reviewed:true,beneficiary:beneficiary(data.beneficiary)};
+          if (data.review_mode !== undefined && data.review_mode !== 'automatic') throw new HttpError(400,'نمط التحقق غير صالح');
+          if (data.review_mode !== 'automatic' && data.reviewed !== true) throw new HttpError(400,'أكد مراجعة مفردات المقررين قبل المقارنة');
+          payload = {source_id:source.id,target_id:data.target_id,reviewed:true,review_mode:data.review_mode === 'automatic' ? 'automatic' : 'user_confirmed',beneficiary:beneficiary(data.beneficiary)};
           payload.target_topics = referenceTopics(targets.get(data.target_id),data.target_topics);
           const editedSource = topics(data.source_topics,true); if (editedSource !== undefined) payload.source_topics = editedSource;
         }

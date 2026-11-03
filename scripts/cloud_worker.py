@@ -312,7 +312,7 @@ class LeaseHeartbeat:
                 LOGGER.warning('lease_heartbeat_retry status=%s', error.status)
 
 
-SOURCE_FIELDS = {'id','name','code','hours','university','institution','context','context_id','topics','source_sha256','catalog_course_id','upload_pdf','warnings','status','reviewed','source_note','extraction_method','extractor','reading_note','transcription_model','transcription_model_digest','page_proof','excluded_rows','source_text_blocks','fixed_topic_curriculum','source_context','library_only','match_status','reference_review','reference_quality'}
+SOURCE_FIELDS = {'id','name','code','hours','university','institution','context','context_id','topics','source_sha256','catalog_course_id','upload_pdf','warnings','status','reviewed','source_note','extraction_method','extractor','reading_note','transcription_model','transcription_model_digest','transcription_models','page_proof','excluded_rows','source_text_blocks','fixed_topic_curriculum','source_context','library_only','match_status','reference_review','reference_quality','source_media_kind','original_filename','visual_verification_status','visual_verification','visual_verification_proof','visual_verification_method','visual_verification_cache_key','visual_response_proof','visual_spatial_proof','image_proof'}
 
 
 def public_source(value, *, catalog_pdf=None):
@@ -446,11 +446,39 @@ class Processor:
             elif payload.get('has_pdf'):
                 path = self.save_pdf(task, task['id'], cloud)
                 try:
-                    source = apply_readings(extract_cached(path, private_directory(directory / 'extraction'), vision=True), self.root)
+                    from scripts.equivalency.image_input import extract_image_pdf, verify_pdf_topics
+                    extraction_cache = private_directory(directory / 'extraction')
+                    if payload.get('input_kind') == 'image':
+                        source = extract_image_pdf(path, extraction_cache)
+                    else:
+                        # A byte-identical, visually approved reference already
+                        # has stronger evidence than repeating model OCR.
+                        approved = next((c for c in self.sources.values()
+                                         if c.get('source_sha256') == digest(path)
+                                         and c.get('reference_quality', {}).get('state') == 'ready_visual'), None)
+                        if approved is not None:
+                            self.course_path(approved)
+                            source = {'source_sha256':digest(path),'topics':copy.deepcopy(approved['topics']),
+                                      'excluded_rows':copy.deepcopy(approved.get('excluded_rows', [])),
+                                      'reviewed':False,'warnings':[], 'status':'extracted',
+                                      'extraction_method':'reviewed_visual_transcription',
+                                      'visual_verification_status':'completed',
+                                      'visual_verification':{'method':'verified_reference_sha256','source_sha256':digest(path)}}
+                        else:
+                            try:
+                                source = apply_readings(extract_cached(path, extraction_cache, vision=True), self.root)
+                            except Exception:
+                                # A vision outage must not erase a usable native
+                                # extraction or prevent the bounded verifier.
+                                source = apply_readings(extract_cached(path, extraction_cache, vision=False), self.root)
+                            source = verify_pdf_topics(path, source, extraction_cache)
                 except Exception:
-                    raise TaskInputError('تعذر استخراج مفردات التوصيف؛ راجع صلاحية الملف أو أدخل المفردات نصيًا.') from None
+                    raise TaskInputError('تعذرت قراءة محتوى الملف المرفوع.') from None
                 source = public_source(source)
-                source.update(name=str(payload.get('name') or 'المقرر المرفوع')[:200], upload_pdf=True)
+                source.update(name=str(payload.get('name') or 'المقرر المرفوع')[:200], upload_pdf=True,
+                              source_media_kind='image' if payload.get('input_kind') == 'image' else 'pdf')
+                if payload.get('input_kind') == 'image':
+                    source['original_filename'] = str(payload.get('original_filename') or '')[:200]
                 if source.get('source_sha256') != digest(path):
                     raise TaskInputError('تغير ملف التوصيف أثناء استخراج المفردات.')
             else:
@@ -486,7 +514,7 @@ class Processor:
                     evidence = compare(target, source, model=self.model, cache_dir=private_directory(directory / 'comparisons'))
                 if evidence['pairs']:
                     validate_evidence(evidence,target['topics'],source['topics'])
-                result = {'id': task['id'], 'source': source, 'target': public_source(target, catalog_pdf=target.get('source_pdf')), 'evidence': evidence, 'calculation': evidence_calculation(target['topics'], source['topics'], evidence), 'beneficiary': beneficiary, 'created_at': datetime.now(timezone.utc).isoformat(), 'catalog_id': self.catalog['catalog_id'], 'reviewed_by': 'user_confirmed_extraction'}
+                result = {'id': task['id'], 'source': source, 'target': public_source(target, catalog_pdf=target.get('source_pdf')), 'evidence': evidence, 'calculation': evidence_calculation(target['topics'], source['topics'], evidence), 'beneficiary': beneficiary, 'created_at': datetime.now(timezone.utc).isoformat(), 'catalog_id': self.catalog['catalog_id'], 'reviewed_by': 'automated_pipeline' if payload.get('review_mode') == 'automatic' else 'user_confirmed_extraction', 'human_reviewed': payload.get('review_mode') != 'automatic'}
                 self.course_path(target)
         except TaskInputError:
             raise

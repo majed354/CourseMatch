@@ -9,7 +9,7 @@ const output=path.join(root,'dist');
 // uploads, reports, model traces, and local credentials are never packaged.
 await fs.rm(output,{recursive:true,force:true});
 await fs.mkdir(output,{recursive:true});
-for(const name of ['index.html','app.js','style.css']) await fs.copyFile(path.join(root,'equivalency-pilot',name),path.join(output,name));
+for(const name of ['index.html','image-upload.js','app.js','style.css']) await fs.copyFile(path.join(root,'equivalency-pilot',name),path.join(output,name));
 const fontAssets=['IBMPlexSansArabic-Regular.ttf','IBMPlexSansArabic-SemiBold.ttf','LICENSE.txt'];
 await fs.mkdir(path.join(output,'fonts'),{recursive:true});
 for(const name of fontAssets)await fs.copyFile(path.join(root,'equivalency-pilot/fonts',name),path.join(output,'fonts',name));
@@ -27,7 +27,7 @@ try {
   if(!allowed.test(routes))throw Error('Invalid active service routes');
   await fs.writeFile(path.join(output,'_redirects'),routes);
 } catch(error) {if(error.code!=='ENOENT')throw error;}
-let copied=6+fontAssets.length;
+let copied=7+fontAssets.length;
 for(const name of new Set([...catalog.courses,...catalog.library_sources].map(c=>c.source_pdf).filter(Boolean))) {
   if(!name.startsWith('assets/')||name.includes('..'))throw Error('Unsafe asset path');
   const destination=path.join(output,name);await fs.mkdir(path.dirname(destination),{recursive:true});await fs.copyFile(path.join(root,name),destination);copied++;

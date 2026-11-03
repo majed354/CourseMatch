@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import re
 import tempfile
 import threading
@@ -42,20 +43,32 @@ def topic_text(topic):
 
 
 def unresolved_topics(topics):
-    return [t["id"] for t in topics if norm(topic_text(t)).strip(".،: …") in ("", "أخرى", "اخرى", "غير محدد", "يحدد لاحقًا", "يحدد لاحقا")
+    return [t["id"] for t in topics if re.search(r'\[\s*غير\s*واضح\s*\]',topic_text(t))
+            or norm(topic_text(t)).strip(".،: …") in ("", "أخرى", "اخرى", "غير محدد", "يحدد لاحقًا", "يحدد لاحقا")
             or '(cid:' in topic_text(t) or '\ufffd' in topic_text(t)
             or 'لايوجدموضوع' in norm(topic_text(t)).replace(' ','')]
 
 
+def ollama_api_url(endpoint):
+    """Project-scoped runtime only; model content never goes to a remote host."""
+    base = os.environ.get('COURSEMATCH_OLLAMA_URL', 'http://127.0.0.1:11434')
+    match = re.fullmatch(r'http://127\.0\.0\.1:([0-9]{1,5})', base)
+    if not match or not 1024 <= int(match.group(1)) <= 65535:
+        raise ValueError('يلزم محرك نماذج محلي على loopback')
+    if endpoint not in {'chat', 'show', 'tags', 'embed', 'embeddings'}:
+        raise ValueError('مسار محرك النماذج غير صالح')
+    return base + '/api/' + endpoint
+
+
 def post_ollama(endpoint, payload, timeout=600):
-    request = urllib.request.Request("http://127.0.0.1:11434/api/" + endpoint,
+    request = urllib.request.Request(ollama_api_url(endpoint),
                                      data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return json.load(response)
 
 
 def local_model(model):
-    with urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=5) as response:
+    with urllib.request.urlopen(ollama_api_url('tags'), timeout=5) as response:
         models = json.load(response)["models"]
     found = next((m for m in models if m["name"] == model), None)
     if not found or ":cloud" in model or found.get("size", 0) == 0:

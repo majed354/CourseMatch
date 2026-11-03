@@ -29,6 +29,8 @@ from scripts.public_catalog import matches_public_catalog
 LOG = logging.getLogger('coursematch.service')
 TUNNEL = re.compile(r'https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.trycloudflare\.com')
 CONFIG_KEYS = {'public_origin','site_id','node_executable','python_executable','cloudflared_executable','netlify_command','port'}
+MODEL_CONFIG_KEYS = {'ollama_executable', 'ollama_port'}
+PROTECTED_MODEL_PORTS = {11434, 11435, 11436, 8773, 8794, 8800}
 
 
 def checked_origin(value):
@@ -81,8 +83,16 @@ def private_file(path):
 def load_config(path):
     private_file(path)
     value = json.loads(Path(path).read_text())
-    if not isinstance(value, dict) or set(value) != CONFIG_KEYS:
+    if not isinstance(value, dict) or not CONFIG_KEYS <= set(value) or set(value) - CONFIG_KEYS - MODEL_CONFIG_KEYS:
         raise ValueError('invalid_service_config_keys')
+    model_keys = set(value) & MODEL_CONFIG_KEYS
+    if model_keys and model_keys != MODEL_CONFIG_KEYS:
+        raise ValueError('ollama_executable_and_port_required_together')
+    if model_keys:
+        executable(value['ollama_executable'])
+        model_port = value['ollama_port']
+        if type(model_port) is not int or not 1024 <= model_port <= 65535 or model_port in PROTECTED_MODEL_PORTS:
+            raise ValueError('invalid_private_ollama_port')
     value['public_origin'] = checked_origin(value['public_origin'])
     if value['port'] != 8800 or type(value['port']) is not int:
         raise ValueError('coursematch_requires_independent_port_8800')
@@ -123,7 +133,7 @@ def validate_publish(root=ROOT, expected_redirects=None):
         if path.is_absolute() or '..' in path.parts or '\\' in name or not name.startswith(('assets/course-specifications/', 'assets/course-uploads/')) or path.suffix.lower() != '.pdf':
             raise ValueError('invalid_public_pdf_path')
     fonts = {'fonts/IBMPlexSansArabic-Regular.ttf','fonts/IBMPlexSansArabic-SemiBold.ttf','fonts/LICENSE.txt'}
-    core = {'index.html','app.js','style.css','catalog.json','build-info.json','404.html'} | fonts
+    core = {'index.html','image-upload.js','app.js','style.css','catalog.json','build-info.json','404.html'} | fonts
     allowed = assets | core | {'_redirects'}
     actual = set()
     for path in public.rglob('*'):
@@ -140,7 +150,7 @@ def validate_publish(root=ROOT, expected_redirects=None):
         source = root / name
         if source.is_symlink() or not source.resolve().is_relative_to(root / 'assets') or not source.is_file() or file_hash(source) != file_hash(public / name):
             raise ValueError('published_pdf_differs_from_local_source')
-    for name in ('index.html','app.js','style.css'):
+    for name in ('index.html','image-upload.js','app.js','style.css'):
         if file_hash(root / 'equivalency-pilot' / name) != file_hash(public / name):
             raise ValueError('published_interface_is_stale')
     for name in fonts:
@@ -200,7 +210,8 @@ class ServiceSupervisor:
 
     def refresh_status(self):
         pids = self.live_pids()
-        core_ready = self.api_healthy and all(name in pids for name in ('api', 'worker', 'interactive', 'awake'))
+        required = ('api', 'worker', 'interactive', 'awake') + (('models',) if 'ollama_executable' in self.config else ())
+        core_ready = self.api_healthy and all(name in pids for name in required)
         if core_ready and 'deploy' in pids:
             phase = 'deploying_route'
         elif core_ready and self.phase == 'connecting' and 'tunnel' in pids:
@@ -213,6 +224,19 @@ class ServiceSupervisor:
         # deployment phase when an API restart briefly fails its health probe.
         self.status(phase, remember=False, **self.status_fields)
 
+    def child_environment(self, name):
+        environment = {**os.environ, 'PATH': str(Path(self.config['node_executable']).parent) + ':/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin', 'PYTHONUNBUFFERED': '1'}
+        if 'ollama_executable' in self.config:
+            # The private route belongs only to our workers, even if a parent
+            # process happens to carry an unrelated value in its environment.
+            environment.pop('COURSEMATCH_OLLAMA_URL', None)
+            if name in ('worker', 'interactive'):
+                environment['COURSEMATCH_OLLAMA_URL'] = f"http://127.0.0.1:{self.config['ollama_port']}"
+            if name == 'models':
+                environment.update(OLLAMA_HOST=f"127.0.0.1:{self.config['ollama_port']}",
+                                   OLLAMA_NO_CLOUD='1', OLLAMA_NUM_PARALLEL='1', OLLAMA_MAX_LOADED_MODELS='3')
+        return environment
+
     def spawn(self, name, command, *, pipe=False):
         if name in self.children and self.children[name].poll() is None:
             return self.children[name]
@@ -224,7 +248,7 @@ class ServiceSupervisor:
             stderr = (self.runtime / 'deploy.stderr.log').open('ab')
             os.chmod(stderr.name, 0o600)
             self.logs[name + '_stderr'] = stderr
-        process = self.popen(command, cwd=self.root, env={**os.environ, 'PATH': str(Path(self.config['node_executable']).parent) + ':/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin', 'PYTHONUNBUFFERED': '1'},
+        process = self.popen(command, cwd=self.root, env=self.child_environment(name),
                              stdin=subprocess.DEVNULL, stdout=subprocess.PIPE if pipe else log, stderr=stderr, start_new_session=True)
         self.children[name] = process
         self.last_start[name] = time.monotonic()
@@ -256,9 +280,12 @@ class ServiceSupervisor:
                 log.close()
 
     def maintain_core(self):
-        commands = {'awake': ['/usr/bin/caffeinate', '-i'], 'api': [self.config['node_executable'], str(self.root / 'scripts/local-service.mjs')],
+        commands = {}
+        if 'ollama_executable' in self.config:
+            commands['models'] = [self.config['ollama_executable'], 'serve']
+        commands.update({'awake': ['/usr/bin/caffeinate', '-i'], 'api': [self.config['node_executable'], str(self.root / 'scripts/local-service.mjs')],
                     'worker': [self.config['python_executable'], str(self.root / 'scripts/cloud_worker.py'), '--env-file', str(self.root / '.env.worker'), '--lane', 'compare'],
-                    'interactive': [self.config['python_executable'], str(self.root / 'scripts/cloud_worker.py'), '--env-file', str(self.root / '.env.worker'), '--lane', 'interactive']}
+                    'interactive': [self.config['python_executable'], str(self.root / 'scripts/cloud_worker.py'), '--env-file', str(self.root / '.env.worker'), '--lane', 'interactive']})
         changed = False
         for name, command in commands.items():
             process = self.children.get(name)
@@ -370,7 +397,10 @@ class ServiceSupervisor:
 
     def shutdown(self):
         self.stop_event.set()
-        for name in list(self.children):
+        # Workers stop before their private model server. Nothing is discovered
+        # or signalled by shared process name, port, or external PID file.
+        order = [name for name in self.children if name != 'models'] + (['models'] if 'models' in self.children else [])
+        for name in order:
             self.stop_child(name)
         self.status('stopped')
 

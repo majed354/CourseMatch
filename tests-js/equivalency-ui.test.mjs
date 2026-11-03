@@ -59,6 +59,7 @@ function ui() {
   const document={getElementById:element,querySelectorAll:selector=>documentRoot.querySelectorAll(selector),createElement:tag=>new Element(tag)};
   const context=vm.createContext({document,console,setTimeout,clearTimeout,URL,Uint8Array,Blob,btoa:globalThis.btoa,crypto:globalThis.crypto,
     history:{replaceState(){}},location:{origin:'http://localhost:8798',search:''},window:{print(){}}});
+  vm.runInContext(fs.readFileSync(new URL('../equivalency-pilot/image-upload.js',import.meta.url),'utf8'),context);
   const source=fs.readFileSync(new URL('../equivalency-pilot/app.js',import.meta.url),'utf8');
   const init=source.lastIndexOf('(async()=>{');assert.ok(init>0,'the app initialization boundary exists');
   vm.runInContext(source.slice(0,init),context);
@@ -367,20 +368,23 @@ test('a shared candidate requires an explicit target context and submits that or
   assert.equal(vm.runInContext('targetContextConfirmed',state.context),true);
   assert.ok(state.element('targetMeta').innerHTML.includes(choice.context.program));
   assert.ok(state.element('targetMeta').innerHTML.includes(choice.context.version));
-  state.element('reviewed').checked=true;
+  assert.equal(state.element('reviewed').hidden,true);
+  assert.equal(state.element('reviewed').checked,false);
   await state.element('compareButton').onclick({target:state.element('compareButton')});
   const jobCall=JSON.parse(JSON.stringify(state.context.requests.find(call=>call.route==='/api/jobs')));
   assert.equal(jobCall.body.target_id,choice.course_id);
   assert.equal(jobCall.body.source_id,'incoming-source');
+  assert.equal(jobCall.body.review_mode,'automatic');
+  assert.equal(jobCall.body.reviewed,undefined);
 });
 
-test('an input without extracted topics requests completion instead of unrelated retrieval', async () => {
+test('an input without readable topics reports insufficient data without asking for a review', async () => {
   const state=ui();state.context.requests=[];state.context.emptySource={id:'empty-source',name:'مصدر بلا موضوعات',topics:[],warnings:[]};
   await vm.runInContext('api=async(route,body)=>{requests.push({route,body});throw Error("no retrieval for empty topics");};setSource(emptySource)',state.context);
   assert.equal(state.context.requests.length,0);
-  assert.equal(state.element('sourceReview').open,true);
+  assert.equal(state.element('sourceReview').open,false);
   assert.equal(state.element('candidatePanel').hidden,true);
-  assert.ok(state.element('notice').textContent.includes('أكمل مفردات'));
+  assert.ok(state.element('notice').textContent.includes('لا تتوافر مفردات مقروءة كافية'));
 });
 
 test('a late retrieval response cannot replace candidates for a newer source', async () => {
@@ -452,6 +456,8 @@ test('an uploaded PDF proceeds directly from extraction to automatic candidate r
   const calls=JSON.parse(JSON.stringify(state.context.requests));
   assert.deepEqual(calls.map(call=>call.route),['/api/sources','/api/search']);
   assert.equal(calls[0].body.name,'المقرر الخارجي المرفوع');
+  assert.equal(calls[0].body.input_kind,undefined);
+  assert.equal(calls[0].body.original_filename,undefined);
   assert.equal(Buffer.from(calls[0].body.pdf_base64,'base64').toString(),new TextDecoder().decode(raw));
   assert.equal(calls[1].body.all_contexts,true);
   assert.equal(calls[1].body.topics.length,candidate.topics.length);
@@ -510,11 +516,11 @@ test('an older source extraction cannot overwrite a later catalog choice',async(
 });
 
 
-test('the public reference is read-only while the submitted course can be corrected',()=>{
+test('extracted source and public reference are optional read-only details in automatic mode',()=>{
  const {context,element,catalog}=ui();context.courseInput=catalog.courses.find(c=>c.topics.length);
  vm.runInContext("referenceEditable=false; editor('sourceTopics',courseInput); setTarget(courseInput.id,true);",context);
  assert.equal(element('targetTopics').querySelector('textarea').readOnly,true);
- assert.equal(element('sourceTopics').querySelector('textarea').readOnly,false);
+ assert.equal(element('sourceTopics').querySelector('textarea').readOnly,true);
  assert.equal(element('targetTopics').querySelector('.add-topic').disabled,true);
  assert.equal(element('targetTopics').querySelector('.remove-topic').disabled,true);
 });
@@ -617,4 +623,36 @@ test('unconfirmed compound matches are shown without a misleading definitive gra
   const {html}=renderedReport(report);
   assert.match(html,/لم يثبت نطاق هذه المقابلة/);
   assert.match(html,/غير محتسبة · <bdi dir="ltr">قيد الاستكمال/);
+});
+
+test('image upload normalizes privately into the existing PDF endpoint before automatic search',async()=>{
+ const state=ui(),candidate=state.catalog.courses.find(c=>c.topics.length);installSearchAPI(state,[candidate]);state.context.uploadExtractedSource={...candidate,id:'image-source',context:null,upload_pdf:true};vm.runInContext('maxUploadBytes=4*1024*1024',state.context);
+ const prepared=new TextEncoder().encode('%PDF-1.4 converted image'),calls=[];
+ state.context.CourseImageUpload={...state.context.CourseImageUpload,prepare:async(file,options)=>{calls.push({name:file.name,maxOutputBytes:options.maxOutputBytes});return{bytes:prepared};}};
+ state.element('pdfFile').files=[{name:'جدول المفردات.png',type:'image/png',size:6*1024*1024,arrayBuffer(){throw Error('must use image normalizer');}}];
+ await state.element('extractButton').onclick({target:state.element('extractButton')});
+ const requests=JSON.parse(JSON.stringify(state.context.requests));assert.deepEqual(requests.map(r=>r.route),['/api/sources','/api/search']);assert.equal(calls.length,1);assert.equal(calls[0].maxOutputBytes,4*1024*1024);assert.equal(requests[0].body.input_kind,'image');assert.equal(requests[0].body.original_filename,'جدول المفردات.png');assert.equal(Buffer.from(requests[0].body.pdf_base64,'base64').toString(),new TextDecoder().decode(prepared));assert.equal(requests[0].body.image_base64,undefined);assert.equal(state.element('sourceReview').open,false);assert.equal(state.element('reviewed').hidden,true);
+});
+
+test('image conversion failure does not submit an upload or a comparison',async()=>{
+ const state=ui();state.context.requests=[];state.context.CourseImageUpload={...state.context.CourseImageUpload,prepare:async()=>{throw Error('الصورة كبيرة بعد تهيئتها.');}};state.context.fetch=async()=>{throw Error('no HTTP call allowed');};state.element('pdfFile').files=[{name:'photo.jpg',type:'image/jpeg',size:100}];await state.element('extractButton').onclick({target:state.element('extractButton')});assert.match(state.element('notice').textContent,/كبيرة بعد تهيئتها/);assert.equal(state.element('extractButton').disabled,false);assert.equal(state.context.requests.length,0);
+});
+
+test('finishing an old image conversion cannot submit it after a newer source was selected',async()=>{
+ const state=ui(),candidate=state.catalog.courses.find(c=>c.topics.length);installSearchAPI(state,[candidate]);let finish;
+ state.context.CourseImageUpload={...state.context.CourseImageUpload,prepare:()=>new Promise(resolve=>{finish=resolve;})};state.element('pdfFile').files=[{name:'old.png',type:'image/png',size:100}];const pending=state.element('extractButton').onclick({target:state.element('extractButton')});await enterManualSource(state);finish({bytes:new Uint8Array([37,80,68,70])});await pending;
+ const posts=JSON.parse(JSON.stringify(state.context.requests));assert.equal(posts.filter(p=>p.route==='/api/sources').length,1);assert.ok(posts.find(p=>p.route==='/api/sources').body.topics);assert.ok(posts.every(p=>p.body?.input_kind!=='image'));assert.equal(vm.runInContext('source.id',state.context),'incoming-source');
+});
+
+test('automatic issuance does not require human attestation even when a source contains an unclear marker',async()=>{
+ const state=ui(),candidate=state.catalog.courses.find(c=>c.topics.length);installSearchAPI(state,[candidate]);state.context.markerSource={id:'unclear-source',name:'مصدر الصورة',topics:[{id:'t1',text:'مفردة [غير واضح]'}],warnings:['راجع وتصحيح تفاصيل تقنية']};await vm.runInContext('setSource(markerSource)',state.context);
+ assert.equal(state.element('sourceReview').open,false);assert.equal(state.element('reviewed').checked,false);assert.ok(!state.element('sourceMeta').innerHTML.includes('راجع'));await state.element('compareButton').onclick({target:state.element('compareButton')});const request=JSON.parse(JSON.stringify(state.context.requests.find(r=>r.route==='/api/jobs')));assert.equal(request.body.review_mode,'automatic');assert.equal(request.body.reviewed,undefined);assert.equal(request.body.source_topics[0].text,'مفردة [غير واضح]');assert.ok(state.context.markerSource.warnings[0].includes('راجع'));
+});
+
+test('pending report states the data limitation formally without assigning the beneficiary a review task',()=>{
+ for(const flag of['reference_review','adjudication_review','segmentation_review','invalid_verse_scopes']){const report=reportFixture({decision:'insufficient'});report.calculation[flag]=true;const {html}=renderedReport(report);assert.ok(html.includes('تعذر الحسم'));assert.ok(html.includes('نطاق المفردات المتاح'));assert.ok(html.includes('بيانات المقررين وأسباب تعذر الحسم'));assert.ok(!html.includes('قبل المقارنة'));assert.ok(!/يلزم|راجع|أكد مراجعة|راجعت/.test(html));assert.ok(html.includes('report-stamp pending'));assert.ok(!html.includes('report-stamp approved'));}
+});
+
+test('markup loads the local converter before the app and exposes only supported upload families',()=>{
+ const html=fs.readFileSync(new URL('../equivalency-pilot/index.html',import.meta.url),'utf8');assert.ok(html.indexOf('src="/image-upload.js"')<html.indexOf('src="/app.js"'));assert.match(html,/accept="application\/pdf,\.pdf,image\/jpeg,\.jpg,\.jpeg,image\/png,\.png,image\/webp,\.webp"/);assert.ok(!html.includes('راجعت مفردات'));assert.ok(!html.includes('مراجعة مفردات'));
 });

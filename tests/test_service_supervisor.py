@@ -28,7 +28,7 @@ class HostingFixture(unittest.TestCase):
         self.pdf = 'assets/course-specifications/source.pdf'
         (self.root / self.pdf).write_bytes(b'%PDF-sample-public-source')
         self.catalog = {'catalog_id': 'test-version', 'courses': [{'id': 'a' * 20, 'source_pdf': self.pdf, 'context': {'program':'الأنظمة','version':'47'}, 'topics':[{'id':'t1','text':'موضوع','corrected_text':'موضوع مصحح','page':6,'bbox':[0,0,1,1]}], 'reference_quality':{'state':'ready_visual','reason':'مكتمل'}, 'original_extracted_topics':[{'text':'PRIVATE RAW'}]}], 'library_sources': []}
-        for name, text in [('index.html', '<html>CourseMatch</html>'), ('app.js', 'window.CourseMatch=true;'), ('style.css', 'body{color:#123}')]:
+        for name, text in [('index.html', '<html>CourseMatch</html>'), ('image-upload.js','window.CourseImageUpload={};'), ('app.js', 'window.CourseMatch=true;'), ('style.css', 'body{color:#123}')]:
             (self.root / 'equivalency-pilot' / name).write_text(text)
             (self.dist / name).write_text(text)
         for name in ('IBMPlexSansArabic-Regular.ttf','IBMPlexSansArabic-SemiBold.ttf','LICENSE.txt'):
@@ -54,7 +54,7 @@ class PublishGuardTests(HostingFixture):
         routes = service.render_redirects('https://example-words.trycloudflare.com')
         (self.dist / '_redirects').write_text(routes)
         result = service.validate_publish(self.root, routes)
-        self.assertEqual(result['public_files'], 11)
+        self.assertEqual(result['public_files'], 12)
         self.assertEqual(result['pdf_files'], 1)
         self.assertFalse(result['private_files_included'])
         self.assertFalse(result['functions_included'])
@@ -89,7 +89,7 @@ class PublishGuardTests(HostingFixture):
             service.validate_publish(self.root)
 
     def test_stale_ui_catalog_or_pdf_bytes_stop_publication(self):
-        for path in ('app.js', 'catalog.json', self.pdf, 'fonts/IBMPlexSansArabic-Regular.ttf','fonts/LICENSE.txt'):
+        for path in ('app.js', 'image-upload.js', 'catalog.json', self.pdf, 'fonts/IBMPlexSansArabic-Regular.ttf','fonts/LICENSE.txt'):
             original = (self.dist / path).read_bytes()
             (self.dist / path).write_bytes(b'changed source')
             with self.subTest(path=path), self.assertRaises(ValueError):
@@ -127,6 +127,109 @@ class PublishGuardTests(HostingFixture):
         with self.assertRaises(ValueError):
             instance.deploy('https://words.trycloudflare.com')
         instance.popen.assert_not_called()
+
+
+
+class OptionalModelRuntimeTests(HostingFixture):
+    def configured(self):
+        return {**self.config, 'ollama_executable': '/bin/echo', 'ollama_port': 11437}
+
+    def test_optional_model_config_pair_and_protected_ports(self):
+        path = self.root / 'private-config.json'
+        path.write_text(json.dumps(self.config)); path.chmod(0o600)
+        self.assertNotIn('ollama_port', service.load_config(path))
+        path.write_text(json.dumps(self.configured()))
+        self.assertEqual(service.load_config(path)['ollama_port'], 11437)
+        invalid = [
+            {**self.config, 'ollama_port': 11437},
+            {**self.config, 'ollama_executable': '/bin/echo'},
+            {**self.configured(), 'ollama_host': '0.0.0.0'},
+            {**self.configured(), 'ollama_executable': 'ollama'},
+            {**self.configured(), 'ollama_executable': '/no-such-ollama'},
+        ] + [{**self.configured(), 'ollama_port': port} for port in (11434,11435,11436,8773,8794,8800,0,80,65536,True,'11437','http://127.0.0.1:11437')]
+        for config in invalid:
+            path.write_text(json.dumps(config))
+            with self.subTest(config=config), self.assertRaises(ValueError):
+                service.load_config(path)
+
+    def test_private_environment_is_per_child_and_never_mutates_shared_parent(self):
+        instance = service.ServiceSupervisor(self.configured(), self.root, popen=Mock())
+        baseline = {'HOME':'/original-model-home', 'OLLAMA_HOST':'0.0.0.0:11434', 'COURSEMATCH_OLLAMA_URL':'http://foreign.test'}
+        with patch.dict(os.environ, baseline, clear=True):
+            models = instance.child_environment('models')
+            self.assertEqual(models['OLLAMA_HOST'], '127.0.0.1:11437')
+            self.assertEqual(models['OLLAMA_NO_CLOUD'], '1')
+            self.assertEqual(models['OLLAMA_NUM_PARALLEL'], '1')
+            self.assertEqual(models['OLLAMA_MAX_LOADED_MODELS'], '3')
+            self.assertEqual(models['HOME'], baseline['HOME'])
+            self.assertNotIn('COURSEMATCH_OLLAMA_URL', models)
+            for name in ('worker','interactive'):
+                worker = instance.child_environment(name)
+                self.assertEqual(worker['COURSEMATCH_OLLAMA_URL'], 'http://127.0.0.1:11437')
+                self.assertEqual(worker['OLLAMA_HOST'], baseline['OLLAMA_HOST'])
+                self.assertNotIn('OLLAMA_NO_CLOUD', worker)
+            for name in ('api','awake','tunnel','deploy'):
+                self.assertNotIn('COURSEMATCH_OLLAMA_URL', instance.child_environment(name))
+            self.assertEqual(dict(os.environ), baseline)
+
+    def test_spawn_uses_private_environment_and_owned_process_session(self):
+        process = SimpleNamespace(pid=44444, poll=lambda: None)
+        instance = service.ServiceSupervisor(self.configured(), self.root, popen=Mock(return_value=process))
+        try:
+            instance.spawn('models', ['/bin/echo','serve'])
+            call = instance.popen.call_args
+            self.assertEqual(call.args[0], ['/bin/echo','serve'])
+            self.assertTrue(call.kwargs['start_new_session'])
+            self.assertEqual(call.kwargs['env']['OLLAMA_HOST'], '127.0.0.1:11437')
+            self.assertIs(instance.children['models'], process)
+        finally:
+            for log in instance.logs.values(): log.close()
+
+    def test_models_spawn_before_api_and_workers_without_restarting_live_children(self):
+        instance = service.ServiceSupervisor(self.configured(), self.root)
+        instance.healthy = Mock(return_value=True); instance.refresh_status = Mock()
+        def spawn(name, command):
+            instance.children[name] = SimpleNamespace(pid=100+len(instance.children), poll=lambda: None)
+        instance.spawn = Mock(side_effect=spawn)
+        instance.maintain_core()
+        names = [call.args[0] for call in instance.spawn.call_args_list]
+        self.assertEqual(names, ['models','awake','api','worker','interactive'])
+        self.assertEqual(instance.spawn.call_args_list[0].args[1], ['/bin/echo','serve'])
+        instance.spawn.reset_mock(); instance.maintain_core(); instance.spawn.assert_not_called()
+
+    def test_absent_option_preserves_existing_core_and_environment(self):
+        instance = self.supervisor(); instance.healthy = Mock(return_value=True); instance.refresh_status = Mock()
+        def spawn(name, command):
+            instance.children[name] = SimpleNamespace(pid=100+len(instance.children), poll=lambda: None)
+        instance.spawn = Mock(side_effect=spawn); instance.maintain_core()
+        self.assertEqual([call.args[0] for call in instance.spawn.call_args_list], ['awake','api','worker','interactive'])
+        with patch.dict(os.environ, {'COURSEMATCH_OLLAMA_URL':'http://127.0.0.1:11434'}):
+            self.assertEqual(instance.child_environment('worker')['COURSEMATCH_OLLAMA_URL'], 'http://127.0.0.1:11434')
+        self.assertNotIn('models', instance.children)
+
+    def test_missing_models_child_prevents_ready_and_shutdown_stops_it_last(self):
+        instance = service.ServiceSupervisor(self.configured(), self.root)
+        for i,name in enumerate(('awake','api','worker','interactive','tunnel')):
+            instance.children[name] = SimpleNamespace(pid=100+i, poll=lambda: None)
+        instance.api_healthy = True; instance.active_tunnel = 'https://words.trycloudflare.com'; instance.phase = 'ready'
+        instance.refresh_status()
+        self.assertEqual(json.loads((instance.runtime/'status.json').read_text())['state'], 'recovering')
+        instance.children['models'] = SimpleNamespace(pid=999, poll=lambda: None)
+        instance.refresh_status()
+        self.assertEqual(json.loads((instance.runtime/'status.json').read_text())['state'], 'ready')
+        instance.stop_child = Mock(side_effect=lambda name: instance.children.pop(name, None)); instance.status = Mock()
+        instance.shutdown()
+        self.assertEqual(instance.stop_child.call_args_list[-1].args[0], 'models')
+        self.assertEqual(set(call.args[0] for call in instance.stop_child.call_args_list), {'awake','api','worker','interactive','tunnel','models'})
+
+    def test_only_owned_models_handle_is_signalled(self):
+        instance = service.ServiceSupervisor(self.configured(), self.root)
+        owned = SimpleNamespace(pid=44444, poll=lambda: None, wait=Mock(), terminate=Mock())
+        instance.children['models'] = owned
+        with patch('scripts.service_supervisor.os.getpgid', return_value=44444), patch('scripts.service_supervisor.os.killpg') as kill:
+            instance.stop_child('models'); kill.assert_called_once_with(44444, service.signal.SIGTERM)
+        with patch('scripts.service_supervisor.os.killpg') as kill:
+            instance.stop_child('global-ollama'); kill.assert_not_called()
 
 
 class ConfigurationTests(HostingFixture):

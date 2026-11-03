@@ -1,0 +1,79 @@
+{
+  "date": "2026-11-03",
+  "scope": "automatic image/PDF intake and formal reports",
+  "public_release_verified": false,
+  "policy_changed": false,
+  "catalog_or_pdf_bytes_changed": false,
+  "student_confirmation_required": false,
+  "tests": {
+    "python": 349,
+    "node_passed": 128,
+    "node_skipped_optional_chrome": 3,
+    "chrome_opt_in_passed": 68,
+    "import_verifier": {
+      "appearances": 993,
+      "contexts": 21,
+      "pdfs": 448
+    }
+  },
+  "image_fixture": {
+    "source_sha256": "67c82d86b6650dbec18980e6f37be8ae7f86adb00a660b165a40cad4fbb35a8d",
+    "source_page": 4,
+    "academic_topics": 13,
+    "excluded_general_review_rows": 2
+  },
+  "native_pdf_trial": {
+    "primary_model": "gemma4:e4b",
+    "chat_seconds": 18.468,
+    "topic_count": 13,
+    "all_topic_text_and_verse_ranges_equal_to_expected": true,
+    "independent_audit_by_agent": true
+  },
+  "image_trials": [
+    {
+      "version": "v1",
+      "finding": "Extra assessment/total rows; full-page reading not accepted"
+    },
+    {
+      "version": "v2",
+      "finding": "Row boundaries fixed, but silent verse-number errors remained in independent full-page readers"
+    },
+    {
+      "version": "v3",
+      "finding": "Free model bounding box clipped content; safe empty reading"
+    },
+    {
+      "version": "v4",
+      "finding": "Pixel-derived complete table; 13 topics and all verse ranges correct, one page citation misread as 2 instead of 3",
+      "layout_seconds": 4.045,
+      "reading_seconds": 70.506
+    },
+    {
+      "version": "v5",
+      "finding": "Numeric-only schema returned truncated text, rejected; preserved raw output"
+    },
+    {
+      "version": "v5b",
+      "finding": "Numeric-only reader copied row identifiers, content audit uncertain; not treated as success"
+    },
+    {
+      "version": "v6",
+      "finding": "Independent full-table reading detected only the page-citation disagreement; all other content and verse ranges agreed",
+      "independent_read_seconds": 6.524,
+      "affected_printed_row": 5,
+      "automatic_outcome": "insufficient_source_text",
+      "invented_numeric_correction": false
+    }
+  ],
+  "model_runtime": {
+    "project_scoped_loopback_port": 11437,
+    "temporary_test_instance_stopped": true,
+    "shared_runtimes_changed": false
+  },
+  "limits": [
+    "Limited functional fixtures, not a general accuracy estimate",
+    "A disagreement is withheld automatically without asking the student for manual approval",
+    "Actual end-to-end public upload verification remains pending at this commit",
+    "Actual cache-hit inference avoidance covered by unit tests, not measured in functional trials"
+  ]
+}

@@ -39,6 +39,31 @@ test('bootstrap creates a signed 7-day secure session and bound CSRF token',asyn
   assert.match(decoded.id,/^[a-f0-9]{64}$/);
   s.advance(604800_001);assert.equal((await s.request('/api/operations/'+'0'.repeat(32),{cookie:a.cookie})).status,401);
 });
+
+test('image containers stay private and image mode cannot masquerade as manual input',async()=>{
+  const s=setup(),a=await s.bootstrap();
+  assert.equal((await s.post('/api/sources',{topics:course.topics,input_kind:'image'},a)).status,400);
+  assert.equal((await s.post('/api/sources',{pdf_base64:Buffer.from('not a PDF').toString('base64'),input_kind:'image'},a)).status,400);
+  const response=await s.post('/api/sources',{pdf_base64:Buffer.from('%PDF-1.7\nimage container fixture').toString('base64'),input_kind:'image',original_filename:'صورة المقرر.png'},a);
+  assert.equal(response.status,202);const body=await response.json();
+  const task=s.repository.tasks.get('production:'+body.operation_id)||[...s.repository.tasks.values()][0];
+  assert.equal(task.payload.input_kind,'image');assert.equal(task.payload.original_filename,'صورة المقرر.png');
+  assert.equal(task.payload.pdf_base64,undefined);assert.ok(task.pdf_key);
+  const outsider=await s.bootstrap();assert.equal((await s.request('/api/operations/'+body.operation_id,{cookie:outsider.cookie})).status,404);
+});
+
+test('automatic comparison does not require or claim human confirmation',async()=>{
+  const s=setup(),a=await s.bootstrap(),source=await s.source(a);
+  const response=await s.post('/api/jobs',{source_id:source.id,target_id:course.id,review_mode:'automatic'},a);
+  assert.equal(response.status,202);const {id}=await response.json();
+  const task=(await(await s.worker('claim',{worker_id:'mac-test'})).json()).task;
+  assert.equal(task.payload.reviewed,true);assert.equal(task.payload.review_mode,'automatic');
+  const result={source,target:course,catalog_id:catalog.catalog_id,calculation:{decision:'insufficient'},reviewed_by:'user_confirmed_extraction',human_reviewed:true};
+  assert.equal((await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result})).status,200);
+  const report=(await(await s.request('/api/jobs/'+id,{cookie:a.cookie})).json()).result;
+  assert.equal(report.reviewed_by,'automated_pipeline');assert.equal(report.human_reviewed,false);
+  assert.equal((await s.post('/api/jobs',{source_id:source.id,target_id:course.id,review_mode:'forged',reviewed:true},a)).status,400);
+});
 test('session tampering, cross-site posts and missing or foreign CSRF are denied',async()=>{
   const s=setup(),a=await s.bootstrap(),b=await s.bootstrap(),body={topics:course.topics};
   for(const options of [{cookie:a.cookie,token:b.token},{cookie:a.cookie,token:a.token,origin:'https://evil.net'},{cookie:a.cookie,token:a.token,origin:null},{cookie:a.cookie.replace('=','=0'),token:a.token},{cookie:a.cookie}]) {

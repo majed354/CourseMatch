@@ -181,6 +181,36 @@ class TransportTests(unittest.TestCase):
 
 
 class ProcessorTests(WorkerFixture):
+    def test_image_source_uses_vision_and_retains_original_container_ownership(self):
+        raw=pdf_bytes('container fixture');cloud=Mock(input_pdf=Mock(return_value=raw))
+        result={'source_sha256':__import__('hashlib').sha256(raw).hexdigest(),'topics':[{'id':'t1','text':'التفسير [غير واضح]'}],
+                'reviewed':False,'warnings':[],'transcription_models':[{'model':'local-vision','digest':'digest'}],
+                'image_proof':{'page':1,'image_sha256':'test'},
+                'visual_spatial_proof':{'source_sha256':'test','selection':{'origin':'pixel_table_region'}}}
+        with patch('scripts.equivalency.image_input.extract_image_pdf',return_value=result) as image, \
+             patch('scripts.equivalency.image_input.verify_pdf_topics') as native:
+            value=self.processor.process(task(payload={'has_pdf':True,'input_kind':'image','original_filename':'المقرر.png'}),cloud)
+        image.assert_called_once();native.assert_not_called()
+        self.assertEqual(value['source_media_kind'],'image');self.assertEqual(value['original_filename'],'المقرر.png')
+        self.assertFalse(value['reviewed']);self.assertEqual(value['transcription_models'],result['transcription_models'])
+        self.assertEqual(value['visual_spatial_proof'],result['visual_spatial_proof'])
+
+    def test_visually_approved_identical_pdf_reuses_evidence_without_model_calls(self):
+        self.catalog['courses'][0]['reference_quality']={'state':'ready_visual'}
+        (self.root/'equivalency-pilot/catalog.json').write_text(json.dumps(self.catalog,ensure_ascii=False))
+        self.processor=worker.Processor(self.root)
+        with patch('scripts.cloud_worker.extract_cached') as extraction, \
+             patch('scripts.equivalency.image_input.verify_pdf_topics') as verify:
+            value=self.processor.process(task(payload={'has_pdf':True}),Mock(input_pdf=Mock(return_value=self.pdf.read_bytes())))
+        extraction.assert_not_called();verify.assert_not_called()
+        self.assertEqual(value['visual_verification']['method'],'verified_reference_sha256')
+        self.assertEqual(value['topics'],self.course['topics']);self.assertFalse(value['reviewed'])
+
+    def test_automatic_report_has_no_claim_of_user_confirmation(self):
+        with patch('scripts.cloud_worker.compare',return_value=self.exact_evidence()):
+            report=self.processor.process(self.compare_task(review_mode='automatic'),Mock())
+        self.assertEqual(report['reviewed_by'],'automated_pipeline');self.assertFalse(report['human_reviewed'])
+
     def test_invalid_ids_ownership_and_input_paths_are_rejected_before_file_access(self):
         for key, replacement in (('id', '../outside'), ('session_id', '../outside'), ('lease_token', 'invalid')):
             malformed = self.compare_task()
@@ -216,7 +246,8 @@ class ProcessorTests(WorkerFixture):
             marker = 'بيانات المستفيد الأول' if path.read_bytes() == raws[0] else 'بيانات المستفيد الثاني'
             return {'source_sha256': worker.digest(path), 'topics': [{'id': 't1', 'text': marker}], 'warnings': [], 'local_path': '/Users/private/never-expose'}
         tasks = [task(payload={'has_pdf': True, 'name': 'مقرر أ'}), task(payload={'has_pdf': True, 'name': 'مقرر ب'}, key='b' * 32, session='2' * 64)]
-        with patch('scripts.cloud_worker.extract_cached', side_effect=extracted) as extraction:
+        with patch('scripts.cloud_worker.extract_cached', side_effect=extracted) as extraction, \
+             patch('scripts.equivalency.image_input.verify_pdf_topics', side_effect=lambda path,value,cache:value):
             first, second = [self.processor.process(item, cloud) for item in tasks]
         self.assertNotIn('المستفيد الأول', json.dumps(second, ensure_ascii=False))
         self.assertNotIn('المستفيد الثاني', json.dumps(first, ensure_ascii=False))

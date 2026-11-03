@@ -52,6 +52,12 @@ class DecisionTests(unittest.TestCase):
         t[0]['text'] = 'الموضوع (cid:24) غير المقروء'
         self.assertEqual(calculate(t, s, pairs)['decision'], 'insufficient')
 
+    def test_vision_placeholder_never_receives_an_academic_grade(self):
+        t,s,pairs=fixture([100]);s[0]['text']='مفهوم [غير واضح] وأقسامه'
+        self.assertEqual(calculate(t,s,pairs)['decision'],'insufficient')
+        with patch('scripts.equivalency.engine.local_model',side_effect=AssertionError('no comparison before readable input')):
+            self.assertEqual(compare({'topics':t},{'topics':s})['provider'],'unresolved_source')
+
     def test_project_without_a_fixed_subject_cannot_be_scored(self):
         t, s, pairs = fixture([100])
         t[0]['text'] = 'لا يوجد موضوع بعينه؛ يختار الطالب موضوع مشروعه'
