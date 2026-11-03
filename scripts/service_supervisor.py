@@ -19,6 +19,7 @@ import time
 import tomllib
 import urllib.parse
 import urllib.request
+import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -30,6 +31,7 @@ LOG = logging.getLogger('coursematch.service')
 TUNNEL = re.compile(r'https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.trycloudflare\.com')
 CONFIG_KEYS = {'public_origin','site_id','node_executable','python_executable','cloudflared_executable','netlify_command','port'}
 MODEL_CONFIG_KEYS = {'ollama_executable', 'ollama_port'}
+NAMED_TUNNEL_CONFIG_KEYS = {'named_tunnel_credentials', 'named_tunnel_hostname'}
 PROTECTED_MODEL_PORTS = {11434, 11435, 11436, 8773, 8794, 8800}
 
 
@@ -42,14 +44,25 @@ def checked_origin(value):
     return value.rstrip('/')
 
 
-def checked_tunnel(value):
+def checked_hostname(value):
+    label = r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?'
+    if not isinstance(value, str) or len(value) > 253 or not re.fullmatch(label + r'(?:\.' + label + r')+', value) or not re.search(r'\.[a-z][a-z0-9-]*$', value):
+        raise ValueError('invalid_named_tunnel_hostname')
+    return value
+
+
+def checked_tunnel(value, named_hostname=None):
+    if named_hostname is not None:
+        checked_hostname(named_hostname)
+        if value == 'https://' + named_hostname:
+            return value
     if not isinstance(value, str) or not TUNNEL.fullmatch(value):
         raise ValueError('invalid_quick_tunnel_origin')
     return value
 
 
-def render_redirects(tunnel):
-    tunnel = checked_tunnel(tunnel)
+def render_redirects(tunnel, named_hostname=None):
+    tunnel = checked_tunnel(tunnel, named_hostname)
     return ('/api/worker/* /404.html 404!\n'
             f'/api/* {tunnel}/api/:splat 200\n'
             f'/pdf/* {tunnel}/pdf/:splat 200\n'
@@ -80,11 +93,30 @@ def private_file(path):
         raise ValueError('owner_only_service_configuration_required')
 
 
+def named_tunnel_id(credentials):
+    if not isinstance(credentials, str) or not Path(credentials).is_absolute() or Path(credentials).suffix != '.json':
+        raise ValueError('absolute_named_tunnel_credentials_json_required')
+    private_file(credentials)
+    if stat.S_IMODE(Path(credentials).lstat().st_mode) != 0o600 or Path(credentials).stat().st_size > 65_536:
+        raise ValueError('private_0600_named_tunnel_credentials_required')
+    value = json.loads(Path(credentials).read_text())
+    tunnel_id = value.get('TunnelID') if isinstance(value, dict) else None
+    if not isinstance(tunnel_id, str) or not re.fullmatch(r'[a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}', tunnel_id):
+        raise ValueError('invalid_named_tunnel_uuid')
+    return str(uuid.UUID(tunnel_id))
+
+
 def load_config(path):
     private_file(path)
     value = json.loads(Path(path).read_text())
-    if not isinstance(value, dict) or not CONFIG_KEYS <= set(value) or set(value) - CONFIG_KEYS - MODEL_CONFIG_KEYS:
+    if not isinstance(value, dict) or not CONFIG_KEYS <= set(value) or set(value) - CONFIG_KEYS - MODEL_CONFIG_KEYS - NAMED_TUNNEL_CONFIG_KEYS:
         raise ValueError('invalid_service_config_keys')
+    named_keys = set(value) & NAMED_TUNNEL_CONFIG_KEYS
+    if named_keys and named_keys != NAMED_TUNNEL_CONFIG_KEYS:
+        raise ValueError('named_tunnel_credentials_and_hostname_required_together')
+    if named_keys:
+        checked_hostname(value['named_tunnel_hostname'])
+        named_tunnel_id(value['named_tunnel_credentials'])
     model_keys = set(value) & MODEL_CONFIG_KEYS
     if model_keys and model_keys != MODEL_CONFIG_KEYS:
         raise ValueError('ollama_executable_and_port_required_together')
@@ -113,7 +145,7 @@ def file_hash(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def validate_publish(root=ROOT, expected_redirects=None):
+def validate_publish(root=ROOT, expected_redirects=None, named_hostname=None):
     """Exact public allowlist, projected catalog and asset verification before deploy."""
     root = Path(root).resolve()
     public = root / 'dist'
@@ -165,13 +197,19 @@ def validate_publish(root=ROOT, expected_redirects=None):
         raise ValueError('invalid_build_identity')
     if (public / '404.html').stat().st_size > 64_000:
         raise ValueError('unexpected_not_found_document')
+    if named_hostname is not None:
+        checked_hostname(named_hostname)
     if expected_redirects is not None:
+        lines = expected_redirects.splitlines()
+        match = re.fullmatch(r'/api/\* (https://[^/]+)/api/:splat 200', lines[1]) if len(lines) == 4 else None
+        if not match or render_redirects(match.group(1), named_hostname) != expected_redirects:
+            raise ValueError('unsafe_proxy_routes')
         if not (public / '_redirects').is_file() or (public / '_redirects').read_text() != expected_redirects:
             raise ValueError('published_proxy_routes_mismatch')
     elif (public / '_redirects').exists():
         lines = (public / '_redirects').read_text().splitlines()
         match = re.fullmatch(r'/api/\* (https://[^/]+)/api/:splat 200', lines[1]) if len(lines) == 4 else None
-        if not match or render_redirects(match.group(1)) != (public / '_redirects').read_text():
+        if not match or render_redirects(match.group(1), named_hostname) != (public / '_redirects').read_text():
             raise ValueError('unsafe_proxy_routes')
     return {'public_files': len(actual), 'pdf_files': len(assets), 'catalog_id': catalog['catalog_id'], 'private_files_included': False, 'functions_included': False}
 
@@ -324,26 +362,48 @@ class ServiceSupervisor:
 
     def start_tunnel(self):
         self.stop_child('tunnel')
-        atomic_text(self.runtime / 'cloudflared.yml', 'no-autoupdate: true\n')
-        command = [self.config['cloudflared_executable'], '--config', str(self.runtime / 'cloudflared.yml'), 'tunnel', '--url', f"http://127.0.0.1:{self.config['port']}", '--http-host-header', urllib.parse.urlsplit(self.config['public_origin']).netloc, '--no-autoupdate', '--protocol', 'http2']
+        config_path = self.runtime / 'cloudflared.yml'
+        named_hostname = self.config.get('named_tunnel_hostname')
+        if named_hostname is not None:
+            checked_hostname(named_hostname)
+            credentials = self.config['named_tunnel_credentials']
+            tunnel_id = named_tunnel_id(credentials)
+            # JSON is valid YAML; only the private credential path is referenced.
+            document = {'tunnel': tunnel_id, 'credentials-file': credentials, 'no-autoupdate': True,
+                        'ingress': [{'hostname': named_hostname, 'service': f"http://127.0.0.1:{self.config['port']}",
+                                     'originRequest': {'httpHostHeader': urllib.parse.urlsplit(self.config['public_origin']).hostname}},
+                                    {'service': 'http_status:404'}]}
+            atomic_text(config_path, json.dumps(document, indent=2) + '\n')
+            command = [self.config['cloudflared_executable'], '--config', str(config_path), '--no-autoupdate',
+                       'tunnel', '--protocol', 'http2', '--edge-ip-version', '4', 'run', tunnel_id]
+        else:
+            atomic_text(config_path, 'no-autoupdate: true\n')
+            command = [self.config['cloudflared_executable'], '--config', str(config_path), 'tunnel', '--url', f"http://127.0.0.1:{self.config['port']}", '--http-host-header', urllib.parse.urlsplit(self.config['public_origin']).netloc, '--no-autoupdate', '--protocol', 'http2', '--edge-ip-version', '4']
+        os.chmod(config_path, 0o600)
         process = self.spawn('tunnel', command, pipe=True)
         def pump():
+            registered = False
             for raw in iter(process.stdout.readline, b''):
                 text = raw.decode('utf-8', errors='replace')
                 # Retain only operational event codes and a public route; no raw
                 # process output or environment contents enter supervisor logs.
-                for candidate in re.findall(r"""https://[^\s"'<>|]+""", text):
-                    if TUNNEL.fullmatch(candidate):
-                        self.tunnel_events.put((process.pid, candidate))
+                if named_hostname is not None:
+                    if not registered and 'Registered tunnel connection' in text:
+                        self.tunnel_events.put((process.pid, 'https://' + named_hostname))
+                        registered = True
+                else:
+                    for candidate in re.findall(r"""https://[^\s"'<>|]+""", text):
+                        if TUNNEL.fullmatch(candidate):
+                            self.tunnel_events.put((process.pid, candidate))
             LOG.info('tunnel_stream_closed')
         threading.Thread(target=pump, name='coursematch-tunnel-reader', daemon=True).start()
         self.status('connecting')
 
     def deploy(self, tunnel):
-        routes = render_redirects(tunnel)
+        routes = render_redirects(tunnel, self.config.get('named_tunnel_hostname'))
         atomic_text(self.runtime / 'active-redirects', routes)
         atomic_text(self.root / 'dist/_redirects', routes)
-        proof = validate_publish(self.root, routes)
+        proof = validate_publish(self.root, routes, self.config.get('named_tunnel_hostname'))
         atomic_json(self.runtime / 'publish-proof.json', proof)
         command = [*self.config['netlify_command'], 'deploy', '--site', self.config['site_id'], '--dir', str(self.root / 'dist'), '--no-build', '--prod', '--json']
         process = self.spawn('deploy', command)
@@ -391,7 +451,7 @@ class ServiceSupervisor:
         current = self.children.get('tunnel')
         if current is None or current.pid != pid or current.poll() is not None:
             return
-        url = checked_tunnel(url)
+        url = checked_tunnel(url, self.config.get('named_tunnel_hostname'))
         if url != self.active_tunnel:
             self.deploy(url)
 
@@ -427,7 +487,7 @@ def preflight(root, config):
     for name in ('scripts/local-service.mjs', 'scripts/cloud_worker.py'):
         if not (root / name).is_file():
             raise ValueError('service_program_missing')
-    validate_publish(root)
+    validate_publish(root, named_hostname=config.get('named_tunnel_hostname'))
 
 
 def main(argv=None):
@@ -441,7 +501,7 @@ def main(argv=None):
         config = load_config(args.config)
         preflight(ROOT, config)
         if args.check:
-            print(json.dumps({'ok': True, 'port': config['port'], 'public_origin': config['public_origin'], 'publish': validate_publish(ROOT)}, ensure_ascii=False))
+            print(json.dumps({'ok': True, 'port': config['port'], 'public_origin': config['public_origin'], 'publish': validate_publish(ROOT, named_hostname=config.get('named_tunnel_hostname'))}, ensure_ascii=False))
             return 0
         supervisor = ServiceSupervisor(config)
         for code in (signal.SIGTERM, signal.SIGINT):

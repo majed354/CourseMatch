@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-03",
+  "code_tested": "9cd563f4ae7a6aa7e3c353260d4ad8b58be3cc46",
+  "tests": {
+    "python": 354,
+    "node_passed": 143,
+    "node_optional_skips": 3,
+    "chrome_passed": 76,
+    "import_pdf_count": 448
+  },
+  "actual_runtime_tests": {
+    "backend": "real mac API and worker queue",
+    "bypass_network": true,
+    "public_network_success": false,
+    "source_topics_changed": false,
+    "cases": [
+      {
+        "input": "image of course topic table",
+        "topics": 13,
+        "unresolved_topics": 1,
+        "decision": "insufficient",
+        "human_reviewed": false,
+        "seal": "pending",
+        "reason": "Independent readings disagreed on a printed page citation; verse ranges agreed"
+      },
+      {
+        "input": "original byte-identical PDF reference",
+        "topics": 13,
+        "strict_count": 13,
+        "lenient_count": 13,
+        "coverage": 100,
+        "decision": "equivalent",
+        "human_reviewed": false,
+        "provider": "exact_text",
+        "seal": "approved",
+        "print_pages": 3
+      }
+    ]
+  },
+  "reading_audit": {
+    "all_three_print_pages_visually_reviewed_by_agent": true,
+    "mobile_viewport": 390,
+    "document_overflow": false,
+    "offline_embedded_fonts": true,
+    "procedural_or_human_review_request_in_visible_report": false,
+    "source_pdf_and_reference_catalog_unchanged": true
+  },
+  "recovery_fault_injection": {
+    "label": "intentional lost acknowledgement test",
+    "search_accepted": 202,
+    "response_replaced_with": 502,
+    "client_recovered_existing_request_by_get": true,
+    "search_post_count": 1,
+    "fake_grade_or_altered_topics": false
+  },
+  "privacy": {
+    "actual_local_api_cross_session_source_pdf": 404,
+    "actual_local_api_cross_session_report": 404,
+    "public_verification": "not verified due to 530"
+  },
+  "public_network_failures_preserved": true,
+  "serverless_probe": {
+    "draft_only": true,
+    "production_changed": false,
+    "trials": 3,
+    "function_http_status": 200,
+    "upstream_http_status": 530,
+    "architecture_changed_based_on_probe": false
+  },
+  "connection_repair": {
+    "new_independent_tunnel": "coursematch-mac",
+    "new_hostname": "coursematch-api.automationprosa.com",
+    "previous_automation_tunnel_changed": false,
+    "dns_overwrite_used": false,
+    "credential_material_in_git": false,
+    "named_mode_activation": "pending at this commit",
+    "ipv4_causality_proven": false
+  },
+  "limits": [
+    "Two formats of one actual reference are a workflow test, not a new general academic accuracy estimate",
+    "Runtime report checks bypassed the unstable public network and do not constitute public end-to-end success",
+    "Named-tunnel public verification follows activation"
+  ]
+}

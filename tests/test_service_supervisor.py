@@ -378,7 +378,7 @@ class ProcessTests(HostingFixture):
         index = command.index('--http-host-header')
         self.assertEqual(command[index + 1], 'coursematch.example')
 
-    def test_tunnel_uses_http2_with_public_host_and_worker_route_protection(self):
+    def test_tunnel_uses_http2_ipv4_with_public_host_and_worker_route_protection(self):
         instance = self.supervisor()
         instance.stop_child = Mock()
         instance.spawn = Mock(return_value=SimpleNamespace(pid=201, stdout=io.BytesIO(b''), poll=lambda: None))
@@ -387,6 +387,8 @@ class ProcessTests(HostingFixture):
         command = instance.spawn.call_args.args[1]
         self.assertEqual(command.count('--protocol'), 1)
         self.assertEqual(command[command.index('--protocol') + 1], 'http2')
+        self.assertEqual(command.count('--edge-ip-version'), 1)
+        self.assertEqual(command[command.index('--edge-ip-version') + 1], '4')
         self.assertEqual(command[command.index('--url') + 1], 'http://127.0.0.1:8800')
         self.assertEqual(command[command.index('--http-host-header') + 1], 'coursematch.example')
         self.assertTrue(instance.spawn.call_args.kwargs['pipe'])
@@ -511,3 +513,102 @@ class InstallerTests(HostingFixture):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class NamedTunnelTests(HostingFixture):
+    def configured(self):
+        credentials = self.root / 'coursematch-credentials.json'
+        credentials.write_text(json.dumps({'TunnelID':'12345678-1234-1234-1234-123456789abc','AccountTag':'PRIVATE-ACCOUNT','TunnelSecret':'PRIVATE-SECRET'}))
+        credentials.chmod(0o600)
+        return {**self.config, 'named_tunnel_credentials':str(credentials), 'named_tunnel_hostname':'coursematch-api.example.com'}
+
+    def write_config(self, value):
+        path = self.root / 'config.json'; path.write_text(json.dumps(value)); path.chmod(0o600)
+        return path
+
+    def test_optional_named_pair_validates_private_credentials_without_exposing_values(self):
+        config = self.configured()
+        self.assertNotIn('named_tunnel_hostname', service.load_config(self.write_config(self.config)))
+        self.assertEqual(service.load_config(self.write_config(config)), config)
+        self.assertEqual(service.named_tunnel_id(config['named_tunnel_credentials']), '12345678-1234-1234-1234-123456789abc')
+        for key in ('named_tunnel_credentials', 'named_tunnel_hostname'):
+            invalid = {**config}; invalid.pop(key)
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, 'required_together'):
+                service.load_config(self.write_config(invalid))
+        credentials = Path(config['named_tunnel_credentials'])
+        for mode in (0o644, 0o640, 0o400):
+            credentials.chmod(mode)
+            with self.subTest(mode=mode), self.assertRaises(ValueError):
+                service.load_config(self.write_config(config))
+        credentials.chmod(0o600)
+        link = self.root / 'linked.json'; link.symlink_to(credentials)
+        for value in ('relative.json', str(link), str(self.root), None):
+            with self.subTest(value=value), self.assertRaises((ValueError, OSError)):
+                service.load_config(self.write_config({**config,'named_tunnel_credentials':value}))
+        for value in ({'TunnelID':'not-a-uuid'}, {'TunnelID':123}, {'TunnelSecret':'PRIVATE-SECRET'}, [], {'TunnelID':'12345678123412341234123456789abc'}):
+            credentials.write_text(json.dumps(value))
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, 'invalid_named_tunnel_uuid'):
+                service.load_config(self.write_config(config))
+
+    def test_named_host_allowlist_is_exact_and_cannot_expand_proxy_destinations(self):
+        hostname = self.configured()['named_tunnel_hostname']; url = 'https://' + hostname
+        routes = service.render_redirects(url, hostname)
+        self.assertEqual(routes.splitlines()[0], '/api/worker/* /404.html 404!')
+        (self.dist / '_redirects').write_text(routes)
+        self.assertFalse(service.validate_publish(self.root, named_hostname=hostname)['private_files_included'])
+        self.assertEqual(service.validate_publish(self.root, routes, hostname)['pdf_files'],1)
+        for name in (None, 'other.example.com'):
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                service.validate_publish(self.root, named_hostname=name)
+        for value in (url+'.evil.test',url+'/path',url+':443',url+'/',url+'?query',url+'#fragment','http://'+hostname,'https://user@'+hostname):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                service.checked_tunnel(value, hostname)
+        # Supplying matching expected bytes alone never authorizes a foreign host.
+        with self.assertRaises(ValueError):
+            service.validate_publish(self.root, routes)
+        for value in ('127.0.0.1','localhost','HTTPS://example.com','example.com:443','example.com/path','example.com.','*.example.com','EXAMPLE.com','مثال.com','a..com','a\n.example.com'):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                service.checked_hostname(value)
+        self.assertEqual(service.checked_tunnel('https://words.trycloudflare.com'),'https://words.trycloudflare.com')
+
+    def test_named_command_ingress_and_connection_event_use_no_credential_values(self):
+        config=self.configured(); instance=service.ServiceSupervisor(config,self.root,popen=Mock())
+        process=SimpleNamespace(pid=202,stdout=io.BytesIO(b'connecting PRIVATE-SECRET\nhttps://unrelated.trycloudflare.com\nRegistered tunnel connection connIndex=0\nRegistered tunnel connection connIndex=1\n'),poll=lambda:None)
+        instance.stop_child=Mock(); instance.spawn=Mock(return_value=process)
+        with patch('scripts.service_supervisor.threading.Thread') as thread:
+            thread.side_effect=lambda *,target,**kwargs:SimpleNamespace(start=target)
+            with self.assertLogs('coursematch.service',level='INFO') as captured:
+                instance.start_tunnel()
+        command=instance.spawn.call_args.args[1]
+        self.assertEqual(command[-7:],['tunnel','--protocol','http2','--edge-ip-version','4','run','12345678-1234-1234-1234-123456789abc'])
+        self.assertNotIn('--url',command); self.assertNotIn('--token',command)
+        path=instance.runtime/'cloudflared.yml'; document=json.loads(path.read_text())
+        self.assertEqual(path.stat().st_mode & 0o777,0o600)
+        self.assertEqual(document['credentials-file'], config['named_tunnel_credentials'])
+        self.assertEqual(document['ingress'],[{'hostname':'coursematch-api.example.com','service':'http://127.0.0.1:8800','originRequest':{'httpHostHeader':'coursematch.example'}},{'service':'http_status:404'}])
+        self.assertEqual(instance.tunnel_events.get_nowait(),(202,'https://coursematch-api.example.com'))
+        self.assertTrue(instance.tunnel_events.empty())
+        rendered=json.dumps(command)+path.read_text()+str(captured.output)
+        self.assertNotIn('PRIVATE-SECRET',rendered); self.assertNotIn('PRIVATE-ACCOUNT',rendered)
+        instance.stop_child.assert_called_once_with('tunnel')
+
+    def test_named_route_waits_for_registered_connection_before_emitting(self):
+        instance=service.ServiceSupervisor(self.configured(),self.root,popen=Mock())
+        instance.stop_child=Mock(); instance.spawn=Mock(return_value=SimpleNamespace(pid=202,stdout=io.BytesIO(b'connecting\nhttps://unrelated.trycloudflare.com\n'),poll=lambda:None))
+        with patch('scripts.service_supervisor.threading.Thread') as thread:
+            thread.side_effect=lambda *,target,**kwargs:SimpleNamespace(start=target)
+            instance.start_tunnel()
+        self.assertTrue(instance.tunnel_events.empty())
+
+    def test_named_main_check_accepts_explicit_route_without_starting_any_process(self):
+        config=self.configured(); routes=service.render_redirects('https://'+config['named_tunnel_hostname'],config['named_tunnel_hostname'])
+        (self.dist/'_redirects').write_text(routes)
+        for name in ('.env.service','.env.worker'):
+            path=self.root/name; path.write_text(''); path.chmod(0o600)
+        (self.root/'scripts').mkdir()
+        for name in ('local-service.mjs','cloud_worker.py'):
+            (self.root/'scripts'/name).write_text('')
+        with patch.object(service,'ROOT',self.root), patch.object(service,'ServiceSupervisor') as constructor, patch('sys.stdout',new_callable=io.StringIO) as output:
+            self.assertEqual(service.main(['--config',str(self.write_config(config)),'--check']),0)
+            constructor.assert_not_called()
+            self.assertTrue(json.loads(output.getvalue())['ok'])
