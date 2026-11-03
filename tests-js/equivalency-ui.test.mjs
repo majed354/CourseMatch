@@ -944,7 +944,7 @@ test('incomplete evidence audit renders a formal pending report without zero cov
 
 test('unresolved semantic alternatives cannot appear as a rejection or zero coverage in the report',()=>{
   const input=reportFixture({decision:'insufficient',total:13});
-  for(const pair of input.evidence.pairs)pair.adjudication={state:'confirmed'};
+  input.evidence.pairs=[{target_id:'t0',source_id:'s0',score:20,adjudication:{state:'confirmed'},reason:'PRIVATE_UNVERIFIED_ABSENCE_ASSERTION'}];
   input.calculation={...input.calculation,strict_count:0,lenient_count:0,strict_coverage:null,lenient_coverage:null,
     rejection_review:{pending_target_ids:['t1','t6']},reason:'PRIVATE_CANDIDATE_GRAPH_DIAGNOSTIC'};
   const before=JSON.stringify(input),{html}=renderedReport(input);
@@ -952,6 +952,8 @@ test('unresolved semantic alternatives cannot appear as a rejection or zero cove
   assert.ok(html.includes('report-stamp pending'));assert.ok(!html.includes('report-stamp approved'));
   assert.ok(html.includes('لم تُحسب التغطية'));assert.ok(!html.includes('coverage-gauge'));
   assert.ok(!html.includes('نطاق المقابلة مثبت'));
+  assert.ok(html.includes('لم تثبت أدلة كافية لحسم توافق هذه المفردة.'));
+  assert.ok(!html.includes('PRIVATE_UNVERIFIED_ABSENCE_ASSERTION'));
   assert.ok(!html.includes('PRIVATE_CANDIDATE_GRAPH_DIAGNOSTIC'));
   assert.doesNotMatch(html,/(?:^|[^\d٠-٩])(?:0(?:[.,]0+)?|٠(?:[٫,]٠+)?)\s*%/u);
   assert.equal(JSON.stringify(input),before);

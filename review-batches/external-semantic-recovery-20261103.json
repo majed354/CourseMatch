@@ -286,5 +286,14 @@
     "runtime/service/qa/external-rejection-guard-public-20261103/",
     "runtime/service/qa/negative-guard-independent-public-result-proof.json",
     "runtime/service/qa/najran-final-independent-fff7868-20261103.json"
-  ]
+  ],
+  "neutral_pending_report_presentation": {
+    "status": "locally_verified_awaiting_public_GET_only_check",
+    "behavior": "Replace unverified model absence assertions with a neutral academic explanation for rejection_review reports only.",
+    "same_report_evidence_and_calculation": true,
+    "node_chrome_enabled_passed": 186,
+    "skipped": 0,
+    "new_comparison_required": false,
+    "worker_restart_required": false
+  }
 }

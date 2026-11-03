@@ -313,7 +313,8 @@ function showReport(r) {
       const confirmed=calc.rejection_review?null:alternatives.filter(p=>p.adjudication?.state==='confirmed').sort((a,b)=>b.score-a.score)[0];
       const p=confirmed||alternatives[0],s=p?sources.get(p.source_id):null;
       const state=confirmed?'نطاق المقابلة مثبت':p?'نطاق المقابلة غير محسوم':'المعلومات غير كافية للحكم على هذه المفردة.';
-      return `<tr>${topic}<td class="matching-cell"><span class="match-state uncounted">${esc(state)}</span>${s?'<p>'+esc(textOf(s))+'</p><small>المصدر · ص '+esc(pageOf(s))+'</small><p class="match-reason">'+esc(academicReason(p,evidence))+'</p>':''}</td></tr>`;
+      const reason=calc.rejection_review?'لم تثبت أدلة كافية لحسم توافق هذه المفردة.':p?academicReason(p,evidence):'';
+      return `<tr>${topic}<td class="matching-cell"><span class="match-state uncounted">${esc(state)}</span>${s?'<p>'+esc(textOf(s))+'</p><small>المصدر · ص '+esc(pageOf(s))+'</small><p class="match-reason">'+esc(reason)+'</p>':''}</td></tr>`;
     }
     const strict=!!calc.strict_matches?.[t.id],lenient=!!calc.lenient_matches?.[t.id];
     const note=strict&&lenient?'مستوفية لحد التوافق الدقيق والمتسامح.':strict?'مستوفية في المطابقة الدقيقة.':lenient?'مستوفية في المطابقة المتسامحة فقط.':'لا تدخل ضمن المفردات المتوافقة في النتيجة الإجمالية.';
