@@ -4,7 +4,7 @@ Browser image PDFs are a single raster page. Native-PDF checking is best effort:
 keep original rows on failure. Every chat response is saved before validation.
 Image intake uses one layout call, one cropped-table reading, and one
 independent cropped reading for numeric/content checks. Native checks
-retain one primary visual call and at most one local fallback call.
+read each original cell independently, with at most one fallback per cell.
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ from .engine import local_model, post_ollama
 from .extract import norm
 
 VERSION = 'image-input-local-vision-v6-independent-reading'
-NATIVE_PROTOCOL_VERSION = 'native-map-v5-blind-spatial-reading'
+NATIVE_PROTOCOL_VERSION = 'native-cell-v6-blind-three-way-reading'
 FALLBACK_MODEL = 'qwen3.8:27b-q8_0'
 MAX_PIXELS = 32_000_000
 MAX_DIMENSION = 12_000
@@ -129,7 +129,7 @@ def _rows(response, mode, expected_ids=None):
         if mode=='native':
             if not isinstance(key,str) or len(key)>80:raise ValueError('invalid_native_id')
         elif key is not None and (type(key) is not int or not 1<=key<=100):raise ValueError('invalid_printed_row_number')
-        text=re.sub(r'\[\s*غير\s*واضح\s*\]',UNKNOWN,norm(text))
+        text=re.sub(r'\[\s*غير\s*واضح\s*\]',UNKNOWN,_native_agreement_text(text,punctuation=False) if mode=='native' else norm(text))
         if not any(c.isalpha() for c in text):raise ValueError('non_topic_vision_row')
         rows.append({label:key,'text':text})
     if mode=='image':
@@ -154,9 +154,30 @@ def _identity(model, caller):
 
 
 def _native_agreement_text(text, *, punctuation):
-    text=norm(text)
+    text=unicodedata.normalize('NFKC',str(text)).translate(str.maketrans('٠١٢٣٤٥٦٧٨٩','0123456789'))
+    text=re.sub(r'[\u200e\u200f\u202a-\u202e\u2066-\u2069ـ]','',text)
     if punctuation:text=''.join(' ' if unicodedata.category(c).startswith('P') else c for c in text)
     return ' '.join(text.split())
+
+
+def _native_explicit_marks_conflict(values):
+    def marked(value):
+        letters=[];marks={}
+        for char in _native_agreement_text(value,punctuation=False):
+            if unicodedata.category(char).startswith('M'):
+                marks.setdefault(len(letters)-1,set()).add(char)
+            else:letters.append(char)
+        return ''.join(letters),marks
+    for i,first in enumerate(values):
+        if UNKNOWN in first:continue
+        a,am=marked(first)
+        for second in values[i+1:]:
+            if UNKNOWN in second:continue
+            b,bm=marked(second)
+            if re.sub('[أإآٱ]','ا',a)!=re.sub('[أإآٱ]','ا',b):continue
+            if any(x in 'أإآٱ' and y in 'أإآٱ' and x!=y for x,y in zip(a,b)):return True
+            if any(am.get(pos) and bm.get(pos) and am[pos]!=bm[pos] for pos in set(am)|set(bm)):return True
+    return False
 
 
 def _native_readings_agree(first, second, *, punctuation):
@@ -165,7 +186,7 @@ def _native_readings_agree(first, second, *, punctuation):
     marked_alefs={'أ','إ','آ','ٱ'}
     # A bare alef may be an omitted mark in one reading. Two different explicit
     # marks are conflicting evidence (الأيمان / الإيمان), never canonical noise.
-    return len(a)==len(b) and all(x==y or (x=='ا' and y in marked_alefs) or
+    return not _native_explicit_marks_conflict([first,second]) and len(a)==len(b) and all(x==y or (x=='ا' and y in marked_alefs) or
                                  (y=='ا' and x in marked_alefs) for x,y in zip(a,b))
 
 
@@ -177,12 +198,39 @@ def _merge_text(first, second, native=False):
         punctuation=not any(c.isdigit() for c in first+second)
         if _native_readings_agree(first,second,punctuation=punctuation):return first
     words=lambda s:re.findall(r'\[غير واضح\]|\S+',s)
-    a,b=words(first),words(second);ak,bk=[norm(x) for x in a],[norm(x) for x in b];result=[]
+    a,b=words(first),words(second);ak,bk=[_native_agreement_text(x,punctuation=False) if native else norm(x) for x in a],[_native_agreement_text(x,punctuation=False) if native else norm(x) for x in b];result=[]
     for op,i,j,k,l in SequenceMatcher(a=ak,b=bk,autojunk=False).get_opcodes():
         if op=='equal':result.extend(a[i:j])
         elif a[i:j] and all(x==UNKNOWN for x in a[i:j]) and b[k:l]:result.extend(b[k:l])
         else:result.append(UNKNOWN)
     return ' '.join(result)
+
+
+def _native_three_way_text(native,first,second):
+    """Positional lexical corroboration only; no semantic or numeric repair.
+
+    Keep primary punctuation and spacing. Unknown is not a vote; unequal word
+    counts and any numerals retain the existing conservative merge. Different
+    explicit alef marks remain conflict, never bridged by an unmarked alef.
+    """
+    if any(c.isdigit() or unicodedata.category(c).startswith('S') for c in native+first+second):return None
+    pattern=re.compile(r'\[غير واضح\]|[^\W\d_]+(?:[\u0300-\u036f\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed]+[^\W\d_]*)*')
+    words=[list(pattern.finditer(text)) for text in (native,first,second)]
+    if not words[0] or len({len(w) for w in words})!=1:return None
+    replacements=[]
+    for items in zip(*words):
+        values=[m.group() for m in items]
+        conflict=_native_explicit_marks_conflict(values)
+        chosen=None
+        if not conflict:
+            for a,b in ((1,2),(1,0),(2,0)):
+                if UNKNOWN not in values[a] and UNKNOWN not in values[b] and _native_readings_agree(values[a],values[b],punctuation=False):
+                    chosen=values[a];break
+        replacements.append(chosen or UNKNOWN)
+    result=[];cursor=0
+    for match,word in zip(words[1],replacements):
+        result.extend((first[cursor:match.start()],word));cursor=match.end()
+    result.append(first[cursor:]);return ''.join(result)
 
 
 def _merge_rows(first,second,mode):
@@ -202,7 +250,7 @@ def _chat(caller, directory, identity, images, mode, native_rows, timeout, respo
     anchors = [{key:row[key] for key in ('id','pages','regions','unlocated_pages') if key in row}
                for row in native_rows] if mode=='native' else None
     prompt=('انقل رقم الصف المطبوع في عمود م كعدد صحيح number، أو null إذا كان الجدول بلا أرقام مطبوعة. لا تضع نص الموضوع أو عنوانه داخل number ولا تخترع ترقيمًا؛ ضع نص خلية الموضوع كاملًا بما فيه عنوانها وفروعها داخل text. اقرأ جدول الموضوعات فقط وتوقف عند المجموع أو جدول أنشطة تقييم الطلبة.' if mode=='image' else
-            'هذه قراءة بصرية مستقلة؛ لا توجد نصوص مستخرجة أو قراءة أخرى للاعتماد عليها. الصور مرتبة حسب أرقام الصفحات المبينة. اقرأ كل معرف حرفيًا من خلية موضوعه الكاملة مع إبقاء فروعها وتتماتها. pages تحدد كل صفحات الصف بما فيها التتمة. regions مواضع مساعدة لنص الصف داخل صورة الصفحة بإحداثيات xyxy من 0 إلى1000؛ اقرأ جميع مناطقه بالترتيب دون إهمال الصفحات الأخرى. unlocated_pages صفحات تتضمن جزءًا من الصف دون مستطيل موثوق؛ ابحث فيها عن تتمته ولا تفترض أن regions تغطي نصه كاملًا. عند غياب regions استعن بترتيب المعرفات من أعلى إلى أسفل. أعد rows ككائن مفاتيحه كل معرفات id المطلوبة وقيمه نصوص الموضوعات؛ لا تعد مصفوفة ولا كائنًا فارغًا ولا تحذف أي معرف. إذا تعذرت قراءة أي جزء أو مطابقة تتمته ضع [غير واضح] في موضعه دون اختلاق نص. تشمل البيانات جميع صفوف الصفحات لتحديد المواضع، وليس فقط المواضع المختلف فيها. الصورة وحدها مصدر النص. المعرفات ومواضعها:\n'+json.dumps(anchors,ensure_ascii=False))
+            'هذه قراءة بصرية مستقلة؛ لا توجد نصوص مستخرجة أو قراءة أخرى للاعتماد عليها. الصور مرتبة حسب أرقام الصفحات المبينة. اقرأ كل معرف حرفيًا من خلية موضوعه الكاملة مع إبقاء فروعها وتتماتها. pages تحدد كل صفحات الصف بما فيها التتمة. regions مواضع مساعدة لنص الصف داخل صورة الصفحة بإحداثيات xyxy من 0 إلى1000؛ اقرأ جميع مناطقه بالترتيب دون إهمال الصفحات الأخرى. unlocated_pages صفحات تتضمن جزءًا من الصف دون مستطيل موثوق؛ ابحث فيها عن تتمته ولا تفترض أن regions تغطي نصه كاملًا. عند غياب regions استعن بترتيب المعرفات من أعلى إلى أسفل. أعد rows ككائن مفاتيحه كل معرفات id المطلوبة وقيمه نصوص الموضوعات؛ لا تعد مصفوفة ولا كائنًا فارغًا ولا تحذف أي معرف. إذا تعذرت قراءة أي جزء أو مطابقة تتمته ضع [غير واضح] في موضعه دون اختلاق نص. تحدد البيانات المعرفات المطلوبة فقط؛ قد تكون الصور مقتطفات خلية أصلية واحدة مع جميع تتماتها، أو صفحات كاملة عند غياب موضع موثوق. لا تنقل موضوعات الخلايا الأخرى إلى المعرف المطلوب. الصورة وحدها مصدر النص. المعرفات ومواضعها:\n'+json.dumps(anchors,ensure_ascii=False))
     payload={'model':identity['model'],'stream':False,'think':False,'format':IMAGE_SCHEMA if mode=='image' else native_schema([r['id'] for r in native_rows]),
              'messages':[{'role':'system','content':SYSTEM if mode=='image' else NATIVE_SYSTEM},{'role':'user','content':prompt,'images':[base64.b64encode(x).decode() for x in images]}],
              'options':{'temperature':0,'seed':37,'num_ctx':16384,'num_predict':7000}}
@@ -270,7 +318,12 @@ def _transcribe(directory,key,images,mode,native_rows,caller,model,timeout,page_
         identity=_identity(model,caller);identities.append(identity)
         first,proof=_chat(caller,directory,identity,images,mode,native_rows,timeout,responses)
         uncertain=not first or any(UNKNOWN in r['text'] for r in first)
-        changed=mode=='native' and any(norm(r['text'])!=norm(n.get('text','')) for r,n in zip(first,native_rows))
+        def changed_row(r,n):
+            text=n.get('text','')
+            if not any(c.isdigit() for c in r['text']+text) and UNKNOWN not in r['text']+text:
+                return not _native_readings_agree(r['text'],text,punctuation=True)
+            return _native_agreement_text(r['text'],punctuation=False)!=_native_agreement_text(text,punctuation=False)
+        changed=mode=='native' and any(changed_row(r,n) for r,n in zip(first,native_rows))
         if not uncertain and not changed:
             result={'version':VERSION,**protocol,'key':key,'rows':first,'rows_sha256':_json_sha(first),'identities':identities,'responses':responses};_save(directory/'cache.json',result);return result
     except Exception as error:failure=type(error).__name__
@@ -279,7 +332,7 @@ def _transcribe(directory,key,images,mode,native_rows,caller,model,timeout,page_
     # repeat to closure so no supplied anchor is cut off from its continuation.
     selected_rows=native_rows;selected_images=images;affected_ids=None
     if mode=='native' and first is not None and len(first)==len(native_rows):
-        affected_ids={r['id'] for r,n in zip(first,native_rows) if UNKNOWN in r['text'] or norm(r['text'])!=norm(n.get('text',''))}
+        affected_ids={r['id'] for r,n in zip(first,native_rows) if UNKNOWN in r['text'] or changed_row(r,n)}
         pages={p for n in native_rows if n['id'] in affected_ids for p in n['pages']}
         while True:
             anchored=[n for n in native_rows if pages.intersection(n['pages'])]
@@ -297,7 +350,11 @@ def _transcribe(directory,key,images,mode,native_rows,caller,model,timeout,page_
         elif mode=='native' and affected_ids is not None:
             alternate={r['id']:r for r in second};rows=[]
             for row in first:
-                rows.extend(_merge_rows([row],[alternate[row['id']]],mode) if row['id'] in affected_ids else [row])
+                if row['id'] in affected_ids:
+                    other=alternate[row['id']];original=next(n['text'] for n in native_rows if n['id']==row['id'])
+                    voted=_native_three_way_text(original,row['text'],other['text'])
+                    rows.append({'id':row['id'],'text':voted} if voted is not None else _merge_rows([row],[other],mode)[0])
+                else:rows.append(row)
         else:rows=_merge_rows(first,second,mode)
         result={'version':VERSION,**protocol,'key':key,'rows':rows,'rows_sha256':_json_sha(rows),'identities':identities,'responses':responses};_save(directory/'cache.json',result);return result
     except Exception as error:
@@ -305,6 +362,7 @@ def _transcribe(directory,key,images,mode,native_rows,caller,model,timeout,page_
         # disagreement that cannot be checked stays with the original reading.
         if mode=='image' and first is not None:
             return {'version':VERSION,'key':key,'rows':first,'identities':identities[:1],'attempted_identities':identities,'responses':responses,'fallback_unavailable':True}
+        _save(directory/'transcription-failure.json',{'version':VERSION,**protocol,'key':key,'identities':identities,'responses':responses})
         raise ValueError('visual_transcription_unavailable') from error
 
 
@@ -539,58 +597,69 @@ def _numeric_proof_agrees_with_source(result):
 
 
 def verify_pdf_topics(path,extracted,cache_dir,model='gemma4:e4b',*,caller=None):
-    """Check at most three contiguous native topic pages in one multi-image call."""
+    """Check original cells separately on at most three contiguous topic pages."""
     result=copy.deepcopy(extracted);result['reviewed']=False;caller=caller or post_ollama
     try:
         raw=Path(path).read_bytes();sha=_sha(raw);topics=result['topics'];input_sha=_json_sha(topics)
         prior=result.get('visual_spatial_proof',{})
         if result.get('extraction_method')=='local_vision_transcription' and prior.get('version')==VERSION and prior.get('source_sha256')==sha and result.get('source_sha256')==sha and prior.get('output_topics_sha256')==input_sha and _numeric_proof_agrees_with_source(result) and prior.get('numeric_audit',{}).get('version')==VERSION and prior.get('numeric_audit',{}).get('status')=='agreed' and prior.get('numeric_audit',{}).get('crop_sha256')==prior.get('crop',{}).get('image_sha256') and len(result.get('visual_response_proof',[]))>=3 and topics and not any(UNKNOWN in (t.get('corrected_text') or t.get('text','')) for t in topics):return result
         if not topics or len(topics)>100 or any(not isinstance(t.get('id'),str) for t in topics) or len({t['id'] for t in topics})!=len(topics):raise ValueError('native_rows_unresolved')
-        native=[];pages=set();boxes={}
+        native=[];pages=set()
         for t in topics:
             first=t.get('page');last=t.get('end_page',first)
             if type(first) is not int or type(last) is not int or not 1<=first<=last or last-first+1>MAX_NATIVE_PAGES:raise ValueError('native_pages_unresolved')
             span=set(range(first,last+1));span.update(f['page'] for f in t.get('fragments',[]));pages.update(span)
             native.append({'id':t['id'],'text':t.get('corrected_text') or t['text'],'pages':sorted(span)})
-            for number in span:
-                candidates=([t.get('bbox')] if number==first else [])+[f.get('bbox') for f in t.get('fragments',[]) if f.get('page')==number]
-                if not candidates:boxes.setdefault(number,[]).append(None)
-                else:boxes.setdefault(number,[]).extend(candidates)
         pages=sorted(pages)
         if len(pages)>MAX_NATIVE_PAGES or pages!=list(range(pages[0],pages[-1]+1)):raise ValueError('native_page_limit_or_gap')
-        key=_json_sha([VERSION,NATIVE_PROTOCOL_VERSION,'native',sha,input_sha,model,NATIVE_SYSTEM,native_schema([t['id'] for t in topics])]);directory=_directory(Path(cache_dir)/VERSION/key)
-        _save(directory/'source.pdf',raw,binary=True);images=[];proof=[]
+        key=_json_sha([VERSION,NATIVE_PROTOCOL_VERSION,'native',sha,input_sha,model,FALLBACK_MODEL,NATIVE_SYSTEM,native_schema([t['id'] for t in topics]),3]);directory=_directory(Path(cache_dir)/VERSION/key)
+        _save(directory/'source.pdf',raw,binary=True);proof=[];cells=[]
+        reading={'rows':[],'identities':[],'responses':[]}
         with pymupdf.open(stream=raw,filetype='pdf') as doc:
             if doc.needs_pass or pages[-1]>len(doc):raise ValueError('native_pages_unresolved')
-            for number in pages:
-                page=doc[number-1];clip=page.rect;valid=[]
-                for box in boxes.get(number,[]):
-                    if not isinstance(box,(list,tuple)) or len(box)!=4 or any(type(v) not in (int,float) or not math.isfinite(v) for v in box):valid=[];break
-                    rect=pymupdf.Rect(box)
-                    if rect.is_empty or not page.rect.contains(rect):valid=[];break
-                    valid.append(rect)
-                if valid:
-                    clip=valid[0]
-                    for rect in valid[1:]:clip|=rect
-                    clip=pymupdf.Rect(clip.x0-4,clip.y0-4,clip.x1+4,clip.y1+4)&page.rect
-                width,height=math.ceil(clip.width*2),math.ceil(clip.height*2)
-                if max(width,height)>MAX_DIMENSION or width*height>MAX_PIXELS:raise ValueError('native_page_too_large')
-                pix=page.get_pixmap(matrix=pymupdf.Matrix(2,2),clip=clip,alpha=False);image=pix.tobytes('png');images.append(image)
-                _save(directory/f'page-{number}.png',image,binary=True);proof.append({'page':number,'image_sha256':_sha(image),'width':pix.width,'height':pix.height,'bbox':list(clip),'render_scale':2,'cropped_from_topic_bboxes':bool(valid)})
-                for topic,anchor in zip(topics,native):
-                    row_boxes=([topic.get('bbox')] if topic.get('page')==number else [])+[f.get('bbox') for f in topic.get('fragments',[]) if f.get('page')==number]
-                    for box in row_boxes:
-                        if not isinstance(box,(list,tuple)) or len(box)!=4 or any(type(v) not in (int,float) or not math.isfinite(v) for v in box):continue
+            for topic,anchor in zip(topics,native):
+                anchor=copy.deepcopy(anchor);images=[];cell_pages=[]
+                for number in anchor['pages']:
+                    page=doc[number-1];clip=page.rect;valid=[]
+                    candidates=([topic.get('bbox')] if topic.get('page')==number else [])+[f.get('bbox') for f in topic.get('fragments',[]) if f.get('page')==number]
+                    for box in candidates:
+                        if not isinstance(box,(list,tuple)) or len(box)!=4 or any(type(v) not in (int,float) or not math.isfinite(v) for v in box):valid=[];break
                         rect=pymupdf.Rect(box)
-                        if rect.is_empty or not clip.contains(rect):continue
-                        relative=[round((rect.x0-clip.x0)*1000/clip.width),round((rect.y0-clip.y0)*1000/clip.height),round((rect.x1-clip.x0)*1000/clip.width),round((rect.y1-clip.y0)*1000/clip.height)]
-                        region={'page':number,'bbox':relative}
-                        if region not in anchor.setdefault('regions',[]):anchor['regions'].append(region)
-        for anchor in native:
-            unlocated=sorted(set(anchor['pages'])-{r['page'] for r in anchor.get('regions',[])})
-            if unlocated:anchor['unlocated_pages']=unlocated
-        reading=_transcribe(directory,key,images,'native',native,caller,model,NATIVE_PRIMARY_TIMEOUT,
-                            page_numbers=pages,fallback_timeout=NATIVE_FALLBACK_TIMEOUT)
+                        if rect.is_empty or not page.rect.contains(rect):valid=[];break
+                        valid.append(rect)
+                    if valid:
+                        clip=pymupdf.Rect(valid[0])
+                        for rect in valid[1:]:clip|=rect
+                        clip=pymupdf.Rect(clip.x0-4,clip.y0-4,clip.x1+4,clip.y1+4)&page.rect
+                    width,height=math.ceil(clip.width*3),math.ceil(clip.height*3)
+                    if max(width,height)>MAX_DIMENSION or width*height>MAX_PIXELS:raise ValueError('native_page_too_large')
+                    pix=page.get_pixmap(matrix=pymupdf.Matrix(3,3),clip=clip,alpha=False);image=pix.tobytes('png');images.append(image)
+                    pageproof={'topic_id':topic['id'],'page':number,'image_sha256':_sha(image),'width':pix.width,'height':pix.height,'bbox':list(clip),'render_scale':3,'cropped_from_topic_bboxes':bool(valid)}
+                    proof.append(pageproof);cell_pages.append(pageproof)
+                    if valid:
+                        for rect in valid:
+                            relative=[round((rect.x0-clip.x0)*1000/clip.width),round((rect.y0-clip.y0)*1000/clip.height),round((rect.x1-clip.x0)*1000/clip.width),round((rect.y1-clip.y0)*1000/clip.height)]
+                            anchor.setdefault('regions',[]).append({'page':number,'bbox':relative})
+                    else:anchor.setdefault('unlocated_pages',[]).append(number)
+                cellkey=_json_sha([VERSION,NATIVE_PROTOCOL_VERSION,sha,input_sha,topic,anchor,cell_pages,model,FALLBACK_MODEL,NATIVE_SYSTEM,native_schema([topic['id']])])
+                cell_directory=_directory(directory/'cells'/cellkey)
+                for image,pageproof in zip(images,cell_pages):_save(cell_directory/f"page-{pageproof['page']}.png",image,binary=True)
+                cell={'topic_id':topic['id'],'key':cellkey,'pages':cell_pages,'status':'reading'};cells.append(cell)
+                try:
+                    value=_transcribe(cell_directory,cellkey,images,'native',[anchor],caller,model,NATIVE_PRIMARY_TIMEOUT,page_numbers=anchor['pages'],fallback_timeout=NATIVE_FALLBACK_TIMEOUT)
+                except Exception:
+                    cell['status']='unavailable'
+                    failure_path=cell_directory/'transcription-failure.json'
+                    failed=json.loads(failure_path.read_text()) if failure_path.exists() else {'identities':[],'responses':[]}
+                    for identity in failed['identities']:
+                        if identity not in reading['identities']:reading['identities'].append(identity)
+                    reading['responses'].extend({**response,'file':str((cell_directory/response['file']).relative_to(directory))} for response in failed['responses'])
+                    raise
+                reading['rows'].extend(value['rows']);cell['status']='completed'
+                for identity in value['identities']:
+                    if identity not in reading['identities']:reading['identities'].append(identity)
+                for response in value['responses']:
+                    reading['responses'].append({**response,'file':str((cell_directory/response['file']).relative_to(directory))})
         previous_excluded=result.setdefault('excluded_rows',[]);checked=[];numeric_disagreements=[]
         for topic,row in zip(topics,reading['rows']):
             record=copy.deepcopy(topic);record['corrected_text']=row['text'];record['visual_transcription_origin']='local_vision_transcription'
@@ -605,13 +674,13 @@ def verify_pdf_topics(path,extracted,cache_dir,model='gemma4:e4b',*,caller=None)
             reason=_exclusion_reason(row['text'])
             if reason:previous_excluded.append({**record,'reason':reason})
             else:checked.append(record)
-        result['topics']=checked;result.update(source_sha256=sha,reviewed=False,visual_verification_status='completed',visual_verification_method='local_vision_transcription',transcription_model=reading['identities'][-1]['model'],transcription_model_digest=reading['identities'][-1]['digest'],transcription_models=reading['identities'],visual_verification_proof={'version':VERSION,'native_protocol_version':NATIVE_PROTOCOL_VERSION,'source_sha256':sha,'input_topics_sha256':input_sha,'output_topics_sha256':_json_sha(checked),'pages':proof,'responses':reading['responses'],'numeric_disagreements':numeric_disagreements},visual_verification_cache_key=key)
+        result['topics']=checked;result.update(source_sha256=sha,reviewed=False,visual_verification_status='completed',visual_verification_method='local_vision_transcription',transcription_model=reading['identities'][-1]['model'],transcription_model_digest=reading['identities'][-1]['digest'],transcription_models=reading['identities'],visual_verification_proof={'version':VERSION,'native_protocol_version':NATIVE_PROTOCOL_VERSION,'source_sha256':sha,'input_topics_sha256':input_sha,'output_topics_sha256':_json_sha(checked),'pages':proof,'cells':cells,'responses':reading['responses'],'numeric_disagreements':numeric_disagreements},visual_verification_cache_key=key)
         if numeric_disagreements:_formal_warning(result,'لم تثبت مطابقة بعض الأرقام بين النص المستخرج والقراءة البصرية؛ حُفظت أرقام النص الأصلي.')
         if any(UNKNOWN in t['corrected_text'] for t in checked):_formal_warning(result,'تتضمن القراءة البصرية مواضع غير واضحة مميزة داخل النص.');result['visual_verification_status']='uncertain'
         return result
     except Exception:
         result=copy.deepcopy(extracted);result['reviewed']=False;result['visual_verification_status']='unavailable'
         if 'sha' in locals() and 'input_sha' in locals():
-            result['visual_verification_proof']={'version':VERSION,'native_protocol_version':NATIVE_PROTOCOL_VERSION,'source_sha256':sha,'input_topics_sha256':input_sha,'pages':locals().get('proof',[]),'status':'unavailable'}
+            result['visual_verification_proof']={'version':VERSION,'native_protocol_version':NATIVE_PROTOCOL_VERSION,'source_sha256':sha,'input_topics_sha256':input_sha,'pages':locals().get('proof',[]),'cells':locals().get('cells',[]),'responses':locals().get('reading',{}).get('responses',[]),'identities':locals().get('reading',{}).get('identities',[]),'status':'unavailable'}
         _formal_warning(result,'لم تتوفر قراءة بصرية إضافية مكتملة؛ حُفظ محتوى التوصيف المستخرج.')
         return result

@@ -343,23 +343,23 @@ class ImageInputTests(unittest.TestCase):
         self.assertEqual(result['topics'][0]['text'],'نص خام 1');self.assertEqual(result['topics'][0]['corrected_text'],'النص الأصلي المصحح 6 '+image.UNKNOWN)
         self.assertEqual(result['visual_verification_status'],'uncertain')
 
-    def test_native_three_pages_use_one_multi_image_call_and_preserve_raw_text(self):
+    def test_native_three_pages_use_one_call_per_original_cell_and_preserve_raw_text(self):
         path=self.native(pages=3);source=self.extracted(3);before=copy.deepcopy(source)
-        caller=VisionCaller([answer([{'id':t['id'],'text':t['text']} for t in source['topics']])])
+        caller=VisionCaller([answer({t['id']:t['text']}) for t in source['topics']])
         result=image.verify_pdf_topics(path,source,self.cache,caller=caller)
         self.assertEqual(source,before);self.assertEqual(result['visual_verification_status'],'completed');self.assertFalse(result['reviewed'])
-        self.assertEqual([t['text'] for t in result['topics']],[t['text'] for t in source['topics']]);self.assertEqual(len(caller.chats),1)
-        self.assertEqual(len(caller.chats[0][1]['messages'][1]['images']),3);self.assertEqual(caller.chats[0][2],60)
+        self.assertEqual([t['text'] for t in result['topics']],[t['text'] for t in source['topics']]);self.assertEqual(len(caller.chats),3)
+        self.assertTrue(all(len(c[1]['messages'][1]['images'])==1 for c in caller.chats));self.assertTrue(all(c[2]==60 for c in caller.chats))
         self.assertEqual(len(result['visual_verification_proof']['pages']),3)
 
     def test_native_changed_reading_falls_back_only_on_affected_page(self):
         path=self.native(pages=3);source=self.extracted(3);source['topics'][1]['text']='Broken extracted letters 2'
         primary=[{'id':f't{i+1}','text':f'Topic {i+1} and details'} for i in range(3)]
-        caller=VisionCaller([answer(primary),answer([primary[1]])]);result=image.verify_pdf_topics(path,source,self.cache,caller=caller)
+        caller=VisionCaller([answer([primary[0]]),answer([primary[1]]),answer([primary[1]]),answer([primary[2]])]);result=image.verify_pdf_topics(path,source,self.cache,caller=caller)
         self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(result['topics'][1]['text'],'Broken extracted letters 2');self.assertEqual(result['topics'][1]['corrected_text'],'Topic 2 and details')
-        self.assertEqual(len(caller.chats),2);self.assertEqual(len(caller.chats[1][1]['messages'][1]['images']),1)
-        self.assertEqual([c[2] for c in caller.chats],[60,300])
-        self.assertIn('t2',caller.chats[1][1]['messages'][1]['content']);self.assertNotIn('t1',caller.chats[1][1]['messages'][1]['content'])
+        self.assertEqual(len(caller.chats),4);self.assertEqual(len(caller.chats[2][1]['messages'][1]['images']),1)
+        self.assertEqual([c[2] for c in caller.chats],[60,60,300,60])
+        self.assertIn('t2',caller.chats[2][1]['messages'][1]['content']);self.assertNotIn('t1',caller.chats[2][1]['messages'][1]['content'])
 
     def test_native_failure_is_best_effort_without_erasing_rows(self):
         source=self.extracted();path=self.native();before=copy.deepcopy(source);caller=VisionCaller([TimeoutError(),TimeoutError()])
@@ -515,7 +515,7 @@ class ImageInputTests(unittest.TestCase):
     def test_native_orthographic_agreement_keeps_primary_text_exactly(self):
         pairs=[('طرق التأليف فيه.','طرق التأليف فيه .'),
                ('حجية الإجماع','حجية الاجماع'),
-               ('آثارُ الإذن، وأحكامه.','اثار الاذن واحكامه'),
+               ('آثار الإذن، وأحكامه.','اثار الاذن واحكامه'),
                ('استعمال ٱلأدوات','استعمال الادوات')]
         for primary,second in pairs:
             with self.subTest(primary=primary):
@@ -547,7 +547,7 @@ class ImageInputTests(unittest.TestCase):
                 'warnings':[],'reviewed':False,'extraction_method':'native_grid'}
         primary={'t1':'طرق التأليف فيه.','t2':'حجية الإجماع'}
         second={'t1':'طرق التأليف فيه .','t2':'حجية الاجماع'}
-        caller=VisionCaller([answer(primary),answer(second)])
+        caller=VisionCaller([answer({'t1':primary['t1']}),answer({'t2':primary['t2']})])
         result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
         self.assertEqual(result['visual_verification_status'],'completed')
         self.assertEqual([t['corrected_text'] for t in result['topics']],list(primary.values()))
@@ -569,14 +569,14 @@ class ImageInputTests(unittest.TestCase):
                     self.assertIn(image.UNKNOWN,merged[0]['text'])
 
     def test_native_one_omitted_alef_mark_is_compatible_without_rewriting_primary(self):
-        for a,b in [('حجية الإجماع','حجية الاجماع'),('آيات','ايات'),('أَحكام','احكام'),('ٱلأدوات','الادوات')]:
+        for a,b in [('حجية الإجماع','حجية الاجماع'),('آيات','ايات'),('أحكام','احكام'),('ٱلأدوات','الادوات')]:
             for first,second in [(a,b),(b,a)]:
                 with self.subTest(first=first,second=second):
                     self.assertTrue(image._native_readings_agree(first,second,punctuation=False))
                     self.assertEqual(image._merge_text(first,second,native=True),first)
 
     def test_native_marked_alef_conflict_remains_uncertain_in_real_transcription_flow(self):
-        source=self.extracted();source['topics'][0]['text']='احكام الايمان'
+        source=self.extracted();source['topics'][0]['text']='أحكام الإيمان'
         caller=VisionCaller([answer({'t1':'أحكام الأيمان'}),answer({'t1':'أحكام الإيمان'})])
         result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
         self.assertEqual(result['visual_verification_status'],'uncertain')
@@ -584,3 +584,100 @@ class ImageInputTests(unittest.TestCase):
         self.assertEqual(result['topics'][0]['text'],source['topics'][0]['text'])
         self.assertEqual(calculate(source['topics'],result['topics'],[])['decision'],'insufficient')
         self.assertFalse(result['reviewed'])
+
+
+    def test_native_cells_on_same_page_are_separate_scale_three_images_with_private_relative_proofs(self):
+        source=self.extracted();source['topics'][0].update(text='تعريف المقاصد',bbox=[40,40,300,70])
+        source['topics'].append({'id':'t2','text':'أدلة اعتبارها','page':1,'bbox':[40,80,300,120]})
+        before=copy.deepcopy(source)
+        caller=VisionCaller([answer({'t1':'تعريف المقاصد'}),answer({'t2':'أدلة اعتبارها'})])
+        result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(source,before)
+        self.assertEqual(len(caller.chats),2)
+        self.assertEqual([c[1]['format']['properties']['rows']['required']for c in caller.chats],[['t1'],['t2']])
+        self.assertNotEqual(caller.chats[0][1]['messages'][1]['images'],caller.chats[1][1]['messages'][1]['images'])
+        proof=result['visual_verification_proof'];self.assertEqual(len(proof['cells']),2)
+        self.assertTrue(all(p['render_scale']==3 for p in proof['pages']))
+        directory=self.cache/image.VERSION/result['visual_verification_cache_key']
+        self.assertEqual(len(list(directory.glob('cells/*/cache.json'))),2)
+        for response in proof['responses']:
+            self.assertFalse(Path(response['file']).is_absolute());self.assertEqual(Path(response['file']).parts[0],'cells')
+            self.assertEqual(image._sha((directory/response['file']).read_bytes()),response['sha256'])
+        warm=VisionCaller([]);again=image.verify_pdf_topics(self.root/'native.pdf',source,self.cache,caller=warm)
+        self.assertEqual(warm.chats,[]);self.assertEqual(again['topics'],result['topics'])
+
+    def test_native_cell_continuations_all_stay_in_one_request_without_native_text(self):
+        source=self.extracted();source['topics'][0].update(text='نص سري لا يظهر للقارئ',end_page=3,
+            fragments=[{'page':2,'bbox':[40,20,300,70]}])
+        caller=VisionCaller([answer({'t1':'قراءة مستقلة كاملة'}),answer({'t1':'قراءة مستقلة كاملة'})])
+        result=image.verify_pdf_topics(self.native(pages=3),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'completed')
+        for _,payload,_ in caller.chats:
+            content=payload['messages'][1]['content'];self.assertNotIn('نص سري',content)
+            anchor=json.loads(content.split('\n')[-1])[0]
+            self.assertEqual(anchor['pages'],[1,2,3]);self.assertEqual(anchor['unlocated_pages'],[3])
+            self.assertEqual(len(payload['messages'][1]['images']),3)
+        self.assertFalse(result['visual_verification_proof']['pages'][2]['cropped_from_topic_bboxes'])
+        self.assertEqual(result['topics'][0]['end_page'],3)
+
+    def test_native_three_way_corrects_only_agreed_words_and_keeps_primary_punctuation(self):
+        native='وعلاقتها بالعلل والمصالح';primary='وعلاقتها، بالعلل والمصال.';second='وعلاقاتها بالعلل والمصالح'
+        self.assertEqual(image._native_three_way_text(native,primary,second),'وعلاقتها، بالعلل والمصالح.')
+        self.assertEqual(image._native_three_way_text('لا تجب النفقة','لا، تجب النفقة.','لا تجب النفقه'),'لا، تجب النفقة.')
+        self.assertIsNone(image._native_three_way_text('تجب النفقة','لا تجب النفقة','تجب النفقة'))
+        self.assertIsNone(image._native_three_way_text('تفسير 1-3','تفسير 1،3','تفسير 13'))
+        self.assertEqual(image._native_three_way_text('حكم خاص','حكم '+image.UNKNOWN,'حكم '+image.UNKNOWN),'حكم '+image.UNKNOWN)
+
+    def test_native_bare_alef_cannot_bridge_explicit_alef_or_diacritic_conflicts(self):
+        for native,first,second in [('احكام الايمان','أحكام الأيمان','أحكام الإيمان'),
+                                   ('المكره','المُكرِه','المُكرَه'),
+                                   ('المُكرِه','المُكرِه','المُكرَه')]:
+            with self.subTest(native=native):
+                self.assertIn(image.UNKNOWN,image._native_three_way_text(native,first,second))
+        self.assertFalse(image._native_readings_agree('المُكرِه','المُكرَه',punctuation=True))
+        self.assertIn(image.UNKNOWN,image._merge_text('المُكرِه','المُكرَه',native=True))
+        # Unmarked native alone does not corroborate the primary's new vowel.
+        self.assertIn(image.UNKNOWN,image._native_three_way_text('المكره','المُكرِه',image.UNKNOWN))
+        self.assertEqual(image._native_three_way_text('المكره','المُكرِه','المُكرِه'),'المُكرِه')
+
+    def test_native_punctuation_agreement_avoids_redundant_fallback_but_preserves_raw(self):
+        source=self.extracted();source['topics'][0]['text']='حجية الاجماع .'
+        raw=answer({'t1':'حجية الإجماع.'});before=copy.deepcopy(raw);caller=VisionCaller([raw])
+        result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(len(caller.chats),1)
+        self.assertEqual(result['topics'][0]['corrected_text'],'حجية الإجماع.');self.assertEqual(raw,before)
+
+    def test_native_diacritic_conflict_is_retained_in_raw_and_uncertain_after_blind_reads(self):
+        source=self.extracted();source['topics'][0]['text']='المكره'
+        first=answer({'t1':'المُكرِه'});second=answer({'t1':'المُكرَه'})
+        caller=VisionCaller([first,second]);result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'uncertain');self.assertIn(image.UNKNOWN,result['topics'][0]['corrected_text'])
+        raw=[json.loads(p.read_text())for p in self.cache.rglob('raw-response-*.json')]
+        self.assertCountEqual(raw,[first,second]);self.assertEqual(result['topics'][0]['text'],'المكره')
+
+    def test_native_failed_cell_retains_all_original_rows_and_relative_raw_attempts(self):
+        source=self.extracted();source['topics'][0]['text']='قراءة أصلية'
+        caller=VisionCaller([answer({'t1':image.UNKNOWN}),answer({})])
+        result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'unavailable');self.assertEqual(result['topics'],source['topics'])
+        proof=result['visual_verification_proof'];self.assertEqual(len(proof['responses']),2)
+        self.assertEqual(proof['cells'][0]['status'],'unavailable');self.assertEqual(len(proof['identities']),2)
+        self.assertTrue(all((p.parent/response['file']).exists() for p in self.cache.rglob('source.pdf')for response in proof['responses']))
+
+
+    def test_native_three_way_does_not_smuggle_unconfirmed_symbols_as_primary_punctuation(self):
+        self.assertIsNone(image._native_three_way_text('C','C++','C'))
+        self.assertIn(image.UNKNOWN,image._merge_text('C++','C',native=True))
+
+
+    def test_native_numbered_row_requires_fallback_for_unconfirmed_new_diacritics(self):
+        source=self.extracted();source['topics'][0]['text']='المكره ٣'
+        caller=VisionCaller([answer({'t1':'المُكرِه 3'}),answer({'t1':'المكره 3'})])
+        result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual([c[2]for c in caller.chats],[60,300])
+        self.assertEqual(result['visual_verification_status'],'uncertain')
+        self.assertIn(image.UNKNOWN,result['topics'][0]['corrected_text'])
+        self.assertNotIn('المُكرِه',result['topics'][0]['corrected_text'])
+        self.assertEqual(result['topics'][0]['text'],'المكره ٣')
+        self.assertEqual(result['visual_verification_proof']['numeric_disagreements'],[])
+        self.assertEqual(image._native_agreement_text('المكره ٣',punctuation=False),'المكره 3')

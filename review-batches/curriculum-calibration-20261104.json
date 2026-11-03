@@ -1,5 +1,5 @@
 {
-  "status": "deployed_public_cases_in_progress",
+  "status": "native_v6_verified_private_source_awaiting_activation",
   "baseline_commit": "6f4025e",
   "policy": {
     "course_coverage": 80,
@@ -131,7 +131,27 @@
         "unannounced_open_dharai_claim": false,
         "raw_categories_rebuilt_calculation": true
       }
-    }
+    },
+    "C01_explicit_regression": {
+      "status": "completed_insufficient_source_quality",
+      "first_experiment_preserved": true,
+      "additional_comparison_authorized": 1,
+      "expected_verdict_supplied": false,
+      "provider": "reference_pending",
+      "source_topics": 12,
+      "target_topics": 14,
+      "source_visual_status": "uncertain",
+      "unclear_markers": 11,
+      "unclear_rows": 6,
+      "semantic_model_calls": 0,
+      "strict_coverage": null,
+      "lenient_coverage": null,
+      "academic_judgment_experiment": false,
+      "comparison_POSTs": 1,
+      "PDF_pages": 3,
+      "PDF_all_pages_viewed": true
+    },
+    "new_cases_C02_through_C08_started": 0
   },
   "independent_CPU_audit": {
     "valid_boundary_cases": 25,
@@ -144,7 +164,7 @@
     "academic_accuracy_evidence": false
   },
   "native_OCR_correction": {
-    "status": "verified_locally_not_activated",
+    "status": "v5_real_reading_failed_quality_gate",
     "protocol": "native-map-v5-blind-spatial-reading",
     "both_readers_blind_to_native_text": true,
     "spatial_anchors": true,
@@ -161,7 +181,7 @@
     "independent_diff_review": true
   },
   "prompt_clarification": {
-    "status": "local_not_activated",
+    "status": "activated_C01_explicit_regression_in_progress",
     "reason": "independent_partial_audit_found_unrequested_depth_and_source_position_penalties",
     "rules": [
       "unit_order_does_not_weaken_explicit_evidence",
@@ -177,7 +197,7 @@
     "full_python_tests": 557
   },
   "adaptive_discovery_correction": {
-    "status": "local_not_activated",
+    "status": "activated_C01_explicit_regression_in_progress",
     "provisional_decisions": [
       "not_equivalent",
       "insufficient",
@@ -200,6 +220,52 @@
     "local_print_density_PDF_pages": 3,
     "visual_pages_reviewed": 3,
     "font_size_or_text_reduced": false,
-    "published_or_activated": false
+    "published_or_activated": true
+  },
+  "revised_release": {
+    "commit": "d402fe13eee38b20458fc55ee8319f3bacc863dd",
+    "deploy_id": "6aea5f1bccf72710c590f368",
+    "state": "ready",
+    "error_message": null,
+    "public_bytes_match": true,
+    "CI_run": "41730419434",
+    "CI": "success",
+    "worker_and_interactive_activated": true,
+    "API_model_tunnel_awake_preserved": true
+  },
+  "cell_diagnostic": {
+    "status": "one_cell_only_not_course_intake",
+    "source_PDF_same_original": true,
+    "scale": 3,
+    "blind_readers": 2,
+    "both_corrected_two_previous_word_errors": true,
+    "remaining_plural_disagreement": true,
+    "whole_course_report_issued": false
+  },
+  "native_v6": {
+    "protocol": "native-cell-v6-blind-three-way-reading",
+    "status": "verified_private_not_activated",
+    "python_tests": 566,
+    "node_chrome_tests": 202,
+    "skipped": 0,
+    "import_PDFs": 448,
+    "native_input_identical_to_previous_public_pipeline": true,
+    "model_calls": 14,
+    "seconds": 78.8,
+    "source_rows": 12,
+    "independent_visual_rows_checked": 12,
+    "raw_and_image_hashes_verified": true,
+    "content_gaps_found": 0,
+    "remaining_unknowns": 0,
+    "literal_rows_exact": 9,
+    "spacing_only_rows": 2,
+    "minor_omitted_hamza_rows": 1,
+    "omitted_hamza_instances": 2,
+    "reader_distribution": {
+      "Gemma_with_native_agreement": 10,
+      "Gemma_and_Qwen": 2
+    },
+    "course_verdict_issued": false,
+    "audit_sha256": "cdc74c9be868380f5638b221bb76f5405c4c240637b0e44aa92bc9938e8c3622"
   }
 }
