@@ -43,6 +43,14 @@ def audit_incomplete(error,rubric):
 
 def evidence_calculation(targets,sources,evidence):
     from .engine import RUBRIC_VERSION, calculate
+    if evidence.get('provider')=='curriculum_evidence':
+        from .bundle_engine import validate_curriculum_evidence
+        from .bundle_evidence import calculate as calculate_curriculum
+        validate_curriculum_evidence(evidence,targets,sources)
+        return calculate_curriculum(targets,sources,evidence['pairs'])
+    if evidence.get('provider')=='curriculum_exact':
+        from .curriculum_exact import calculate as calculate_exact
+        return calculate_exact(targets,sources,evidence,RUBRIC_VERSION)
     if evidence.get('provider')=='audit_incomplete':
         review=evidence.get('evidence_review')
         if (set(evidence)!={'provider','pairs','rubric','evidence_review'}

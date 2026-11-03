@@ -35,7 +35,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.equivalency.engine import RUBRIC_VERSION, EvidenceValidationError, calculate, compare, search, validate_pairs
+from scripts.equivalency.engine import RUBRIC_VERSION, EvidenceValidationError, calculate, search, validate_pairs
+from scripts.equivalency.bundle_engine import compare_curriculum as compare
 from scripts.equivalency.grounding import validate_evidence
 from scripts.equivalency.reference_quality import audit_incomplete, reference_pending, evidence_calculation, reference_problem, extraction_integrity, uploaded_target_reference
 from scripts.equivalency.extract import apply_readings, digest, extract_cached
@@ -622,7 +623,7 @@ class Processor:
                         raise ValueError('invalid_checkpoint_pairs')
                     if pairs:
                         validate_evidence(evidence, targets, sources)
-                    if evidence.get('provider')=='audit_incomplete':
+                    if evidence.get('provider') in ('audit_incomplete','curriculum_evidence','curriculum_exact'):
                         effective=lambda rows:[(t['id'],t.get('corrected_text') or t['text']) for t in rows]
                         expected_sources=clean_topics(value['payload'].get('source_topics',input_source['topics']),input_source['topics'])
                         expected_targets=clean_topics(value['payload'].get('target_topics',target['topics']),target['topics'])

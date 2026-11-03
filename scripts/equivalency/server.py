@@ -14,7 +14,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from .engine import RUBRIC_VERSION, EvidenceValidationError, calculate, compare, search, topic_text
+from .engine import RUBRIC_VERSION, EvidenceValidationError, calculate, search, topic_text
+from .bundle_engine import compare_curriculum as compare
 from .reference_quality import audit_incomplete, reference_pending, evidence_calculation, extraction_integrity, uploaded_target_reference
 from .extract import ROOT, digest, extract_pdf, extract_cached, apply_readings
 

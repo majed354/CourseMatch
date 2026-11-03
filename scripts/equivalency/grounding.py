@@ -350,6 +350,14 @@ def checked_review_batch(raw_reviews, targets, sources, requested):
 
 def validate_evidence(evidence, targets, sources):
     from .engine import RUBRIC_VERSION, validate_pairs
+    if evidence.get('provider')=='curriculum_evidence':
+        from .bundle_engine import validate_curriculum_evidence
+        validate_curriculum_evidence(evidence,targets,sources)
+        return
+    if evidence.get('provider')=='curriculum_exact':
+        from .curriculum_exact import validate_evidence as validate_exact
+        validate_exact(evidence,targets,sources,RUBRIC_VERSION)
+        return
     from .ranges import invalid_scope_topics
     if invalid_scope_topics(targets) or invalid_scope_topics(sources):
         raise ValueError('أدلة مقارنة على نطاق آيات يتجاوز حدود السورة؛ يلزم تصحيح المصدر')

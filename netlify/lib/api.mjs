@@ -8,12 +8,86 @@ const outputHeaders = {'Content-Type':'application/json; charset=utf-8','Cache-C
 const hidden = new Set(['input_pdf_key','pdf_key','worker_token','session_secret','local_path']);
 const unreadableReportMessage = 'تعذر اعتماد هذا الحكم لعدم ثبوت قراءة أحد التوصيفين.';
 const uncertainRejectionMessage = 'لم تثبت أدلة كافية لاعتماد حكم الرفض.';
+const unboundCurriculumMessage = 'لم تثبت مطابقة أدلة المحتوى مع المقررين محل المعادلة.';
+const tierSet=value=>Array.isArray(value)&&value.every(t=>['strict','lenient'].includes(t))&&new Set(value).size===value.length
+  &&(!value.includes('strict')||value.includes('lenient'))?new Set(value):null;
+const sameSet=(a,b)=>a.size===b.size&&[...a].every(item=>b.has(item));
+function curriculumCalculationMatches(value) {
+  const rows=value.evidence.pairs,calc=value.calculation,total=value.target.topics.length;
+  const sourceIds=new Set(value.source.topics.map(row=>row.id));
+  const confirmed={strict:new Map(),lenient:new Map()},possible={strict:new Set(),lenient:new Set()};
+  const minimum=band=>new Set(band==='strict'?['strict','lenient']:band==='lenient'?['lenient']:[]);
+  const validDeclaration=(band,possible,uncertainty)=>possible&&['none','non_decisive','decisive'].includes(uncertainty)
+    &&((band==='uncertain')===(uncertainty==='decisive'))
+    &&(band==='strict'?possible.has('strict')&&possible.has('lenient'):
+       band==='lenient'?possible.has('lenient')&&(!possible.has('strict')||uncertainty==='non_decisive'):
+       band==='weak'?possible.size===0:true);
+  for(const row of rows){
+    const a=row.adjudication,review=a?.review;
+    if (!plain(a)||!plain(review)||a.version!==value.evidence.contract.evidence_version
+        ||review.target_id!==row.target_id||!['strict','lenient','weak','uncertain'].includes(review.verdict)) return false;
+    const primaryPossible=tierSet(row.possible_tiers),reviewPossible=tierSet(review.possible_tiers);
+    const savedPossible=tierSet(a.possible_tiers),savedConfirmed=tierSet(a.confirmed_tiers);
+    if(!primaryPossible||!reviewPossible||!savedPossible||!savedConfirmed) return false;
+    if(!validDeclaration(row.band,primaryPossible,row.uncertainty)||!validDeclaration(review.verdict,reviewPossible,review.uncertainty))return false;
+    const agreed=new Set([...minimum(row.band)].filter(t=>minimum(review.verdict).has(t)));
+    const upper=new Set([...primaryPossible,...reviewPossible]);
+    const state=row.band===review.verdict&&row.band!=='uncertain'?'confirmed':agreed.size?'partial':'uncertain';
+    if(a.state!==state||!sameSet(agreed,savedConfirmed)||!sameSet(upper,savedPossible))return false;
+    if(!Array.isArray(review.facets))return false;
+    const quotes=review.facets.flatMap(f=>plain(f)&&Array.isArray(f.source_quotes)?f.source_quotes:[]);
+    if(quotes.some(q=>!plain(q)||typeof q.quote!=='string'||!q.quote.trim()||!value.source.topics.some(s=>s.id===q.source_id&&(s.corrected_text||s.text).includes(q.quote))))return false;
+    const used=new Set(quotes.map(q=>q.source_id));
+    if([...used].some(id=>!sourceIds.has(id)))return false;
+    for(const tier of ['strict','lenient']){
+      if(upper.has(tier))possible[tier].add(row.target_id);
+      if(agreed.has(tier)){
+        if(!used.size)return false;
+        confirmed[tier].set(row.target_id,used);
+      }
+    }
+  }
+  const ns=confirmed.strict.size,nl=confirmed.lenient.size;
+  const decision=ns*100>=80*total?'equivalent':nl*100>=80*total?'lenient':possible.lenient.size*100<80*total?'not_equivalent':'insufficient';
+  if(calc.decision!==decision||calc.total_topics!==total||calc.possible_strict_count!==possible.strict.size||calc.possible_lenient_count!==possible.lenient.size)return false;
+  for(const tier of ['strict','lenient']){
+    const pending=decision==='insufficient',count=pending?0:confirmed[tier].size;
+    if(calc[tier+'_count']!==count||calc[tier+'_coverage']!==(pending?null:100*count/total))return false;
+    const matches=calc[tier+'_matches'];if(!plain(matches))return false;
+    const expected=pending?new Map():confirmed[tier];
+    if(!sameSet(new Set(Object.keys(matches)),new Set(expected.keys())))return false;
+    for(const [tid,sources] of expected){if(!Array.isArray(matches[tid])||matches[tid].length!==sources.size||!sameSet(new Set(matches[tid]),sources))return false;}
+  }
+  return true;
+}
+function boundCurriculumReport(value) {
+  const evidence=value?.evidence;
+  if (!plain(evidence) || evidence.provider!=='curriculum_evidence'
+      || evidence.version!=='full-curriculum-evidence-v2-bands'
+      || evidence.contract?.evidence_version!=='curriculum-bundle-evidence-v2-bands'
+      || evidence.rubric!=='topic-alignment-80-60-v8-full-curriculum-evidence'
+      || value.calculation?.accounting!=='original_target_topics'
+      || evidence.scope_review?.complete!==true
+      || !Array.isArray(value.source?.topics) || !Array.isArray(value.target?.topics)) return false;
+  const texts=rows=>rows.map(row=>({id:row.id,text:row.corrected_text || row.text}));
+  const sides=[texts(value.target.topics),texts(value.source.topics)];
+  if (sides.some(rows=>!rows.length || rows.some(row=>typeof row.id!=='string' || !row.id || typeof row.text!=='string' || !row.text.trim())
+      || new Set(rows.map(row=>row.id)).size!==rows.length)) return false;
+  if (JSON.stringify(evidence.scope_review.target_ids)!==JSON.stringify(sides[0].map(row=>row.id))
+      || JSON.stringify(evidence.scope_review.source_ids)!==JSON.stringify(sides[1].map(row=>row.id))) return false;
+  if (!Array.isArray(evidence.pairs) || evidence.pairs.length!==sides[0].length
+      || new Set(evidence.pairs.map(row=>row?.target_id)).size!==sides[0].length
+      || evidence.pairs.some(row=>!plain(row) || !sides[0].some(t=>t.id===row.target_id)
+        || !['strict','lenient','weak','uncertain'].includes(row.band) || Object.hasOwn(row,'score'))) return false;
+  return createHash('sha256').update(JSON.stringify(sides)).digest('hex')===evidence.inputs_sha256&&curriculumCalculationMatches(value);
+}
 function unverifiedUpload(value) {
   return plain(value) && value.upload_pdf === true && ['unavailable','uncertain'].includes(value.visual_verification_status);
 }
 function unsafeFinalReport(value, ...trustedInputs) {
+  if (plain(value) && value.evidence?.provider==='curriculum_evidence' && !boundCurriculumReport(value)) return unboundCurriculumMessage;
   if (!plain(value) || !['equivalent','lenient','not_equivalent'].includes(value.calculation?.decision)) return null;
-  if (value.calculation.decision === 'not_equivalent' && Array.isArray(value.evidence?.pairs)
+  if (value.evidence?.provider!=='curriculum_evidence' && value.calculation.decision === 'not_equivalent' && Array.isArray(value.evidence?.pairs)
       && value.evidence.pairs.some(pair => pair?.adjudication?.state === 'uncertain'
         && Array.isArray(pair.adjudication.possible_tiers) && pair.adjudication.possible_tiers.includes('lenient'))) {
     return uncertainRejectionMessage;

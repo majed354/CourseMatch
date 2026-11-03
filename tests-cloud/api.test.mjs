@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {createApi} from '../netlify/lib/api.mjs';
 import {MAX_PDF_BYTES, sessionCodec, contextScope} from '../netlify/lib/security.mjs';
 import {MemoryRepository,MemoryPdfs} from './helpers.mjs';
@@ -7,6 +8,33 @@ import {MemoryRepository,MemoryPdfs} from './helpers.mjs';
 const env = {CONTEXT:'production',COURSEMATCH_SESSION_SECRET:'test-only-session-secret-with-32-characters',COURSEMATCH_WORKER_TOKEN:'test-only-worker-secret-with-32-characters'};
 const course = {id:'a'.repeat(20),code:'2001',name:'مدخل إلى علوم القرآن',context_id:'plan47',context:{program:'القرآن وعلومه',degree:'بكالوريوس',version:'47'},source_pdf:'assets/course-specifications/sample.pdf',topics:[{id:'t1',text:'أسباب النزول'}]};
 const catalog = {catalog_id:'catalog-fixture',contexts:[{id:'plan47'}],courses:[course],library_sources:[{...course,id:'b'.repeat(20),context_id:null,context:null}]};
+function curriculumEvidence(source,target,firstBand='uncertain') {
+ const sides=[target.topics,source.topics].map(rows=>rows.map(row=>({id:row.id,text:row.corrected_text || row.text})));
+ const parts=band=>band==='strict'?['strict','lenient']:band==='lenient'?['lenient']:band==='uncertain'?['lenient']:[];
+ const uncertainty=band=>band==='uncertain'?'decisive':'none';
+ const proof=()=>[{part_id:'p1',support:'aligned',source_quotes:[{source_id:source.topics[0].id,quote:source.topics[0].corrected_text||source.topics[0].text}],reason:'شاهد بيانات اختبار.'}];
+ return {provider:'curriculum_evidence',version:'full-curriculum-evidence-v2-bands',rubric:'topic-alignment-80-60-v8-full-curriculum-evidence',
+   contract:{evidence_version:'curriculum-bundle-evidence-v2-bands'},
+   inputs_sha256:createHash('sha256').update(JSON.stringify(sides)).digest('hex'),
+   scope_review:{target_ids:target.topics.map(t=>t.id),source_ids:source.topics.map(t=>t.id),complete:true},
+   pairs:target.topics.map((topic,i)=>{const band=i===0?firstBand:'weak';return {target_id:topic.id,band,possible_tiers:parts(band),uncertainty:uncertainty(band),facets:proof(),reason:'بيانات عقد اختبار.',
+     adjudication:{version:'curriculum-bundle-evidence-v2-bands',state:band==='uncertain'?'uncertain':'confirmed',confirmed_tiers:band==='strict'?['lenient','strict']:band==='lenient'?['lenient']:[],possible_tiers:parts(band),
+       review:{target_id:topic.id,verdict:band,possible_tiers:parts(band),uncertainty:uncertainty(band),facets:proof(),reason:'بيانات مراجعة اختبار.'}}}})};
+}
+function curriculumCalculation(evidence,target) {
+ const total=target.topics.length,matches={strict:{},lenient:{}},possible={strict:0,lenient:0};
+ for(const p of evidence.pairs)for(const tier of ['strict','lenient']){
+  if(p.adjudication.possible_tiers.includes(tier))possible[tier]++;
+  if(p.adjudication.confirmed_tiers.includes(tier))matches[tier][p.target_id]=[...new Set(p.adjudication.review.facets.flatMap(f=>f.source_quotes.map(q=>q.source_id)))];
+ }
+ const ns=Object.keys(matches.strict).length,nl=Object.keys(matches.lenient).length;
+ const decision=ns*100>=80*total?'equivalent':nl*100>=80*total?'lenient':possible.lenient*100<80*total?'not_equivalent':'insufficient';
+ const pending=decision==='insufficient';
+ return {decision,accounting:'original_target_topics',total_topics:total,strict_count:pending?0:ns,lenient_count:pending?0:nl,
+   strict_coverage:pending?null:100*ns/total,lenient_coverage:pending?null:100*nl/total,strict_matches:pending?{}:matches.strict,lenient_matches:pending?{}:matches.lenient,
+   possible_strict_count:possible.strict,possible_lenient_count:possible.lenient};
+}
+
 function setup(options = {}) {
   let now = Date.UTC(2026,10,2,12);
   const repository = options.repository || new MemoryRepository(),pdfs = options.pdfs || new MemoryPdfs();
@@ -578,4 +606,88 @@ test('positive verdicts, pending studies and definitive weak or excluded rejecti
   const returned=await(await s.request('/api/jobs/'+id,{cookie:a.cookie})).json();assert.equal(returned.status,'done');assert.equal(returned.result.calculation.decision,fixture.decision);assert.deepEqual(returned.result.evidence,evidence);
   const saved=await s.post('/api/reports/'+id+'/beneficiary',{beneficiary:{name:'مستفيد محفوظ',number:'SAFE'}},a);assert.equal(saved.status,200);assert.deepEqual((await saved.json()).evidence,evidence);
  }
+});
+
+test('bound full-curriculum rejection is allowed despite a nondecisive possible target and stays private',async()=>{
+ const target={...course,topics:Array.from({length:5},(_,i)=>({id:'t'+(i+1),text:'موضوع الهدف '+(i+1)}))};
+ const s=setup({catalog:{...catalog,courses:[target]}}),a=await s.bootstrap(),b=await s.bootstrap(),source=await s.source(a);
+ const {id}=await(await s.post('/api/jobs',{source_id:source.id,target_id:target.id,review_mode:'automatic'},a)).json();
+ const task=(await(await s.worker('claim',{worker_id:'full-curriculum-tested'})).json()).task;
+ const evidence=curriculumEvidence(source,target);
+ const calculation=curriculumCalculation(evidence,target);
+ assert.equal(calculation.decision,'not_equivalent');assert.equal(calculation.possible_lenient_count,1);
+ const result={source,target,catalog_id:catalog.catalog_id,evidence,calculation};
+ assert.equal((await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result})).status,200);
+ const returned=await(await s.request('/api/jobs/'+id,{cookie:a.cookie})).json();
+ assert.equal(returned.status,'done');assert.deepEqual(returned.result.calculation,calculation);
+ assert.deepEqual(returned.result.evidence,evidence);
+ assert.equal((await s.post('/api/reports/'+id+'/beneficiary',{beneficiary:{number:'SAFE-CURRICULUM'}},a)).status,200);
+ assert.equal((await s.request('/api/jobs/'+id,{cookie:b.cookie})).status,404);
+});
+
+test('curriculum proof cannot be accepted with changed text, incomplete source scope or a relabeled rubric',async()=>{
+ for(const mutate of [
+   r=>{r.source.topics=[{...r.source.topics[0],text:'محتوى آخر لا يطابق البصمة'}]},
+   r=>{r.evidence.scope_review.source_ids=[]},
+   r=>{r.evidence.scope_review.target_ids=[]},
+   r=>{r.evidence.scope_review.complete=false},
+   r=>{r.evidence.rubric='old-rubric'},
+   r=>{r.evidence.inputs_sha256='0'.repeat(64)},
+   r=>{r.calculation.accounting='source_rows'},
+   r=>{r.evidence.pairs[0].score=8},
+   r=>{r.evidence.pairs=[]},
+   r=>{r.calculation.strict_coverage=0},
+   r=>{r.calculation.total_topics++},
+   r=>{r.calculation.decision='not_equivalent'},
+   r=>{r.calculation.strict_matches.t1=['FOREIGN_SOURCE']},
+   r=>{r.evidence.pairs[0].adjudication.confirmed_tiers=['lenient']},
+   r=>{r.evidence.pairs[0].adjudication.possible_tiers=[]}
+ ]){
+  const s=setup(),a=await s.bootstrap(),source=await s.source(a);
+  const {id}=await(await s.post('/api/jobs',{source_id:source.id,target_id:course.id,review_mode:'automatic'},a)).json();
+  const task=(await(await s.worker('claim',{worker_id:'bound-input-test'})).json()).task;
+  const result={source:structuredClone(source),target:course,catalog_id:catalog.catalog_id,evidence:curriculumEvidence(source,course,'strict'),
+    calculation:curriculumCalculation(curriculumEvidence(source,course,'strict'),course)};
+  mutate(result);
+  const response=await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result});
+  assert.equal(response.status,400);assert.equal((await response.json()).error,'لم تثبت مطابقة أدلة المحتوى مع المقررين محل المعادلة.');
+  assert.equal([...s.repository.artifacts.values()].filter(r=>r.kind==='report').length,0);
+ }
+});
+
+test('historical curriculum binding failure is hidden without raw mutation or beneficiary revival',async()=>{
+ const s=setup(),a=await s.bootstrap(),source=await s.source(a);
+ const {id}=await(await s.post('/api/jobs',{source_id:source.id,target_id:course.id,review_mode:'automatic'},a)).json();
+ const task=(await(await s.worker('claim',{worker_id:'historical-curriculum-test'})).json()).task;
+ const result={source,target:course,catalog_id:catalog.catalog_id,evidence:curriculumEvidence(source,course),
+   calculation:curriculumCalculation(curriculumEvidence(source,course),course)};
+ assert.equal((await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result})).status,200);
+ const rawTask=[...s.repository.tasks.values()].find(r=>r.id===id),rawArtifact=[...s.repository.artifacts.values()].find(r=>r.id===id);
+ rawTask.result.evidence.inputs_sha256='incorrect-historical-binding';rawArtifact.value.evidence.inputs_sha256='incorrect-historical-binding';
+ const before=JSON.stringify([rawTask,rawArtifact]);
+ const blocked=await(await s.request('/api/jobs/'+id,{cookie:a.cookie})).json();
+ assert.equal(blocked.status,'error');assert.equal(blocked.result,undefined);
+ assert.equal((await s.post('/api/reports/'+id+'/beneficiary',{beneficiary:{number:'SHOULD-NOT-REVIVE'}},a)).status,400);
+ assert.equal(JSON.stringify([rawTask,rawArtifact]),before);
+});
+
+test('publication independently verifies shared tolerance at exactly eighty while strict remains possible',async()=>{
+ const target={...course,topics:Array.from({length:5},(_,i)=>({id:'t'+i,text:'مبحث اختبار رمزي '+i}))};
+ const s=setup({catalog:{...catalog,courses:[target]}}),a=await s.bootstrap(),source=await s.source(a);
+ const {id}=await(await s.post('/api/jobs',{source_id:source.id,target_id:target.id,review_mode:'automatic'},a)).json();
+ const task=(await(await s.worker('claim',{worker_id:'nested-threshold-consensus'})).json()).task;
+ const evidence=curriculumEvidence(source,target,'strict');
+ const strict=structuredClone(evidence.pairs[0]);
+ for(let i=1;i<4;i++){evidence.pairs[i]=structuredClone(strict);evidence.pairs[i].target_id='t'+i;evidence.pairs[i].adjudication.review.target_id='t'+i;}
+ const partial=evidence.pairs[3];partial.adjudication.state='partial';partial.adjudication.confirmed_tiers=['lenient'];
+ Object.assign(partial.adjudication.review,{verdict:'lenient',possible_tiers:['strict','lenient'],uncertainty:'non_decisive'});
+ const calculation=curriculumCalculation(evidence,target);
+ assert.equal(calculation.strict_count,3);assert.equal(calculation.lenient_count,4);assert.equal(calculation.lenient_coverage,80);
+ assert.equal(calculation.possible_strict_count,4);assert.equal(calculation.decision,'lenient');
+ const before=JSON.stringify(evidence);
+ assert.equal((await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result:{source,target,catalog_id:catalog.catalog_id,evidence,calculation}})).status,200);
+ const returned=await(await s.request('/api/jobs/'+id,{cookie:a.cookie})).json();
+ assert.equal(returned.status,'done');assert.deepEqual(returned.result.calculation,calculation);
+ assert.equal(returned.result.evidence.pairs[3].band,'strict');assert.equal(returned.result.evidence.pairs[3].adjudication.review.verdict,'lenient');
+ assert.equal(JSON.stringify(evidence),before);
 });

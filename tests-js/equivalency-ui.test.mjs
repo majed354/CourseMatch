@@ -958,3 +958,111 @@ test('unresolved semantic alternatives cannot appear as a rejection or zero cove
   assert.doesNotMatch(html,/(?:^|[^\d٠-٩])(?:0(?:[.,]0+)?|٠(?:[٫,]٠+)?)\s*%/u);
   assert.equal(JSON.stringify(input),before);
 });
+
+function curriculumFixture({pending=false,exact=false}={}) {
+ const report=reportFixture({decision:pending?'insufficient':'equivalent',total:2,strict:2,lenient:2});
+ report.source.topics=[{id:'s0',text:'تعريف العلم ونشأته. أهميته ومصنفاته.',page:6,end_page:7},{id:'s1',text:'أبرز المصنفات ومناهجها.',page:8}];
+ report.target.topics=[{id:'t0',text:'تعريف العلم ونشأته.',page:4},{id:'t1',text:'أهمية العلم ومصنفاته.',page:5}];
+ const facet=(id,quote)=>({part_id:'p1',support:'aligned',source_quotes:[{source_id:id,quote}],reason:'شاهد موضوعي.'});
+ report.evidence={provider:exact?'curriculum_exact':'curriculum_evidence',pairs:report.target.topics.map((t,i)=>exact?
+  {target_id:t.id,source_ids:i?['s0','s1']:['s0'],score:100,reason:'تثبت النصوص نطاق مفردة الهدف.'}:
+  {target_id:t.id,score:pending?0:90,reason:'PRIVATE_PROPOSAL_REASON',facets:[facet('s0','PRIVATE_PROPOSAL_QUOTE')],adjudication:{state:pending?'uncertain':'confirmed',possible_tiers:['strict','lenient'],review:{reason:pending?'PRIVATE_UNCONFIRMED_ABSENCE':'تغطي الشواهد نطاق المفردة كاملًا.',facets:i?[facet('s0','أهميته ومصنفاته.'),facet('s0','أهميته ومصنفاته.'),facet('s1','أبرز المصنفات ومناهجها.')]:[facet('s0','تعريف العلم ونشأته.')]}}}),model:'PRIVATE_MODEL',prompt:'PRIVATE_PROMPT',cache:'PRIVATE_CACHE'};
+ report.calculation.strict_matches=pending?{}:{t0:['s0'],t1:['s0','s1']};report.calculation.lenient_matches=pending?{}:{t0:['s0'],t1:['s0','s1']};
+ report.calculation.accounting='original_target_topics';
+ return report;
+}
+
+test('whole-curriculum report counts each original target once and reuses one source only as distinct evidence',()=>{
+ const input=curriculumFixture(),before=JSON.stringify(input),{element}=renderedReport(input),table=element('report').querySelector('.curriculum-details-table');
+ const rows=table.querySelectorAll('[data-target-id]');assert.deepEqual(rows.map(r=>r.dataset.targetId),['t0','t1']);assert.equal(table.querySelectorAll('th').length,3);
+ assert.ok(rows.every(r=>r.children.length===3));assert.match(rows[0].children[1].textContent,/تعريف العلم ونشأته/);assert.match(rows[1].children[1].textContent,/أهميته ومصنفاته/);
+ assert.ok(rows.every(r=>r.children[2].textContent.includes('الدقيق: محتسبة')&&r.children[2].textContent.includes('المتسامح: محتسبة')));
+ assert.equal(element('report').querySelectorAll('.coverage-card')[0].dataset.total,'2');assert.equal(JSON.stringify(input),before);
+});
+
+test('multiple source witnesses are shown once with page spans using independent reviewed quotations',()=>{
+ const {element,html}=renderedReport(curriculumFixture()),row=element('report').querySelectorAll('[data-target-id]')[1],witnesses=row.querySelectorAll('.source-witness');
+ assert.equal(witnesses.length,2);assert.equal(row.querySelectorAll('.source-quotation').length,2);
+ assert.match(witnesses[0].textContent,/ص 6–7/);assert.match(witnesses[1].textContent,/ص 8/);
+ assert.equal((row.textContent.match(/أهميته ومصنفاته\./g)||[]).length,1);assert.match(row.textContent,/تغطي الشواهد نطاق المفردة كاملًا/);
+ for(const secret of ['PRIVATE_PROPOSAL_REASON','PRIVATE_PROPOSAL_QUOTE','PRIVATE_MODEL','PRIVATE_PROMPT','PRIVATE_CACHE'])assert.ok(!html.includes(secret));
+});
+
+test('curriculum accounting uses saved unique target matches rather than scores or quote counts',()=>{
+ const input=curriculumFixture();input.calculation.decision='lenient';input.calculation.strict_matches={t0:['s0']};input.calculation.strict_count=1;input.calculation.strict_coverage=50;
+ const {element}=renderedReport(input),row=element('report').querySelectorAll('[data-target-id]')[1];
+ assert.match(row.children[2].textContent,/توافق دقيق · 80% فأعلى/);assert.ok(!row.children[2].textContent.includes('90%'));assert.match(row.children[2].textContent,/الدقيق: غير محتسبة/);assert.match(row.children[2].textContent,/المتسامح: محتسبة/);
+ assert.equal(element('report').querySelectorAll('.coverage-card')[0].dataset.count,'1');
+});
+
+test('pending curriculum evidence stays visible without a zero grade, definitive absence or approval',()=>{
+ const input=curriculumFixture({pending:true}),before=JSON.stringify(input),{html,element}=renderedReport(input),rows=element('report').querySelectorAll('[data-target-id]');
+ assert.equal(rows.length,2);assert.equal(rows[1].querySelectorAll('.source-witness').length,2);assert.match(rows[1].textContent,/شواهد غير محسومة/);
+ assert.ok(rows.every(r=>r.children[2].textContent.includes('غير محسوم')&&r.children[2].textContent.includes('الدقيق: لم يُحسم')));
+ assert.match(html,/report-stamp pending/);assert.ok(!html.includes('report-stamp approved'));assert.ok(!html.includes('PRIVATE_UNCONFIRMED_ABSENCE'));assert.doesNotMatch(html,/(?:^|[^\d])0(?:\.0+)?\s*%/u);
+ assert.equal(JSON.stringify(input),before);
+});
+
+test('exact curriculum reports display every contributing source and omit internal scope proof',()=>{
+ const input=curriculumFixture({exact:true});input.evidence.pairs[1].scope_proof={stage:'PRIVATE_SCOPE_PROOF'};
+ const {html,element}=renderedReport(input),rows=element('report').querySelectorAll('[data-target-id]');
+ assert.equal(rows[0].querySelectorAll('.source-witness').length,1);assert.equal(rows[1].querySelectorAll('.source-witness').length,2);
+ assert.match(rows[1].textContent,/أبرز المصنفات ومناهجها/);assert.match(rows[1].textContent,/100%/);assert.ok(!html.includes('PRIVATE_SCOPE_PROOF'));
+});
+
+test('curriculum quotations are escaped and deduplicated by source and exact quote rather than text alone',()=>{
+ const input=curriculumFixture(),review=input.evidence.pairs[1].adjudication.review;
+ const quote='<script>PRIVATE_UNTRUSTED_MARKUP</script>';review.facets=[{source_quotes:[{source_id:'s0',quote},{source_id:'s0',quote},{source_id:'s1',quote}]}];
+ const {html,element}=renderedReport(input),row=element('report').querySelectorAll('[data-target-id]')[1];
+ assert.equal(row.querySelectorAll('.source-quotation').length,2);assert.ok(!html.includes('<script>PRIVATE_UNTRUSTED_MARKUP'));assert.match(html,/&lt;script&gt;PRIVATE_UNTRUSTED_MARKUP/);
+});
+
+test('curriculum HTML and JSON exports preserve all targets and raw private evidence only in JSON',async()=>{
+ const input=curriculumFixture();input.evidence.pairs[0].score=95;const {element,context}=renderedReport(input);context.exports=[];
+ context.fetch=async route=>route==='/style.css'?{ok:true,text:async()=>fs.readFileSync(new URL('../equivalency-pilot/style.css',import.meta.url),'utf8')}:{ok:true,arrayBuffer:async()=>new Uint8Array([1,2,3]).buffer};
+ vm.runInContext('download=(name,text,type)=>exports.push({name,text,type})',context);
+ await element('htmlButton').onclick({target:element('htmlButton')});await element('jsonButton').onclick({target:element('jsonButton')});
+ const output=JSON.parse(JSON.stringify(context.exports)),html=output.find(o=>o.type==='text/html').text,json=JSON.parse(output.find(o=>o.type==='application/json').text);
+ assert.equal((html.match(/data-target-id=/g)||[]).length,2);assert.match(html,/curriculum-details-table/);assert.match(html,/data:font\/ttf;base64,/);assert.ok(!html.includes('PRIVATE_PROMPT'));assert.equal(json.evidence.prompt,'PRIVATE_PROMPT');assert.ok(!html.includes('95%'));assert.match(html,/توافق دقيق · <bdi dir="ltr">80%<\/bdi> فأعلى/);assert.ok(html.includes('تعريف العلم ونشأته.'));assert.ok(html.includes('تغطي الشواهد نطاق المفردة كاملًا.'));assert.equal(json.evidence.pairs[0].score,95);assert.deepEqual(json,JSON.parse(JSON.stringify(input)));
+});
+
+
+test('semantic agreement displays threshold categories while exact scope keeps its calculated percentage',()=>{
+ for(const [score,label] of [[59,'دون 60%'],[60,'توافق مع التسامح · 60% فأعلى'],[79,'توافق مع التسامح · 60% فأعلى'],[80,'توافق دقيق · 80% فأعلى'],[95,'توافق دقيق · 80% فأعلى']]){
+  const input=curriculumFixture();input.evidence.pairs[0].score=score;const before=JSON.stringify(input),{element}=renderedReport(input);
+  assert.equal(element('report').querySelector('.curriculum-verdict').querySelector('.match-state').textContent,label);assert.equal(JSON.stringify(input),before);
+ }
+ const input=curriculumFixture({exact:true});input.evidence.pairs[0].score=95;
+ assert.match(renderedReport(input).element('report').querySelector('.curriculum-verdict').textContent,/95%/);
+});
+
+test('categorical curriculum evidence is rendered and exported without inventing a point score',async()=>{
+ const input=curriculumFixture();
+ for(const pair of input.evidence.pairs){delete pair.score;pair.band='lenient';pair.adjudication.review.verdict='lenient';}
+ input.calculation={...input.calculation,decision:'lenient',strict_count:0,strict_coverage:0,strict_matches:{}};
+ const before=JSON.stringify(input),{element,context}=renderedReport(input);
+ const rows=element('report').querySelectorAll('[data-target-id]');
+ assert.ok(rows.every(row=>row.children[2].textContent.includes('توافق مع التسامح · 60% فأعلى')));
+ assert.ok(rows.every(row=>!row.children[2].textContent.includes('100%')));
+ context.exports=[];vm.runInContext('download=(name,text,type)=>exports.push({name,text,type})',context);
+ await element('jsonButton').onclick({target:element('jsonButton')});
+ const exported=JSON.parse(context.exports[0].text);
+ assert.equal(JSON.stringify(exported),before);
+ assert.ok(exported.evidence.pairs.every(pair=>pair.band==='lenient'&&!Object.hasOwn(pair,'score')));
+ assert.equal(JSON.stringify(input),before);
+});
+
+test('shared lenient threshold remains visible when readers differ about strict agreement',()=>{
+ const input=curriculumFixture();
+ for(const pair of input.evidence.pairs){delete pair.score;pair.band='strict';pair.adjudication.confirmed_tiers=['lenient','strict'];}
+ const pair=input.evidence.pairs[0];pair.adjudication.state='partial';pair.adjudication.confirmed_tiers=['lenient'];
+ pair.adjudication.review.verdict='lenient';pair.adjudication.review.reason='صلة معتبرة مع نقص محدد غير حاسم لحد التسامح.';
+ input.calculation={...input.calculation,decision:'lenient',strict_count:1,strict_coverage:50,strict_matches:{t1:['s0','s1']}};
+ const before=JSON.stringify(input),first=renderedReport(input).element('report').querySelectorAll('[data-target-id]')[0];
+ assert.match(first.textContent,/توافق مع التسامح · 60% فأعلى/);assert.match(first.textContent,/الدقيق: غير محتسبة/);
+ assert.match(first.textContent,/المتسامح: محتسبة/);assert.match(first.textContent,/نقص محدد/);assert.equal(JSON.stringify(input),before);
+ pair.band='lenient';pair.reason='ثبت حد التسامح مع تفصيل إضافي لم يثبت.';
+ pair.facets=[{source_quotes:[{source_id:'s0',quote:'تعريف العلم ونشأته.'}]}];pair.adjudication.review.verdict='strict';
+ const second=renderedReport(input).element('report').querySelectorAll('[data-target-id]')[0];
+ assert.match(second.textContent,/ثبت حد التسامح/);assert.match(second.textContent,/توافق مع التسامح · 60% فأعلى/);
+});

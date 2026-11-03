@@ -1,0 +1,87 @@
+{
+  "status": "frozen_release_candidate_awaiting_public_cases",
+  "baseline_commit": "6f4025e",
+  "policy": {
+    "course_coverage": 80,
+    "strict_topic": 80,
+    "lenient_topic": 60,
+    "denominator": "original_target_topics",
+    "facet_weights": null,
+    "source_row_capacity": null,
+    "tolerance_lower_bound_inclusive": true,
+    "tolerance_requires_disproving_strict": false,
+    "confirmed_consensus": "intersection_of_established_thresholds",
+    "possible_consensus": "union",
+    "semantic_point_score_generated": false,
+    "strict_does_not_require_every_detail_complete": true
+  },
+  "academic_baseline": {
+    "frozen_SHA256": "a096f890ec62d06bfd7c55fcaede08c8ddeecb80af886128f83a2ba2f5cc3cdf",
+    "cases": 8,
+    "source_PDFs": 7,
+    "reference_PDFs": 7,
+    "universities": 3,
+    "original_target_topics": 104,
+    "review_parts": 118,
+    "topic_pages_visually_read": 26,
+    "labels_given_to_model": false,
+    "new_case_comparisons_started": 0
+  },
+  "prototype": {
+    "kind": "development_on_known_KSU_case_pre_current_contract",
+    "model_calls": 6,
+    "elapsed_seconds_approx": 903,
+    "terminal": "evidence_validation_error_before_blind_review",
+    "course_report_issued": false,
+    "raw_outputs_preserved": true,
+    "failure": "strict score with related facets persisted in target13"
+  },
+  "independent_development_review": {
+    "targets": 8,
+    "parts": 24,
+    "literal_quotes": 22,
+    "missing_qualifier_found": true,
+    "grade_inferred_from_facet_count": false
+  },
+  "verification_so_far": {
+    "python_last_full": 530,
+    "node_chrome_last_full": 198,
+    "final_full_checks_pending": true
+  },
+  "private_evidence_root": "runtime/service/qa/compound-calibration-20261103/",
+  "semantic_engine_version": "full-curriculum-evidence-v2-bands",
+  "rubric": "topic-alignment-80-60-v8-full-curriculum-evidence",
+  "verified_local": {
+    "python": 554,
+    "node_chrome": 201,
+    "skipped": 0,
+    "import_appearances": 993,
+    "contexts": 21,
+    "PDFs": 448
+  },
+  "policy_sidecar": {
+    "sha256": "22d99c68d276386053d6360ca2d16545e62db1b8266120682f7febc31b76f686",
+    "before_any_new_case_model_result": true,
+    "facts_changed": false
+  },
+  "native_smoke": {
+    "kind": "two_known_target_subset_not_course_judgment",
+    "source_topics": 12,
+    "model_calls": 2,
+    "original_point_scores": false,
+    "rows": [
+      {
+        "target_id": "t1",
+        "primary": "strict",
+        "review": "strict"
+      },
+      {
+        "target_id": "t4",
+        "primary": "lenient",
+        "review": "lenient"
+      }
+    ],
+    "whole_course_verdict_issued": false
+  },
+  "new_cases_started": 0
+}

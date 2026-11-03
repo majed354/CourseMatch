@@ -130,3 +130,18 @@ textarea[readonly]{background:#f5f8fa;border-color:#dce6eb;cursor:default}.refer
 }
 @media print{.equivalency-report .report-end{display:none}}
 /* End reserved print footer. */
+
+/* Whole-curriculum evidence: each original target appears once, with its source witnesses. */
+.curriculum-details-table th:nth-child(1){width:30%}.curriculum-details-table th:nth-child(2){width:38%}.curriculum-details-table th:nth-child(3){width:32%}
+.curriculum-details-table .source-witness+.source-witness{margin-top:9px;padding-top:9px;border-top:1px solid #e4ecf0}
+.curriculum-details-table .source-quotation{margin:4px 0;white-space:pre-line}.curriculum-details-table .source-quotation+.source-quotation{padding-top:4px}
+.curriculum-accounting{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}.curriculum-account{font-size:9px;padding:3px 6px;border-radius:4px;background:#eef2f5;color:#526b79}.curriculum-account.strict{background:#e6f4f0;color:#076466}.curriculum-account.lenient{background:#fbf2dd;color:#78591a}.witness-pending{display:block;font-size:9px;color:#78591a;margin-bottom:7px}
+@media screen and (max-width:700px){.equivalency-report .details-table.curriculum-details-table{min-width:580px}}
+@media print{.curriculum-details-table .source-witness+.source-witness{margin-top:6px;padding-top:6px}.curriculum-accounting{gap:3px;margin-top:6px}.curriculum-account{font-size:7px;padding:2px 4px}.witness-pending{font-size:7px;margin-bottom:5px}}
+@media screen and (max-width:700px){
+ .equivalency-report .details-table.curriculum-details-table{min-width:0;display:block}
+ .curriculum-details-table thead{display:none}.curriculum-details-table tbody,.curriculum-details-table tr,.curriculum-details-table td{display:block;width:auto}
+ .equivalency-report .curriculum-details-table td{border-left:0}.equivalency-report .curriculum-details-table tr:not(:last-child){border-bottom:2px solid #cfdde5}
+ .curriculum-details-table .curriculum-witnesses:before,.curriculum-details-table .curriculum-verdict:before{display:block;font-size:10px;font-weight:bold;color:var(--report-navy);margin-bottom:7px}
+ .curriculum-details-table .curriculum-witnesses:before{content:'شواهد المصدر'}.curriculum-details-table .curriculum-verdict:before{content:'التوافق والاحتساب'}
+}

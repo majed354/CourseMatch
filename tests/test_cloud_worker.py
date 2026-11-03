@@ -849,7 +849,7 @@ class UploadedTargetTests(UploadedTargetFixture):
         value,raw=self.uploaded_task(topics);value['payload']['source']['topics']=[{'id':'s1','text':first}]
         with patch('scripts.equivalency.engine.post_ollama',side_effect=AssertionError('atomic fixture must not infer')):
             report=self.processor.process(value,Mock(input_pdf=Mock(return_value=raw)))
-        self.assertEqual(report['evidence']['provider'],'exact_scope')
+        self.assertEqual(report['evidence']['provider'],'curriculum_exact')
         self.assertEqual(report['calculation']['total_topics'],2)
         self.assertEqual(report['calculation']['strict_count'],1)
         self.assertEqual(report['calculation']['strict_coverage'],50)
