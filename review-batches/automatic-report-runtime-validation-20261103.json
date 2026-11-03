@@ -3,7 +3,7 @@
   "code_tested": "9cd563f4ae7a6aa7e3c353260d4ad8b58be3cc46",
   "tests": {
     "python": 354,
-    "node_passed": 143,
+    "node_passed": 145,
     "node_optional_skips": 3,
     "chrome_passed": 76,
     "import_pdf_count": 448
@@ -73,12 +73,41 @@
     "previous_automation_tunnel_changed": false,
     "dns_overwrite_used": false,
     "credential_material_in_git": false,
-    "named_mode_activation": "pending at this commit",
+    "named_mode_activation": "verified active with four HTTP/2 connections over IPv4",
     "ipv4_causality_proven": false
   },
   "limits": [
-    "Two formats of one actual reference are a workflow test, not a new general academic accuracy estimate",
-    "Runtime report checks bypassed the unstable public network and do not constitute public end-to-end success",
-    "Named-tunnel public verification follows activation"
-  ]
+    "Two formats of one actual reference are workflow tests, not a new general academic accuracy estimate",
+    "Initial reports were tested through the real local API with public failures preserved; a later fresh Chrome journey succeeded through the named public route",
+    "Observed connectivity checks do not constitute a long-duration availability measurement"
+  ],
+  "public_after_named_tunnel": {
+    "interface_commit": "9a80d22236060a50c8d3109be37f26153a3f0a41",
+    "backend_commit": "f97a17b44236a3b078cbb3184f1e454fe2da0371",
+    "production_deploy": "6ae94647d06f3719e1934404",
+    "bypass_network": false,
+    "fault_injection": false,
+    "source_topics_edited": false,
+    "source_topics": 13,
+    "automatic_candidates": 8,
+    "decision": "equivalent",
+    "provider": "exact_text",
+    "strict_count": 13,
+    "lenient_count": 13,
+    "human_reviewed": false,
+    "reviewed_by": "automated_pipeline",
+    "seal": "approved",
+    "post_counts": {
+      "source": 1,
+      "search": 1,
+      "compare": 1
+    },
+    "http_errors": 0,
+    "javascript_errors": 0,
+    "prior_owner_reports_restored": 2,
+    "foreign_resources_returned_404": 3,
+    "mobile_width": 390,
+    "document_overflow": false,
+    "offline_html_fonts_embedded": true
+  }
 }
