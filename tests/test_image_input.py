@@ -419,6 +419,39 @@ class ImageInputTests(unittest.TestCase):
         self.assertEqual(caller.chats[0][1]['format']['properties']['rows']['type'],'object')
         self.assertNotIn('أعد rows فارغة',caller.chats[0][1]['messages'][0]['content'])
 
+    def test_native_visual_readers_do_not_receive_native_words_or_each_others_reading(self):
+        source=self.extracted()
+        source['topics'][0].update(text='المصال المرسلة',bbox=[40,50,200,70],
+                                   fragments=[{'page':1,'bbox':[60,70,220,90]}])
+        caller=VisionCaller([answer({'t1':'المصالح المرسلة'}),answer({'t1':'المصالح المرسلة'})])
+        result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual(len(caller.chats),2)
+        for _,payload,_ in caller.chats:
+            prompt=payload['messages'][1]['content']
+            self.assertNotIn('المصال',prompt)
+            self.assertNotIn('المصالح',prompt)
+            anchors=json.loads(prompt.split('\n')[-1])
+            self.assertEqual(anchors,[{'id':'t1','pages':[1],'regions':[
+                {'page':1,'bbox':[21,83,872,500]},
+                {'page':1,'bbox':[128,500,979,917]}]}])
+            self.assertEqual(set(anchors[0]),{'id','pages','regions'})
+        self.assertEqual(result['topics'][0]['text'],'المصال المرسلة')
+        self.assertEqual(result['topics'][0]['corrected_text'],'المصالح المرسلة')
+        self.assertEqual(result['visual_verification_status'],'completed')
+        self.assertEqual(result['visual_verification_proof']['native_protocol_version'],image.NATIVE_PROTOCOL_VERSION)
+
+    def test_native_spatial_anchor_does_not_hide_continuation_without_a_fragment_box(self):
+        source=self.extracted();source['topics'][0]['end_page']=2
+        caller=VisionCaller([answer({'t1':source['topics'][0]['text']})])
+        result=image.verify_pdf_topics(self.native(pages=2),source,self.cache,caller=caller)
+        prompt=caller.chats[0][1]['messages'][1]['content']
+        anchor=json.loads(prompt.split('\n')[-1])[0]
+        self.assertEqual(anchor['pages'],[1,2])
+        self.assertEqual({r['page'] for r in anchor['regions']},{1})
+        self.assertEqual(anchor['unlocated_pages'],[2])
+        self.assertEqual(len(caller.chats[0][1]['messages'][1]['images']),2)
+        self.assertEqual(result['topics'][0]['end_page'],2)
+
     def test_native_map_order_is_canonical_but_legacy_array_order_remains_strict(self):
         response=answer({'t2':'Topic two','t1':'Topic one'});before=copy.deepcopy(response)
         self.assertEqual(image._rows(response,'native',['t1','t2']),
@@ -521,7 +554,7 @@ class ImageInputTests(unittest.TestCase):
         self.assertEqual([t['text'] for t in result['topics']],[t['text'] for t in source['topics']])
         self.assertFalse(result['reviewed']);self.assertEqual(len(caller.chats),2)
         self.assertEqual(result['visual_verification_proof']['numeric_disagreements'],[])
-        self.assertEqual(result['visual_verification_proof']['native_protocol_version'],'native-map-v4-marked-alef-conflicts')
+        self.assertEqual(result['visual_verification_proof']['native_protocol_version'],image.NATIVE_PROTOCOL_VERSION)
 
     def test_native_distinct_explicit_alef_marks_are_real_disagreement_in_both_orders(self):
         pairs=[('أحكام الأيمان','أحكام الإيمان'),

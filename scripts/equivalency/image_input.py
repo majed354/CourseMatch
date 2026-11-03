@@ -30,7 +30,7 @@ from .engine import local_model, post_ollama
 from .extract import norm
 
 VERSION = 'image-input-local-vision-v6-independent-reading'
-NATIVE_PROTOCOL_VERSION = 'native-map-v4-marked-alef-conflicts'
+NATIVE_PROTOCOL_VERSION = 'native-map-v5-blind-spatial-reading'
 FALLBACK_MODEL = 'qwen3.8:27b-q8_0'
 MAX_PIXELS = 32_000_000
 MAX_DIMENSION = 12_000
@@ -196,8 +196,13 @@ def _merge_rows(first,second,mode):
 
 
 def _chat(caller, directory, identity, images, mode, native_rows, timeout, response_proofs):
+    # The native layer can have valid-looking but missing glyphs. Showing its
+    # words to either visual reader makes copying that same defect look like
+    # independent agreement. Supply spatial identities only to both readers.
+    anchors = [{key:row[key] for key in ('id','pages','regions','unlocated_pages') if key in row}
+               for row in native_rows] if mode=='native' else None
     prompt=('انقل رقم الصف المطبوع في عمود م كعدد صحيح number، أو null إذا كان الجدول بلا أرقام مطبوعة. لا تضع نص الموضوع أو عنوانه داخل number ولا تخترع ترقيمًا؛ ضع نص خلية الموضوع كاملًا بما فيه عنوانها وفروعها داخل text. اقرأ جدول الموضوعات فقط وتوقف عند المجموع أو جدول أنشطة تقييم الطلبة.' if mode=='image' else
-            'الصور مرتبة حسب الصفحات المبينة. اقرأ كل معرف في البيانات حرفيًا من خلية موضوعه الكاملة، مع إبقاء فروعها وتتماتها. أعد rows ككائن مفاتيحه كل معرفات id المطلوبة وقيمه نصوص الموضوعات؛ لا تعد مصفوفة ولا كائنًا فارغًا ولا تحذف أي معرف. إذا تعذرت القراءة أو المطابقة ضع [غير واضح] قيمة للمعرف دون اختلاق نص. تشمل البيانات جميع صفوف الصفحات لمساعدتك على تحديد المواضع، وليس فقط المواضع المختلف فيها. النص الأصلي مساعد وقد يخطئ؛ الصورة تحكم. بيانات الصفحات والمفردات:\n'+json.dumps(native_rows,ensure_ascii=False))
+            'هذه قراءة بصرية مستقلة؛ لا توجد نصوص مستخرجة أو قراءة أخرى للاعتماد عليها. الصور مرتبة حسب أرقام الصفحات المبينة. اقرأ كل معرف حرفيًا من خلية موضوعه الكاملة مع إبقاء فروعها وتتماتها. pages تحدد كل صفحات الصف بما فيها التتمة. regions مواضع مساعدة لنص الصف داخل صورة الصفحة بإحداثيات xyxy من 0 إلى1000؛ اقرأ جميع مناطقه بالترتيب دون إهمال الصفحات الأخرى. unlocated_pages صفحات تتضمن جزءًا من الصف دون مستطيل موثوق؛ ابحث فيها عن تتمته ولا تفترض أن regions تغطي نصه كاملًا. عند غياب regions استعن بترتيب المعرفات من أعلى إلى أسفل. أعد rows ككائن مفاتيحه كل معرفات id المطلوبة وقيمه نصوص الموضوعات؛ لا تعد مصفوفة ولا كائنًا فارغًا ولا تحذف أي معرف. إذا تعذرت قراءة أي جزء أو مطابقة تتمته ضع [غير واضح] في موضعه دون اختلاق نص. تشمل البيانات جميع صفوف الصفحات لتحديد المواضع، وليس فقط المواضع المختلف فيها. الصورة وحدها مصدر النص. المعرفات ومواضعها:\n'+json.dumps(anchors,ensure_ascii=False))
     payload={'model':identity['model'],'stream':False,'think':False,'format':IMAGE_SCHEMA if mode=='image' else native_schema([r['id'] for r in native_rows]),
              'messages':[{'role':'system','content':SYSTEM if mode=='image' else NATIVE_SYSTEM},{'role':'user','content':prompt,'images':[base64.b64encode(x).decode() for x in images]}],
              'options':{'temperature':0,'seed':37,'num_ctx':16384,'num_predict':7000}}
@@ -572,6 +577,18 @@ def verify_pdf_topics(path,extracted,cache_dir,model='gemma4:e4b',*,caller=None)
                 if max(width,height)>MAX_DIMENSION or width*height>MAX_PIXELS:raise ValueError('native_page_too_large')
                 pix=page.get_pixmap(matrix=pymupdf.Matrix(2,2),clip=clip,alpha=False);image=pix.tobytes('png');images.append(image)
                 _save(directory/f'page-{number}.png',image,binary=True);proof.append({'page':number,'image_sha256':_sha(image),'width':pix.width,'height':pix.height,'bbox':list(clip),'render_scale':2,'cropped_from_topic_bboxes':bool(valid)})
+                for topic,anchor in zip(topics,native):
+                    row_boxes=([topic.get('bbox')] if topic.get('page')==number else [])+[f.get('bbox') for f in topic.get('fragments',[]) if f.get('page')==number]
+                    for box in row_boxes:
+                        if not isinstance(box,(list,tuple)) or len(box)!=4 or any(type(v) not in (int,float) or not math.isfinite(v) for v in box):continue
+                        rect=pymupdf.Rect(box)
+                        if rect.is_empty or not clip.contains(rect):continue
+                        relative=[round((rect.x0-clip.x0)*1000/clip.width),round((rect.y0-clip.y0)*1000/clip.height),round((rect.x1-clip.x0)*1000/clip.width),round((rect.y1-clip.y0)*1000/clip.height)]
+                        region={'page':number,'bbox':relative}
+                        if region not in anchor.setdefault('regions',[]):anchor['regions'].append(region)
+        for anchor in native:
+            unlocated=sorted(set(anchor['pages'])-{r['page'] for r in anchor.get('regions',[])})
+            if unlocated:anchor['unlocated_pages']=unlocated
         reading=_transcribe(directory,key,images,'native',native,caller,model,NATIVE_PRIMARY_TIMEOUT,
                             page_numbers=pages,fallback_timeout=NATIVE_FALLBACK_TIMEOUT)
         previous_excluded=result.setdefault('excluded_rows',[]);checked=[];numeric_disagreements=[]

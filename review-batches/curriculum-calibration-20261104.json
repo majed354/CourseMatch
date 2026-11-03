@@ -1,5 +1,5 @@
 {
-  "status": "frozen_release_candidate_awaiting_public_cases",
+  "status": "deployed_public_cases_in_progress",
   "baseline_commit": "6f4025e",
   "policy": {
     "course_coverage": 80,
@@ -25,7 +25,7 @@
     "review_parts": 118,
     "topic_pages_visually_read": 26,
     "labels_given_to_model": false,
-    "new_case_comparisons_started": 0
+    "new_case_comparisons_started": 1
   },
   "prototype": {
     "kind": "development_on_known_KSU_case_pre_current_contract",
@@ -44,9 +44,9 @@
     "grade_inferred_from_facet_count": false
   },
   "verification_so_far": {
-    "python_last_full": 530,
-    "node_chrome_last_full": 198,
-    "final_full_checks_pending": true
+    "python_last_full": 554,
+    "node_chrome_last_full": 201,
+    "final_full_checks_pending": false
   },
   "private_evidence_root": "runtime/service/qa/compound-calibration-20261103/",
   "semantic_engine_version": "full-curriculum-evidence-v2-bands",
@@ -83,5 +83,55 @@
     ],
     "whole_course_verdict_issued": false
   },
-  "new_cases_started": 0
+  "new_cases_started": 1,
+  "release": {
+    "commit": "b7a7621be3519ed748110294d0985f3552a120ee",
+    "deploy_id": "6aea58b2b650860330ae18d8",
+    "state": "ready",
+    "public_bytes_match": true,
+    "CI_run": "41726263854",
+    "CI": "success",
+    "api_and_workers_activated": true,
+    "model_tunnel_awake_preserved": true
+  },
+  "public_cases": {
+    "started": 1,
+    "completed": 0,
+    "current": "C01",
+    "source_topics": 12,
+    "source_extraction_audit": {
+      "complete_rows_and_qualifiers": true,
+      "literal_rows_exact": 10,
+      "minor_character_omissions": 2,
+      "semantics_rewritten": false
+    },
+    "academic_judgments_audited": 0
+  },
+  "independent_CPU_audit": {
+    "valid_boundary_cases": 25,
+    "python_API_agree": 25,
+    "valid_reports_hidden": 0,
+    "arithmetic_identity_tampering_blocked": 8,
+    "public_evidence_writer_found": false,
+    "detailed_domain_validation": "worker_before_completion_and_checkpoint",
+    "API_guard": "input_binding_consensus_and_arithmetic_not_full_domain",
+    "academic_accuracy_evidence": false
+  },
+  "native_OCR_correction": {
+    "status": "verified_locally_not_activated",
+    "protocol": "native-map-v5-blind-spatial-reading",
+    "both_readers_blind_to_native_text": true,
+    "spatial_anchors": true,
+    "unlocated_continuation_pages_explicit": true,
+    "image_tests": 58,
+    "actual_blind_OCR_validated": false,
+    "old_C01_reading_preserved": true,
+    "verification": {
+      "python": 556,
+      "node_chrome": 201,
+      "skipped": 0,
+      "import_PDFs": 448
+    },
+    "independent_diff_review": true
+  }
 }
