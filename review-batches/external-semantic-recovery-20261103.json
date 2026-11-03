@@ -1,6 +1,6 @@
 {
   "date": "2026-11-03",
-  "status": "negative_uncertainty_guard_prepared",
+  "status": "verified_safe_recovery_with_academic_calibration_limits",
   "policy_changed": false,
   "diagnosed_release": "72d805b",
   "cases": [
@@ -23,7 +23,7 @@
     }
   ],
   "repair_strategy": "retain validated rows and alternatives verbatim; request missing or invalid pairs only; retain all raw model output; strict final revalidation",
-  "public_rerun_verified": false,
+  "public_rerun_verified": true,
   "local_verification": {
     "python_tests": 386,
     "node_passed": 168,
@@ -222,7 +222,7 @@
     "academic_accept_or_reject_demonstrated": false
   },
   "negative_uncertainty_guard": {
-    "status": "prepared_not_publicly_verified",
+    "status": "deployed_and_publicly_verified",
     "reason": "A finite generated graph with unresolved positive semantic possibilities is not proof that all plausible alternatives were exhausted.",
     "behavior": "Definitive rejection becomes insufficient with null coverage when any adjudicated uncertain pair retains a lenient positive possibility.",
     "hard_numeric_exclusion_unchanged": true,
@@ -239,6 +239,52 @@
       "independent_guard_tests": 6,
       "API_tests": 45,
       "private_raw_reports_mutated": false
-    }
-  }
+    },
+    "release": "2630549af7e198ecd001ce9ffd8b49d085e24dc1",
+    "deploy_id": "6aea3b4ad49dce8c4decb827",
+    "deploy_state": "ready",
+    "public_assets_match_build": true,
+    "github_actions_run": 41707145104,
+    "github_actions_conclusion": "success"
+  },
+  "safe_final_public_regression": {
+    "release": "2630549af7e198ecd001ce9ffd8b49d085e24dc1",
+    "input": "one new comparison of the existing automatically verified upload; not a fresh upload or an academic accuracy benchmark",
+    "source_topics": 15,
+    "target_topics": 13,
+    "source_visual_status": "completed",
+    "decision": "insufficient",
+    "strict_coverage": null,
+    "lenient_coverage": null,
+    "rejection_review_present": true,
+    "same_13_pairs_and_scores_verbatim": true,
+    "source_target_texts_unchanged": true,
+    "new_or_modified_model_traces": 0,
+    "observed_model_traces_before": 4,
+    "observed_model_traces_after": 4,
+    "old_unsafe_0_report_blocked": true,
+    "old_unsafe_3_report_blocked": true,
+    "raw_task_and_artifact_unchanged": true,
+    "POST_comparison_count": 1,
+    "replayed_POST": 0,
+    "transport_errors": 0,
+    "expected_foreign_ownership_404": 2,
+    "unexpected_HTTP_errors": 0,
+    "JavaScript_errors": 0,
+    "KSU_UQU_GET_only_calculations_unchanged": true,
+    "mobile_390px_overflow": false,
+    "offline_HTML_and_JSON_export_verified": true,
+    "PDF_pages": 3,
+    "all_PDF_pages_visually_reviewed_by_agent_and_root": true,
+    "all_13_target_rows_retained": true,
+    "zero_coverage_or_approved_stamp_shown": false,
+    "generator_or_review_scores_manually_adjusted": false,
+    "definitive_academic_accept_or_reject_demonstrated": false,
+    "limitation": "Compound semantic coverage and alternative discovery still require calibration; successful formal reporting is not demonstrated academic accuracy."
+  },
+  "private_evidence_locations": [
+    "runtime/service/qa/external-rejection-guard-public-20261103/",
+    "runtime/service/qa/negative-guard-independent-public-result-proof.json",
+    "runtime/service/qa/najran-final-independent-fff7868-20261103.json"
+  ]
 }
