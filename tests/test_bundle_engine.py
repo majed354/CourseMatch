@@ -135,6 +135,45 @@ class BundleEngineTests(unittest.TestCase):
             self.assertEqual(raw['band'],'weak')
             self.assertEqual(result['pairs'][0]['band'],'strict')
 
+    def test_tolerance_also_discovers_missing_support_without_prescribing_a_revised_grade(self):
+        target2={'id':'t2','text':'تفسير الاستعاذة.'}
+        source2={'id':'s2','text':'شرح معاني الاستعاذة وتفسيرها.'}
+        targets=[self.t,target2];sources=[self.s,source2]
+        discovery={'scan':[{'target_id':'t','sources':[{'source_id':'s','status':'candidate',
+                   'source_quote':self.s['text'],'target_quote':self.t['text']}]}],
+                   'groups':[],'cache_key':'tolerance-alternative'}
+        for initial_review in ('lenient','strict'):
+            for completed_band in ('lenient','strict'):
+                with self.subTest(initial_review=initial_review,completed_band=completed_band):
+                    calls=[]
+                    def caller(_,payload):
+                        request=json.loads(payload['messages'][1]['content']);calls.append(request)
+                        review='reviews' in payload['format']['properties']
+                        guided='retrieved_evidence' in request
+                        band=completed_band if guided else initial_review if review else 'lenient'
+                        row=evaluation(self.t,self.s,verdict=band,review=review,
+                                       support='aligned' if band=='strict' else 'related')
+                        self.assertEqual(request['source'],source_view(sources))
+                        if guided:
+                            self.assertEqual(request['requested_target_ids'],['t'])
+                            self.assertNotIn('band',json.dumps(request['retrieved_evidence']))
+                            self.assertNotIn('verdict',json.dumps(request['retrieved_evidence']))
+                            rows=[row]
+                        else:rows=[row,evaluation(target2,source2,review=review)]
+                        return answer('reviews' if review else 'evaluations',rows,sources)
+                    with tempfile.TemporaryDirectory() as directory,patch('scripts.equivalency.candidates.discover_candidates',return_value=discovery) as scan:
+                        result=compare_curriculum({'topics':targets},{'topics':sources},caller=caller,
+                                                  model_digest='d',cache_dir=directory)
+                        self.assertEqual(scan.call_count,1)
+                        self.assertEqual(scan.call_args.args,([self.t],sources))
+                        self.assertEqual(len(calls),4)
+                        final={r['target_id']:r for r in result['pairs']}
+                        self.assertEqual(final['t']['band'],completed_band)
+                        self.assertEqual(final['t']['adjudication']['review']['verdict'],completed_band)
+                        self.assertEqual(final['t2']['band'],'strict')
+                        self.assertEqual(calculate(targets,sources,result['pairs'])['decision'],
+                                         'equivalent' if completed_band=='strict' else 'lenient')
+
     def test_persistent_evidence_failure_is_typed_but_transport_failure_is_not(self):
         bad=evaluation(self.t,self.s);bad['facets'][0]['source_quotes'][0]['quote']='invented'
         with tempfile.TemporaryDirectory() as directory:

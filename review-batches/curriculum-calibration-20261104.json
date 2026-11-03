@@ -96,8 +96,8 @@
   },
   "public_cases": {
     "started": 1,
-    "completed": 0,
-    "current": "C01",
+    "completed": 1,
+    "current": "C01_initial_diagnostic_under_audit",
     "source_topics": 12,
     "source_extraction_audit": {
       "complete_rows_and_qualifiers": true,
@@ -105,7 +105,20 @@
       "minor_character_omissions": 2,
       "semantics_rewritten": false
     },
-    "academic_judgments_audited": 0
+    "academic_judgments_audited": 8,
+    "academic_judgments_total": 14,
+    "C01_initial": {
+      "decision": "lenient",
+      "strict_count": 9,
+      "lenient_count": 14,
+      "target_topics": 14,
+      "status": "completed_academic_audit_and_PDF_pending",
+      "known_unjustified_downgrades": [
+        "t5",
+        "t7"
+      ],
+      "accepted_as_accuracy_demonstration": false
+    }
   },
   "independent_CPU_audit": {
     "valid_boundary_cases": 25,
@@ -133,5 +146,36 @@
       "import_PDFs": 448
     },
     "independent_diff_review": true
+  },
+  "prompt_clarification": {
+    "status": "local_not_activated",
+    "reason": "independent_partial_audit_found_unrequested_depth_and_source_position_penalties",
+    "rules": [
+      "unit_order_does_not_weaken_explicit_evidence",
+      "do_not_require_unrequested_extra_detail",
+      "same_demand_same_evidence_consistent_support_original_denominator_preserved"
+    ],
+    "course_names_or_expected_labels_in_prompt": false,
+    "original_C01_outputs_modified": false,
+    "proposal_sha256": "f9a87f0fc2d0731493f59115c2e67a522c958a7ee88d56f4f8f888843a9e43d5",
+    "review_sha256": "c4db43c0c7e1163ccda8f0af30021a3ae60e4802652fb2e18336012f725dff52",
+    "focused_bundle_tests": 56,
+    "single_source_unit_required": false,
+    "full_python_tests": 557
+  },
+  "adaptive_discovery_correction": {
+    "status": "local_not_activated",
+    "provisional_decisions": [
+      "not_equivalent",
+      "insufficient",
+      "lenient"
+    ],
+    "targets": "all_without_confirmed_strict",
+    "discovery_receives_original_reader_labels": false,
+    "automatic_category_promotion": false,
+    "original_C01_outputs_preserved": true,
+    "new_regression_subcases": 4,
+    "independent_review_passed": true,
+    "old_cache_and_traces_preserved": true
   }
 }
