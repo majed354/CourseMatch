@@ -86,9 +86,10 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
         });
       }
     } else if (task.kind === 'compare') {
-      const original = targets.get(task.payload.target_id);
-      if (!plain(ready.source) || ready.source.id !== task.payload.source_id || !plain(ready.target) || ready.target.id !== original.id
-          || (original.source_sha256 && ready.target.source_sha256 !== original.source_sha256)
+      const uploaded = task.payload.target_mode === 'uploaded';
+      const original = uploaded ? task.payload.target : targets.get(task.payload.target_id);
+      if (!plain(original) || !plain(ready.source) || ready.source.id !== task.payload.source_id || !plain(ready.target) || ready.target.id !== original.id
+          || ((uploaded || original.source_sha256) && ready.target.source_sha256 !== original.source_sha256)
           || ready.catalog_id !== catalog.catalog_id || !plain(ready.calculation) || !['equivalent','lenient','not_equivalent','insufficient'].includes(ready.calculation.decision)) {
         throw new HttpError(400,'هوية تقرير المقارنة لا تطابق الطلب');
       }
@@ -97,7 +98,9 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
       ready.id = task.id;
       ready.reviewed_by = task.payload.review_mode === 'automatic' ? 'automated_pipeline' : 'user_confirmed_extraction';
       ready.human_reviewed = task.payload.review_mode !== 'automatic';
-      Object.assign(ready.target,{id:original.id,code:original.code,name:original.name,context_id:original.context_id,context:original.context,source_pdf:original.source_pdf});
+      ready.target_mode = uploaded ? 'uploaded' : 'catalog';
+      if (uploaded) ready.target = publicValue(structuredClone(original));
+      else Object.assign(ready.target,{id:original.id,code:original.code,name:original.name,context_id:original.context_id,context:original.context,source_pdf:original.source_pdf});
       ready.beneficiary = beneficiary(task.payload.beneficiary);
     }
     return ready;
@@ -111,14 +114,16 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
   }
   async function worker(request, pathname, now) {
     requireWorker(request,env.COURSEMATCH_WORKER_TOKEN);
-    const taskPath = pathname.match(/^\/api\/worker\/tasks\/([a-f0-9]{32})\/(input-pdf|heartbeat|complete)$/);
-    if (taskPath && taskPath[2] === 'input-pdf') {
+    const taskPath = pathname.match(/^\/api\/worker\/tasks\/([a-f0-9]{32})\/(input-pdf|input-target-pdf|heartbeat|complete)$/);
+    if (taskPath && ['input-pdf','input-target-pdf'].includes(taskPath[2])) {
       if (request.method !== 'GET') throw new HttpError(405,'طريقة الطلب غير مسموحة');
       const token = leasedToken(request.headers.get('x-lease-token'));
       const task = await repository.leasedTask(scope,taskPath[1],token,now);
       if (!task) throw new HttpError(409,'انتهى حجز المهمة أو تغير');
-      let key = task.pdf_key;
-      if (!key && ['search','compare'].includes(task.kind)) key = (await ownedSource(task.payload.source_id,task.session_id,now)).pdf_key;
+      const targetInput = taskPath[2] === 'input-target-pdf';
+      if (targetInput && (task.kind !== 'compare' || task.payload.target_mode !== 'uploaded')) throw new HttpError(404,'لا يوجد هدف مرفوع لهذه المهمة');
+      let key = targetInput ? (await ownedSource(task.payload.target_source_id,task.session_id,now)).pdf_key : task.pdf_key;
+      if (!targetInput && !key && ['search','compare'].includes(task.kind)) key = (await ownedSource(task.payload.source_id,task.session_id,now)).pdf_key;
       if (!key) throw new HttpError(404,'لا يوجد PDF مرفوع لهذا المصدر');
       const binary = await pdfs.get(key);
       if (!binary) throw new HttpError(404,'ملف المصدر غير متاح');
@@ -138,9 +143,17 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
       if (!task) return respond({task:null});
       const payload = {...task.payload};
       if (['search','compare'].includes(task.kind)) {
-        try { payload.source = (await ownedSource(payload.source_id,task.session_id,now)).value; }
+        try {
+          payload.source = (await ownedSource(payload.source_id,task.session_id,now)).value;
+          if (payload.target_mode === 'uploaded') {
+            const target = await ownedSource(payload.target_source_id,task.session_id,now);
+            if (!target.pdf_key || !target.value.upload_pdf || target.value.id !== payload.target.id
+                || target.value.source_sha256 !== payload.target.source_sha256
+                || JSON.stringify(referenceTopics(target.value)) !== JSON.stringify(referenceTopics(payload.target))) throw new HttpError(400,'تغير مصدر الهدف بعد طلب المقارنة');
+          }
+        }
         catch (error) {
-          await repository.complete(scope,task.id,task.lease_token,null,'انتهت صلاحية المصدر؛ أعد إدخاله',now,prepareResult);
+          await repository.complete(scope,task.id,task.lease_token,null,task.payload.target_mode === 'uploaded' ? 'انتهت صلاحية أحد المقررين؛ أعد إدخالهما' : 'انتهت صلاحية المصدر؛ أعد إدخاله',now,prepareResult);
           return respond({task:null});
         }
       }
@@ -178,7 +191,7 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
         if (!session) { session = codec.create(now); cookie = codec.cookie(session); }
         await repository.ensureSession(scope,session,now);
         const online = await repository.workerOnline(scope,now);
-        return respond({catalog_url:'/catalog.json',token:codec.csrf(session),capabilities:{queued:true,request_recovery:true,max_upload_mb:4,image_upload:true,pdf_visual_verification:true,worker_online:online,reference_editable:false}},200,cookie ? {'Set-Cookie':cookie} : {});
+        return respond({catalog_url:'/catalog.json',token:codec.csrf(session),capabilities:{queued:true,request_recovery:true,uploaded_target:true,max_upload_mb:4,image_upload:true,pdf_visual_verification:true,worker_online:online,reference_editable:false}},200,cookie ? {'Set-Cookie':cookie} : {});
       }
       if (!session) throw new HttpError(401,'افتح المنصة لبدء جلسة صالحة');
       if (request.method === 'POST') {
@@ -246,11 +259,26 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
           payload = {source_id:source.id,...searchOptions(data)};
           const edited = topics(data.topics,true); if (edited !== undefined) payload.topics = edited;
         } else {
-          if (typeof data.target_id !== 'string' || !targets.has(data.target_id)) throw new HttpError(400,'المقرر الهدف غير موجود في الخطة');
+          const uploaded = data.target_source_id !== undefined;
+          if (Number(data.target_id !== undefined) + Number(uploaded) !== 1) throw new HttpError(400,'اختر مقررًا هدفًا واحدًا من المستودع أو المقررات المرفوعة');
+          if (!uploaded && (typeof data.target_id !== 'string' || !targets.has(data.target_id))) throw new HttpError(400,'المقرر الهدف غير موجود في الخطة');
+          if (uploaded && ['target_topics','context_id','context_ids','all_contexts','version','catalog_id'].some(key => Object.hasOwn(data,key))) throw new HttpError(400,'المقرر الهدف المرفوع مستقل عن نطاق المستودع ومفرداته لا تستبدل داخل طلب المقارنة');
+          const uploadedTarget = uploaded ? await ownedSource(data.target_source_id,session.id,now) : null;
+          if (uploadedTarget && (!uploadedTarget.pdf_key || uploadedTarget.value.upload_pdf !== true || uploadedTarget.value.catalog_course_id)) throw new HttpError(400,'يتطلب الهدف رفع ملف توصيف فعلي مكتمل');
           if (data.review_mode !== undefined && data.review_mode !== 'automatic') throw new HttpError(400,'نمط التحقق غير صالح');
           if (data.review_mode !== 'automatic' && data.reviewed !== true) throw new HttpError(400,'أكد مراجعة مفردات المقررين قبل المقارنة');
-          payload = {source_id:source.id,target_id:data.target_id,reviewed:true,review_mode:data.review_mode === 'automatic' ? 'automatic' : 'user_confirmed',beneficiary:beneficiary(data.beneficiary)};
-          payload.target_topics = referenceTopics(targets.get(data.target_id),data.target_topics);
+          payload = {source_id:source.id,reviewed:true,review_mode:data.review_mode === 'automatic' ? 'automatic' : 'user_confirmed',beneficiary:beneficiary(data.beneficiary)};
+          if (uploadedTarget) {
+            // Immutable, server-owned artifact snapshot: completion stays sync
+            // within the repositories' atomic transaction callbacks.
+            payload.target_mode = 'uploaded';
+            payload.target_source_id = uploadedTarget.id;
+            payload.target = structuredClone(uploadedTarget.value);
+            payload.target_topics = referenceTopics(payload.target);
+          } else {
+            payload.target_id = data.target_id;
+            payload.target_topics = referenceTopics(targets.get(data.target_id),data.target_topics);
+          }
           const editedSource = topics(data.source_topics,true); if (editedSource !== undefined) payload.source_topics = editedSource;
         }
       }

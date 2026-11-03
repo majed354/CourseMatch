@@ -4,6 +4,7 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 const textOf = t => t.corrected_text || t.text;
 const pageOf = t => t.page ? String(t.page)+(t.end_page&&t.end_page!==t.page?'–'+t.end_page:'') : '—';
 let catalog, token, source, target, currentReport;
+let comparisonMode='repository', uploadedTarget=null, modeSequence=0, targetInputSequence=0, comparisonSequence=0;
 let searchSequence=0, targetContextConfirmed=false, requestRecovery=false;
 let sourceInputSequence=0, maxUploadBytes=12*1024*1024, referenceEditable=true;
 const candidateVariants=new Map();
@@ -98,19 +99,19 @@ async function api(route,body,attempt=0){
     finishQueueRequest(record);return value;
   }catch(error){if(error.taskFailed)finishQueueRequest(record);throw error;}
 }
-async function action(button, task) { button.disabled=true; try { await task(); } catch(e) { notice(e.message,true); } finally { button.disabled=false; } }
+async function action(button, task) { button.disabled=true; try { await task(); } catch(e) { notice(e.message,true); } finally { button.disabled=false;if(button===$('pairCompareButton'))syncPairState(); } }
 function clearReportReference() {
   if(location.search.includes('report='))history.replaceState(null,'',location.pathname||'/');
 }
 async function waitForReport(id,expected=null) {
   const submitted=expected?.beneficiary||beneficiaryValues();
-  const inputRevision=sourceInputSequence,scopeRevision=searchSequence;
+  const inputRevision=sourceInputSequence,scopeRevision=searchSequence,modeRevision=modeSequence,targetRevision=targetInputSequence;
   history.replaceState(null,'','?report='+encodeURIComponent(id));
   while(true) {
     const job=await api('/api/jobs/'+encodeURIComponent(id));
     if(job.status==='error')throw new Error(job.message||job.error||'تعذر إكمال المقارنة');
     if(job.status==='done') {
-      if((expected&&(source?.id!==expected.sourceId||target?.id!==expected.targetId))||
+      if((expected&&(source?.id!==expected.sourceId||target?.id!==expected.targetId||expected.revision!==comparisonSequence||expected.mode!==comparisonMode))||modeRevision!==modeSequence||targetRevision!==targetInputSequence||
          (!expected&&(inputRevision!==sourceInputSequence||scopeRevision!==searchSequence))) {
         notice('اكتملت المقارنة السابقة؛ يمكنك العودة إليها من رابط التقرير.');return;
       }
@@ -125,7 +126,7 @@ function options(courses) { return '<option value="">اختر المقرر</opti
 function sourceLink(c) { const key=c.catalog_course_id || c.id; return c.source_pdf || c.upload_pdf ? `<a href="/pdf/${esc(key)}" target="_blank" rel="noopener">فتح التوصيف</a>` : ''; }
 function metadata(c) { return `<p class="muted">${esc(c.topics.length)} مفردة · ${sourceLink(c)} ${c.context ? '· '+esc(c.context.program)+' · '+esc(c.context.degree)+' · '+esc(c.context.plan_type)+' '+esc(c.context.version):''}</p>`; }
 function editor(container, course) {
-  const readonly=container==='sourceTopics'||(container==='targetTopics'&&!referenceEditable);
+  const readonly=container==='sourceTopics'||container==='uploadedTargetTopics'||(container==='targetTopics'&&!referenceEditable);
   $(container).innerHTML=course.topics.map((t,i)=>`<div class="topic-row" data-id="${esc(t.id)}"><span class="topic-index">${i+1}</span><div><textarea rows="2" ${readonly?'readonly':''} aria-label="المفردة ${i+1}">${esc(textOf(t))}</textarea><div class="topic-foot"><span>${t.page?'صفحة '+t.page:'إدخال يدوي'}</span><button type="button" class="remove-topic" ${readonly?'disabled hidden':''}>حذف الصف</button><details ${readonly?'hidden':''}><summary>النص الأصلي</summary>${esc(t.text)}</details></div></div></div>`).join('')+`<div class="topic-tools" ${readonly?'hidden':''}><button type="button" class="add-topic" ${readonly?'disabled':''}>إضافة مفردة</button></div>${readonly?'<p class="reference-readonly-note">النص وفق توصيف المقرر.</p>':''}`;
   $(container).querySelectorAll('.remove-topic').forEach(b=>b.onclick=()=>b.closest('.topic-row').remove());
   $(container).querySelector('.add-topic').onclick=()=>{
@@ -136,11 +137,13 @@ function editor(container, course) {
 function readEditor(container) { return [...$(container).querySelectorAll('.topic-row')].map(row=>({id:row.dataset.id,text:row.querySelector('textarea').value.trim()})); }
 async function setSource(data) {
   clearReportReference();
-  source=data;target=null;currentReport=null;targetContextConfirmed=false;beneficiaryStatus();
+  source=data;target=comparisonMode==='upload_pair'?uploadedTarget:null;currentReport=null;targetContextConfirmed=false;comparisonSequence++;beneficiaryStatus();
   $('sourcePanel').hidden=false;$('sourceTitle').textContent=source.name;$('sourceMeta').innerHTML=metadata(source);editor('sourceTopics',source);
   $('candidatePanel').hidden=true;$('reportPanel').hidden=true;$('reviewed').checked=false;
   if($('sourceReview')) $('sourceReview').open=false;
+  if(comparisonMode==='upload_pair')syncPairState();
   if(!source.topics.length){notice('لا تتوافر مفردات مقروءة كافية للبحث عن معادلة.',true);return;}
+  if(comparisonMode==='upload_pair'){syncPairState();notice('توصيف المقرر الأصل جاهز.');return;}
   await searchCandidates();
 }
 function sourceOptions() {
@@ -191,15 +194,15 @@ function searchScope() {
   return {all_contexts:true};
 }
 async function searchCandidates() {
-  if(!source)return;
-  const revision=++searchSequence,sourceId=source.id,scope=searchScope();
+  if(!source||comparisonMode!=='repository')return;
+  const revision=++searchSequence,sourceId=source.id,modeRevision=modeSequence,scope=searchScope();
   const topics=readEditor('sourceTopics');
   if(!topics.length){notice('لا تتوافر مفردات مقروءة كافية للبحث عن معادلة.',true);return;}
   notice('البحث تلقائيًا عن أقرب المقررات المتاحة…',false,true);
   $('candidatePanel').hidden=false;$('candidates').innerHTML='<div class="search-loading">جارٍ البحث في مفردات المقررات…</div>';
   $('targetReview').hidden=true;$('reportPanel').hidden=true;target=null;currentReport=null;targetContextConfirmed=false;beneficiaryStatus();
   const r=await api('/api/search',{source_id:sourceId,topics,...scope,limit:8});
-  if(revision!==searchSequence||source?.id!==sourceId)return;
+  if(revision!==searchSequence||source?.id!==sourceId||modeRevision!==modeSequence||comparisonMode!=='repository')return;
   candidateVariants.clear();
   for(const c of r.candidates) {
     const contexts=c.available_contexts?.length?c.available_contexts:[{course_id:c.id,context_id:c.context_id,context:c.context}];
@@ -213,6 +216,7 @@ async function searchCandidates() {
   $('candidatePanel').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function setTarget(id,explicitContext=false) {
+  if(comparisonMode!=='repository')return;
   const course=catalog.courses.find(c=>c.id===id);if(!course)return;
   clearReportReference();
   target=course;currentReport=null;beneficiaryStatus();$('reportPanel').hidden=true;
@@ -270,6 +274,7 @@ function showReport(r) {
   if($('beneficiaryName')) $('beneficiaryName').value=r.beneficiary?.name||'';
   if($('beneficiaryNumber')) $('beneficiaryNumber').value=r.beneficiary?.number||'';
   beneficiaryStatus();
+  const pairReport=r.target_mode==='uploaded',reportTitle=pairReport?'تقرير مقارنة المقررات':'تقرير معادلة المقررات';
   const calc=r.calculation,evidence=r.evidence||{},pairs=evidence.pairs||[];
   const decisions={equivalent:'يمكن معادلته',lenient:'يمكن مع التسامح',not_equivalent:'لا يمكن معادلته',insufficient:'تعذر الحسم'};
   const decision=Object.hasOwn(decisions,calc.decision)?calc.decision:'insufficient';
@@ -287,7 +292,7 @@ function showReport(r) {
     return `<section class="coverage-card ${mode}" data-mode="${mode}" data-count="${pending?'':count(mode)}" data-total="${total}" data-coverage="${pending?'':value}"><div class="coverage-caption"><span class="report-kicker">توافق المفردة ≥${threshold[mode]}%</span><h3>${names[mode]}</h3></div>${pending?'<div class="coverage-pending"><b>—</b><span>لم تُحسب التغطية</span></div>':`<div class="coverage-visual"><svg class="coverage-gauge" viewBox="0 0 104 104" role="img" aria-label="${esc(label)}"><circle class="gauge-track" cx="52" cy="52" r="43" pathLength="100"/><circle class="gauge-value" cx="52" cy="52" r="43" pathLength="100" stroke-dasharray="${value} ${100-value}" transform="rotate(-90 52 52)"/></svg><div class="coverage-value"><b dir="ltr">${percent(value)}</b><span>من مفردات الهدف</span></div></div>`}<p class="coverage-count">${pending?'لا تتوافر بيانات كافية لحساب التغطية':`<strong>${count(mode)}</strong> من <strong>${total}</strong> مفردة محتسبة`}</p><span class="coverage-threshold">حد تغطية المقرر: 80%</span></section>`;
   };
   const bar=mode=>{const value=coverage(mode);return `<div class="coverage-bar-row" data-mode="${mode}"><div class="coverage-bar-label"><b>${names[mode]}</b><span>${count(mode)} محتسبة · ${Math.max(0,total-count(mode))} غير محتسبة</span></div><div class="coverage-track" role="img" aria-label="${esc(names[mode]+': '+percent(value)+'، حد القبول 80%')}"><span class="coverage-bar-fill ${mode}" style="width:${value}%"></span><span class="threshold-marker" style="left:80%"></span></div><div class="coverage-scale"><span>0%</span><span>حد القبول 80%</span><span>100%</span></div></div>`;};
-  const sourceCard=(c,label,n)=>`<section class="course-card"><div class="course-card-top"><span class="report-section-number">${n}</span><span class="report-kicker">${label}</span>${c.code?'<bdi class="course-code" dir="ltr">'+esc(c.code)+'</bdi>':''}</div><h3>${esc(c.name)}</h3><p class="course-scope">${c.context?esc(c.context.program)+' · '+esc(c.context.degree)+'<br>الخطة '+esc(c.context.plan_type||'')+' '+esc(c.context.version):esc(c.university||c.institution||'مقرر مصدر المعادلة')}</p><dl class="course-facts"><div><dt>الساعات المعتمدة</dt><dd>${esc(c.hours??'غير محددة')}</dd></div><div><dt>المفردات</dt><dd>${c.topics.length}</dd></div></dl>${sourceLink(c)?'<div class="course-source-link">'+sourceLink(c)+'</div>':''}</section>`;
+  const sourceCard=(c,label,n)=>`<section class="course-card"><div class="course-card-top"><span class="report-section-number">${n}</span><span class="report-kicker">${label}</span>${c.code?'<bdi class="course-code" dir="ltr">'+esc(c.code)+'</bdi>':''}</div><h3>${esc(c.name)}</h3><p class="course-scope">${!pairReport&&c.context?esc(c.context.program)+' · '+esc(c.context.degree)+'<br>الخطة '+esc(c.context.plan_type||'')+' '+esc(c.context.version):esc(c.university||c.institution||(pairReport?'مقرر مرفوع للمقارنة':'مقرر مصدر المعادلة'))}</p><dl class="course-facts"><div><dt>الساعات المعتمدة</dt><dd>${esc(c.hours??'غير محددة')}</dd></div><div><dt>المفردات</dt><dd>${c.topics.length}</dd></div></dl>${sourceLink(c)?'<div class="course-source-link">'+sourceLink(c)+'</div>':''}</section>`;
   const matchedCell=(t,mode)=>{
     const sid=calc[mode+'_matches']?.[t.id],pair=sid?pairs.find(p=>p.target_id===t.id&&p.source_id===sid):null,s=pair?sources.get(pair.source_id):null;
     if(!pair||!s) {
@@ -320,26 +325,67 @@ function showReport(r) {
   const dated=date&&!Number.isNaN(date.getTime())?date.toLocaleDateString('ar-SA-u-ca-gregory-nu-latn',{year:'numeric',month:'long',day:'numeric',timeZone:'Asia/Riyadh'}):'—';
   const summary=insufficient?(calc.invalid_verse_scopes?'تعذر الحسم لعدم اتساق نطاق الآيات المذكور مع حدود السورة.':calc.reference_review?'تعذر الحسم لعدم اكتمال بيانات المقرر المرجعي.':calc.adjudication_review?'تعذر الحسم لعدم ثبوت توافق نطاق بعض مفردات المقررين.':calc.segmentation_review?'تعذر الحسم لعدم اتساق تقسيم الموضوعات بين المقررين.':/غير محدد/.test(calc.reason||'')?'تعذر الحسم لوجود موضوعات غير محددة ضمن بيانات المقرر.':'تعذر الحسم لعدم اكتمال البيانات.'):`تتطلب المعادلة تغطية ${required} من ${total} مفردة على الأقل. بلغ الاحتساب الدقيق ${count('strict')}، والمتسامح ${count('lenient')} مفردة.`;
   const stamp=`<div class="report-stamp ${ready?'approved':'pending'}" role="img" aria-label="${ready?'معتمد — تقرير المعادلة':'قيد الاستكمال — تقرير المعادلة'}"><span>تقرير المعادلة</span><strong>${ready?'معتمد':'قيد الاستكمال'}</strong><small>منصة المعادلات</small></div>`;
-  $('report').innerHTML=`<div class="equivalency-report" data-decision="${decision}"><header class="report-head"><div class="report-brand"><span class="report-mark" aria-hidden="true">م</span><div><span class="report-kicker">CourseMatch · منصة المعادلات</span><p>الجامعة المستهدفة: جامعة الطائف<br>${esc(r.target.context?.program||'دراسة توافق المقررات')} · ${esc(r.target.context?.degree||'')}</p></div><span class="report-edition">دراسة معادلة<br>المقررات الدراسية</span></div><h1>تقرير معادلة المقررات</h1><div class="report-reference"><span>تاريخ التقرير: ${esc(dated)}</span><span>رقم التقرير <bdi dir="ltr">${esc(r.id)}</bdi></span></div></header><section class="beneficiary-card" aria-label="بيانات المستفيد"><span class="report-section-number" aria-hidden="true">01</span><div><span class="report-kicker">اسم المستفيد</span><strong>${esc(r.beneficiary?.name||'غير مسجل')}</strong></div><div><span class="report-kicker">رقم المستفيد</span><strong><bdi dir="auto">${esc(r.beneficiary?.number||'غير مسجل')}</bdi></strong></div></section><section class="report-hero ${decision}">${stamp}<div><span class="report-kicker">نتيجة دراسة المفردات</span><h2>${esc(decisions[decision])}</h2><p>${esc(summary)}</p></div></section><section class="report-block"><div class="report-section-heading"><span class="report-section-number">02</span><div><h2>المقرران محل المعادلة</h2><p>المقارنة من محتوى المصدر إلى المقرر الهدف المحدد</p></div></div><div class="source-grid">${sourceCard(r.source,'المقرر المصدر','أ')}${sourceCard(r.target,'المقرر الهدف','ب')}</div></section><section class="report-block"><div class="report-section-heading"><span class="report-section-number">03</span><div><h2>ملخص تغطية المفردات</h2><p>عدد مفردات الهدف المحتسبة ÷ جميع مفردات الهدف × 100</p></div></div><div class="report-summary">${coverageCard('strict')}${coverageCard('lenient')}</div>${insufficient?'<div class="pending-explanation">النتيجة قيد الاستكمال لعدم كفاية المعلومات.</div>':`<div class="distribution-chart"><div class="distribution-heading"><h3>المحتسب والمتبقي من مفردات الهدف</h3><span>الخط المنقّط: حد القبول</span></div>${bar('strict')}${bar('lenient')}</div>`}<p class="report-note calculation-note">حد تغطية المقرر 80%؛ التوافق الدقيق للمفردة 80% والمتسامح 60%.</p></section><section class="report-block evidence-block"><div class="report-section-heading"><span class="report-section-number">04</span><div><h2>${insufficient?'نطاق المفردات المتاح':'تفصيل التوافق الموضوعي'}</h2><p>${insufficient?'بيانات المقررين وأسباب تعذر الحسم':'المفردات المقابلة وأسباب التوافق الموضوعي'}</p></div></div><div class="report-table-wrap"><table class="details-table"><thead><tr><th scope="col">مفردة المقرر الهدف</th>${insufficient?'<th scope="col">حالة المقارنة</th>':'<th scope="col">الحساب الدقيق · ≥80%</th><th scope="col">الحساب المتسامح · ≥60%</th><th scope="col">النتيجة</th>'}</tr></thead><tbody>${rows||`<tr><td colspan="${insufficient?2:4}">لا تتوافر مفردات موضوعية كافية لإصدار الحكم.</td></tr>`}</tbody></table></div></section><div class="report-end"><span>CourseMatch · تقرير معادلة المقررات</span><bdi dir="ltr">${esc(r.id)}</bdi></div></div>`;
+  $('report').innerHTML=`<div class="equivalency-report" data-decision="${decision}"><header class="report-head"><div class="report-brand"><span class="report-mark" aria-hidden="true">م</span><div><span class="report-kicker">CourseMatch · منصة المعادلات</span><p>${pairReport?'المقرر الهدف: '+esc(r.target.name):'الجامعة المستهدفة: جامعة الطائف<br>'+esc(r.target.context?.program||'دراسة توافق المقررات')+' · '+esc(r.target.context?.degree||'')}</p></div><span class="report-edition">${pairReport?'مقارنة المقررات<br>الدراسية':'دراسة معادلة<br>المقررات الدراسية'}</span></div><h1>${reportTitle}</h1><div class="report-reference"><span>تاريخ التقرير: ${esc(dated)}</span><span>رقم التقرير <bdi dir="ltr">${esc(r.id)}</bdi></span></div></header><section class="beneficiary-card" aria-label="بيانات المستفيد"><span class="report-section-number" aria-hidden="true">01</span><div><span class="report-kicker">اسم المستفيد</span><strong>${esc(r.beneficiary?.name||'غير مسجل')}</strong></div><div><span class="report-kicker">رقم المستفيد</span><strong><bdi dir="auto">${esc(r.beneficiary?.number||'غير مسجل')}</bdi></strong></div></section><section class="report-hero ${decision}">${stamp}<div><span class="report-kicker">نتيجة دراسة المفردات</span><h2>${esc(decisions[decision])}</h2><p>${esc(summary)}</p></div></section><section class="report-block"><div class="report-section-heading"><span class="report-section-number">02</span><div><h2>المقرران محل المعادلة</h2><p>المقارنة من محتوى المصدر إلى المقرر الهدف المحدد</p></div></div><div class="source-grid">${sourceCard(r.source,pairReport?'المقرر الأصل':'المقرر المصدر','أ')}${sourceCard(r.target,'المقرر الهدف','ب')}</div></section><section class="report-block"><div class="report-section-heading"><span class="report-section-number">03</span><div><h2>ملخص تغطية المفردات</h2><p>عدد مفردات الهدف المحتسبة ÷ جميع مفردات الهدف × 100</p></div></div><div class="report-summary">${coverageCard('strict')}${coverageCard('lenient')}</div>${insufficient?'<div class="pending-explanation">النتيجة قيد الاستكمال لعدم كفاية المعلومات.</div>':`<div class="distribution-chart"><div class="distribution-heading"><h3>المحتسب والمتبقي من مفردات الهدف</h3><span>الخط المنقّط: حد القبول</span></div>${bar('strict')}${bar('lenient')}</div>`}<p class="report-note calculation-note">حد تغطية المقرر 80%؛ التوافق الدقيق للمفردة 80% والمتسامح 60%.</p></section><section class="report-block evidence-block"><div class="report-section-heading"><span class="report-section-number">04</span><div><h2>${insufficient?'نطاق المفردات المتاح':'تفصيل التوافق الموضوعي'}</h2><p>${insufficient?'بيانات المقررين وأسباب تعذر الحسم':'المفردات المقابلة وأسباب التوافق الموضوعي'}</p></div></div><div class="report-table-wrap"><table class="details-table"><thead><tr><th scope="col">مفردة المقرر الهدف</th>${insufficient?'<th scope="col">حالة المقارنة</th>':'<th scope="col">الحساب الدقيق · ≥80%</th><th scope="col">الحساب المتسامح · ≥60%</th><th scope="col">النتيجة</th>'}</tr></thead><tbody>${rows||`<tr><td colspan="${insufficient?2:4}">لا تتوافر مفردات موضوعية كافية لإصدار الحكم.</td></tr>`}</tbody></table></div></section><div class="report-end"><span>CourseMatch · ${reportTitle}</span><bdi dir="ltr">${esc(r.id)}</bdi></div></div>`;
   $('reportPanel').hidden=false;$('reportPanel').scrollIntoView({behavior:'smooth'});notice('اكتمل التقرير. يمكنك تنزيله أو طباعته.');
 }
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(t=>t.classList.toggle('active',t===b));for(const name of ['upload','catalog','manual']) $(name+'Tab').hidden=name!==b.dataset.tab;});
-$('extractButton').onclick=e=>action(e.target,async()=>{
-  const file=$('pdfFile').files[0];if(!file)throw new Error('اختر توصيف PDF أو صورة أولًا');
+async function uploadPayload(file,name,role='source') {
+  if(!file)throw new Error('اختر توصيف PDF أو صورة أولًا');
   const image=CourseImageUpload.isImage(file);
   if(!image&&!CourseImageUpload.isPdf(file))throw new Error('اختر PDF أو صورة JPG أو PNG أو WebP.');
   if(!image&&file.size>maxUploadBytes)throw new Error('الحد الأقصى لملف PDF '+(maxUploadBytes/1024/1024)+' ميغابايت');
-  const inputRevision=++sourceInputSequence;
-  notice('قراءة المفردات والتحقق من التوصيف…',false,true);
   const bytes=image?(await CourseImageUpload.prepare(file,{maxOutputBytes:maxUploadBytes})).bytes:new Uint8Array(await file.arrayBuffer());
-  if(inputRevision!==sourceInputSequence)return;
   let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
-  const payload={pdf_base64:btoa(binary),name:$('uploadName').value||file.name};
-  if(image){payload.input_kind='image';payload.original_filename=file.name;}
-  const received=await api('/api/sources',payload);if(inputRevision===sourceInputSequence)await setSource(received);
+  return {pdf_base64:btoa(binary),name:name||file.name,intake_role:role,...(image?{input_kind:'image',original_filename:file.name}:{})};
+}
+function invalidateComparison() {
+  comparisonSequence++;currentReport=null;clearReportReference();$('reportPanel').hidden=true;beneficiaryStatus();
+}
+function syncPairState() {
+  const pair=comparisonMode==='upload_pair';$('pairComparisonPanel').hidden=!pair;
+  if(!pair)return;
+  target=uploadedTarget;
+  const ready=!!source?.topics.length&&!!uploadedTarget?.topics.length;
+  $('pairCompareButton').disabled=!ready;
+  $('pairStatus').textContent=ready?'المقرران جاهزان للمقارنة.':!source?.topics.length?'أضف توصيف المقرر الأصل.':'أضف توصيف المقرر الهدف.';
+}
+async function setComparisonMode(mode) {
+  if(!['repository','upload_pair'].includes(mode))return;
+  comparisonMode=mode;modeSequence++;searchSequence++;invalidateComparison();target=null;targetContextConfirmed=false;
+  $('comparisonMode').value=mode;$('setupGrid').dataset.comparisonMode=mode;
+  const pair=mode==='upload_pair';$('searchScopePanel').hidden=pair;$('targetUploadPanel').hidden=!pair;$('candidatePanel').hidden=true;$('targetReview').hidden=true;
+  $('inputHeading').textContent=pair?'المقرر الأصل':'المقرر الذي درسته';
+  $('extractButton').textContent=pair?'استخدام التوصيف':'البحث عن المعادلة';$('loadManual').textContent=pair?'استخدام المفردات':'البحث عن المعادلة';
+  $('footerBrand').textContent=pair?'CourseMatch · مقارنة المقررات':'CourseMatch · مقررات جامعة الطائف';
+  $('siteScopeBadge').textContent=pair?'مقارنة مباشرة':'جامعة الطائف';$('heroTitle').textContent=pair?'مقرران، وتقرير مقارنة.':'مقررك، وأقرب معادلة له.';$('heroCopy').textContent=pair?'ارفع التوصيفين واحصل على تقرير المقارنة.':'ارفع التوصيف، واختر المقرر الأقرب، واحصل على تقريرك.';
+  syncPairState();$('notice').className='';$('notice').textContent='';
+  if(!pair&&source?.topics.length)await searchCandidates();
+}
+$('comparisonMode').onchange=e=>action(e.target,()=>setComparisonMode(e.target.value));
+$('pdfFile').onchange=()=>{sourceInputSequence++;searchSequence++;source=null;target=null;$('sourcePanel').hidden=true;$('candidatePanel').hidden=true;invalidateComparison();syncPairState();};
+$('targetPdfFile').onchange=()=>{targetInputSequence++;uploadedTarget=null;$('uploadedTargetPanel').hidden=true;invalidateComparison();syncPairState();};
+$('extractButton').onclick=e=>action(e.target,async()=>{
+  const inputRevision=++sourceInputSequence,modeRevision=modeSequence;
+  notice('قراءة المفردات والتحقق من التوصيف…',false,true);
+  const payload=await uploadPayload($('pdfFile').files[0],$('uploadName').value);
+  if(inputRevision!==sourceInputSequence||modeRevision!==modeSequence)return;
+  const received=await api('/api/sources',payload);
+  if(inputRevision===sourceInputSequence&&modeRevision===modeSequence)await setSource(received);
 });
-$('loadCourse').onclick=e=>action(e.target,async()=>{if(!$('sourceCourse').value) throw new Error('اختر المقرر المصدر');const inputRevision=++sourceInputSequence;const received=await api('/api/sources',{catalog_id:$('sourceCourse').value});if(inputRevision===sourceInputSequence)await setSource(received);});
-$('loadManual').onclick=e=>action(e.target,async()=>{const topics=$('manualTopics').value.split('\n').map(s=>s.trim()).filter(Boolean).map((text,i)=>({id:'t'+(i+1),text}));if(!topics.length) throw new Error('أدخل المفردات أولًا');const inputRevision=++sourceInputSequence;const received=await api('/api/sources',{name:$('manualName').value,topics});if(inputRevision===sourceInputSequence)await setSource(received);});
+$('targetExtractButton').onclick=e=>action(e.target,async()=>{
+  if(comparisonMode!=='upload_pair')return;
+  const revision=++targetInputSequence,modeRevision=modeSequence;
+  uploadedTarget=null;invalidateComparison();syncPairState();$('uploadedTargetPanel').hidden=true;
+  notice('قراءة المفردات والتحقق من التوصيف…',false,true);
+  const payload=await uploadPayload($('targetPdfFile').files[0],$('targetUploadName').value,'target');
+  if(revision!==targetInputSequence||modeRevision!==modeSequence)return;
+  const received=await api('/api/sources',payload);
+  if(revision!==targetInputSequence||modeRevision!==modeSequence||comparisonMode!=='upload_pair')return;
+  uploadedTarget=received;$('uploadedTargetTitle').textContent=received.name;$('uploadedTargetMeta').innerHTML=metadata(received);editor('uploadedTargetTopics',received);$('uploadedTargetPanel').hidden=false;
+  syncPairState();notice(received.topics.length?'توصيف المقرر الهدف جاهز.':'لا تتوافر مفردات مقروءة كافية للمقارنة.',!received.topics.length);
+});
+$('loadCourse').onclick=e=>action(e.target,async()=>{if(!$('sourceCourse').value)throw new Error('اختر المقرر المصدر');const inputRevision=++sourceInputSequence,modeRevision=modeSequence;const received=await api('/api/sources',{catalog_id:$('sourceCourse').value});if(inputRevision===sourceInputSequence&&modeRevision===modeSequence)await setSource(received);});
+$('loadManual').onclick=e=>action(e.target,async()=>{const topics=$('manualTopics').value.split('\n').map(s=>s.trim()).filter(Boolean).map((text,i)=>({id:'t'+(i+1),text}));if(!topics.length)throw new Error('أدخل المفردات أولًا');const inputRevision=++sourceInputSequence,modeRevision=modeSequence;const received=await api('/api/sources',{name:$('manualName').value,topics});if(inputRevision===sourceInputSequence&&modeRevision===modeSequence)await setSource(received);});
 $('sourceProgram').onchange=sourceOptions;
 $('searchScopeMode').onchange=e=>action(e.target,async()=>{
   if(e.target.value==='all'){$('program').value='';planOptions();syncScopeControls();if(source)await searchCandidates();}
@@ -351,7 +397,20 @@ $('directTargetButton').onclick=()=>{targetOptions();$('candidatePanel').hidden=
 $('searchButton').onclick=e=>action(e.target,searchCandidates);
 $('targetCourse').onchange=()=>setTarget($('targetCourse').value,true);
 if($('candidateContext'))$('candidateContext').onchange=()=>{if($('candidateContext').value)setTarget($('candidateContext').value,true);else{targetContextConfirmed=false;$('compareButton').disabled=true;}};
-$('compareButton').onclick=e=>action(e.target,async()=>{if(!target) throw new Error('اختر المقرر الهدف');if(!targetContextConfirmed)throw new Error('حدد برنامج المقرر الهدف وخطته أولًا');const beneficiarySnapshot=beneficiaryValues(),sourceSnapshot=source.id,targetSnapshot=target.id;const job=await api('/api/jobs',{source_id:sourceSnapshot,target_id:targetSnapshot,source_topics:readEditor('sourceTopics'),target_topics:referenceEditable?readEditor('targetTopics'):undefined,review_mode:'automatic',beneficiary:beneficiarySnapshot});notice('المقارنة قيد المعالجة…',false,true);await waitForReport(job.id,{sourceId:sourceSnapshot,targetId:targetSnapshot,beneficiary:beneficiarySnapshot});});
+async function submitComparison() {
+  if(!source)throw new Error('أضف توصيف المقرر الأصل.');
+  const pair=comparisonMode==='upload_pair';
+  if(!target)throw new Error('أضف المقرر الهدف.');
+  if(pair&&(!source.topics.length||!uploadedTarget?.topics.length))throw new Error('لا تتوافر مفردات مقروءة كافية للمقارنة.');
+  if(!pair&&!targetContextConfirmed)throw new Error('حدد برنامج المقرر الهدف وخطته أولًا');
+  const expected={sourceId:source.id,targetId:target.id,beneficiary:beneficiaryValues(),mode:comparisonMode,revision:comparisonSequence};
+  const body=pair?{source_id:source.id,target_source_id:uploadedTarget.id,review_mode:'automatic',beneficiary:expected.beneficiary}:{source_id:source.id,target_id:target.id,source_topics:readEditor('sourceTopics'),target_topics:referenceEditable?readEditor('targetTopics'):undefined,review_mode:'automatic',beneficiary:expected.beneficiary};
+  const job=await api('/api/jobs',body);
+  if(expected.revision!==comparisonSequence||expected.mode!==comparisonMode||source?.id!==expected.sourceId||target?.id!==expected.targetId)return;
+  notice('المقارنة قيد المعالجة…',false,true);await waitForReport(job.id,expected);
+}
+$('compareButton').onclick=e=>action(e.target,submitComparison);
+$('pairCompareButton').onclick=e=>action(e.target,submitComparison);
 for(const id of ['beneficiaryName','beneficiaryNumber']) if($(id)) $(id).oninput=beneficiaryStatus;
 if($('saveBeneficiary')) $('saveBeneficiary').onclick=e=>action(e.target,saveBeneficiary);
 if($('editBeneficiary')) $('editBeneficiary').onclick=()=>{$('beneficiaryName')?.closest('.beneficiary-panel')?.scrollIntoView({behavior:'smooth',block:'center'});$('beneficiaryName')?.focus({preventScroll:true});};
@@ -378,7 +437,7 @@ $('htmlButton').onclick=e=>action(e.target,async()=>{
   if(currentReport.id!==id)throw new Error('تغير التقرير؛ أعد تنزيل التقرير الحالي.');
   await saveBeneficiary();
   const reportHTML=$('report').innerHTML.replace(/href="(\/pdf\/[^" ]+)"/g,(_,path)=>'href="'+esc(location.origin+path)+'"');
-  const html='<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير معادلة المقررات</title><style>'+css+'</style><main><section class="panel" id="reportPanel"><article id="report">'+reportHTML+'</article></section></main></html>';
+  const html='<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(currentReport.target_mode==='uploaded'?'تقرير مقارنة المقررات':'تقرير معادلة المقررات')+'</title><style>'+css+'</style><main><section class="panel" id="reportPanel"><article id="report">'+reportHTML+'</article></section></main></html>';
   download('equivalency-'+id+'.html',html,'text/html');
 });
 (async()=>{
@@ -390,7 +449,7 @@ $('htmlButton').onclick=e=>action(e.target,async()=>{
     requestRecovery=response.capabilities?.request_recovery===true;
     if(response.capabilities?.max_upload_mb){
       maxUploadBytes=response.capabilities.max_upload_mb*1024*1024;
-      if($('uploadLimitHint'))$('uploadLimitHint').textContent='PDF حتى '+response.capabilities.max_upload_mb+' ميغابايت · صورة حتى 12 ميغابايت';
+      for(const id of ['uploadLimitHint','targetUploadLimitHint'])if($(id))$(id).textContent='PDF حتى '+response.capabilities.max_upload_mb+' ميغابايت · صورة حتى 12 ميغابايت';
     }
     initContexts();const available=catalog.courses.filter(c=>c.topics.length).length;
     $('inventory').textContent=`الفهرس: ${catalog.courses.length} ظهورًا في ${catalog.contexts.length} سياقًا دراسيًا، ${available} بمفردات مستخرجة.`;

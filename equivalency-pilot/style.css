@@ -114,3 +114,11 @@ textarea[readonly]{background:#f5f8fa;border-color:#dce6eb;cursor:default}.refer
 /* End compact unresolved coverage. */
 
 @media screen{.candidate .candidate-reference-pending{font-size:10px;color:#8a5d15;margin-top:5px}}
+
+/* Two comparison modes share the same private intake. */
+@media screen{
+ .comparison-mode{margin:0 0 12px}.comparison-mode label{display:flex;align-items:center;gap:14px;margin:0;font-size:12px;font-weight:600}.comparison-mode select{width:auto;max-width:100%;min-width:245px;margin:0}
+ .setup-grid[data-comparison-mode="upload_pair"]{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:'input target' 'beneficiary beneficiary';grid-template-rows:auto auto}
+ #targetUploadPanel{grid-area:target}#targetUploadPanel .upload{min-width:0}#targetExtractButton{width:100%;min-height:43px}#uploadedTargetPanel h3{font-size:16px;margin:15px 0 3px}.pair-comparison{display:flex;align-items:center;justify-content:space-between;gap:12px}.pair-comparison button{margin:0;flex-shrink:0}
+}
+@media screen and (max-width:760px){.comparison-mode label{gap:8px;font-size:11px}.comparison-mode select{min-width:0;flex:1;width:100%}.pair-comparison{align-items:stretch;flex-direction:column}.pair-comparison button{width:100%}}

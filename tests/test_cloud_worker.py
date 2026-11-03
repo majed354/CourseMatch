@@ -12,10 +12,11 @@ import unittest
 import urllib.error
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, call
 
 import pymupdf
 from scripts import cloud_worker as worker
+from scripts.equivalency.reference_quality import topics_digest
 
 
 TOKEN = 'test_token_' + 'x' * 40
@@ -196,7 +197,7 @@ class ProcessorTests(WorkerFixture):
         self.assertEqual(value['visual_spatial_proof'],result['visual_spatial_proof'])
 
     def test_visually_approved_identical_pdf_reuses_evidence_without_model_calls(self):
-        self.catalog['courses'][0]['reference_quality']={'state':'ready_visual'}
+        self.catalog['courses'][0]['reference_quality']={'state':'ready_visual','source_sha256':self.course['source_sha256'],'topics_sha256':topics_digest(self.course['topics'])}
         (self.root/'equivalency-pilot/catalog.json').write_text(json.dumps(self.catalog,ensure_ascii=False))
         self.processor=worker.Processor(self.root)
         with patch('scripts.cloud_worker.extract_cached') as extraction, \
@@ -819,3 +820,123 @@ class ReferenceReadinessWorkerTests(WorkerFixture):
         evidence=self.exact_evidence();evidence['provider']='ollama_local'
         with patch('scripts.cloud_worker.compare',return_value=evidence):
             with self.assertRaises(worker.TaskInputError):self.processor.process(self.compare_task(),Mock())
+
+class UploadedTargetFixture(WorkerFixture):
+    def uploaded_task(self, target_topics=None):
+        raw=pdf_bytes('uploaded target fixture')
+        target={'id':'e'*32,'name':'المقرر الهدف المرفوع','topics':copy.deepcopy(target_topics or self.course['topics']),
+                'upload_pdf':True,'source_sha256':__import__('hashlib').sha256(raw).hexdigest(),'warnings':[]}
+        value=self.compare_task(target_mode='uploaded',target_source_id=target['id'],target=target,
+                                target_topics=[{'id':t['id'],'text':t.get('corrected_text') or t['text']} for t in target['topics']],review_mode='automatic')
+        value['payload'].pop('target_id')
+        return value,raw
+
+
+class UploadedTargetTests(UploadedTargetFixture):
+    def test_uploaded_target_is_rehydrated_by_role_and_report_keeps_private_identity(self):
+        value,raw=self.uploaded_task();cloud=Mock(input_pdf=Mock(return_value=raw))
+        with patch('scripts.cloud_worker.compare',return_value=self.exact_evidence()) as compare:
+            report=self.processor.process(value,cloud)
+        cloud.input_pdf.assert_called_once_with(value,role='target')
+        self.assertEqual(report['target']['id'],'e'*32);self.assertTrue(report['target']['upload_pdf'])
+        self.assertNotIn('source_pdf',report['target']);self.assertNotIn('context',report['target'])
+        self.assertEqual(report['target_mode'],'uploaded');self.assertFalse(report['human_reviewed'])
+        self.assertEqual(report['calculation']['decision'],'equivalent');compare.assert_called_once()
+
+    def test_target_denominator_is_uploaded_target_count_not_source_count(self):
+        first='تفسير البقرة (1-5) تفسيرا تحليليا.'
+        topics=[{'id':'t1','text':first},{'id':'t2','text':'تفسير البقرة (6-10) تفسيرا تحليليا.'}]
+        value,raw=self.uploaded_task(topics);value['payload']['source']['topics']=[{'id':'s1','text':first}]
+        with patch('scripts.equivalency.engine.post_ollama',side_effect=AssertionError('atomic fixture must not infer')):
+            report=self.processor.process(value,Mock(input_pdf=Mock(return_value=raw)))
+        self.assertEqual(report['evidence']['provider'],'exact_scope')
+        self.assertEqual(report['calculation']['total_topics'],2)
+        self.assertEqual(report['calculation']['strict_count'],1)
+        self.assertEqual(report['calculation']['strict_coverage'],50)
+        self.assertEqual(report['calculation']['decision'],'not_equivalent')
+
+    def test_unresolved_uploaded_target_stops_judgment_without_inference(self):
+        value,raw=self.uploaded_task([{'id':'t1','text':'تعريف العلم [غير واضح]'}])
+        with patch('scripts.equivalency.engine.post_ollama',side_effect=AssertionError('no inference for unresolved target')):
+            report=self.processor.process(value,Mock(input_pdf=Mock(return_value=raw)))
+        self.assertEqual(report['calculation']['decision'],'insufficient')
+
+    def test_uploaded_target_rejects_forged_topics_digest_session_and_catalog_path(self):
+        value,raw=self.uploaded_task()
+        variations=[]
+        bad=copy.deepcopy(value);bad['payload']['target_topics'][0]['text']='نص هدف بديل';variations.append(bad)
+        bad=copy.deepcopy(value);bad['payload']['target']['source_sha256']='0'*64;variations.append(bad)
+        bad=copy.deepcopy(value);bad['payload']['target']['session_id']='9'*64;variations.append(bad)
+        bad=copy.deepcopy(value);bad['payload']['target']['source_pdf']='/tmp/foreign.pdf';variations.append(bad)
+        bad=copy.deepcopy(value);bad['payload']['target_id']=self.course['id'];variations.append(bad)
+        for bad in variations:
+            with self.subTest(payload=bad['payload'].get('target_topics')),patch('scripts.cloud_worker.compare') as compare:
+                with self.assertRaises(worker.TaskInputError):self.processor.process(bad,Mock(input_pdf=Mock(return_value=raw)))
+                compare.assert_not_called()
+
+    def test_uploads_on_both_sides_fetch_the_correct_role_and_verify_both_hashes(self):
+        value,target_raw=self.uploaded_task();source_raw=pdf_bytes('original uploaded source')
+        value['payload']['source'].update(upload_pdf=True,source_sha256=__import__('hashlib').sha256(source_raw).hexdigest())
+        cloud=Mock(input_pdf=Mock(side_effect=lambda task,**kwargs:target_raw if kwargs.get('role')=='target' else source_raw))
+        with patch('scripts.cloud_worker.compare',return_value=self.exact_evidence()):report=self.processor.process(value,cloud)
+        self.assertEqual(cloud.input_pdf.call_args_list,[call(value),call(value,role='target')])
+        self.assertEqual(report['source']['source_sha256'],__import__('hashlib').sha256(source_raw).hexdigest())
+        self.assertEqual(report['target']['source_sha256'],__import__('hashlib').sha256(target_raw).hexdigest())
+
+    def test_uploaded_target_file_change_during_comparison_is_rejected(self):
+        value,raw=self.uploaded_task();cloud=Mock(input_pdf=Mock(return_value=raw))
+        def changed(*args,**kwargs):
+            (self.processor.session_directory(SESSION)/'sources'/('e'*32+'.pdf')).write_bytes(b'%PDF-changed')
+            return self.exact_evidence()
+        with patch('scripts.cloud_worker.compare',side_effect=changed):
+            with self.assertRaisesRegex(worker.TaskInputError,'الهدف'):self.processor.process(value,cloud)
+
+    def test_uploaded_target_checkpoint_validates_immutable_target_without_regrading(self):
+        value,raw=self.uploaded_task();cloud=Mock(input_pdf=Mock(return_value=raw))
+        with patch('scripts.cloud_worker.compare',return_value=self.exact_evidence()):report=self.processor.process(value,cloud)
+        checkpoint={**value,'result':report,'catalog_id':self.catalog['catalog_id']}
+        with patch('scripts.cloud_worker.compare',side_effect=AssertionError('checkpoint cannot regrade')):
+            self.processor.verify_checkpoint(checkpoint,cloud)
+            for mutate in ('topics','sha','mode'):
+                bad=copy.deepcopy(checkpoint)
+                if mutate=='topics':bad['result']['target']['topics'][0]['text']='تغيير المقام'
+                elif mutate=='sha':bad['result']['target']['source_sha256']='0'*64
+                else:bad['result']['target_mode']='catalog'
+                with self.subTest(mutate=mutate),self.assertRaises(worker.TaskInputError):self.processor.verify_checkpoint(bad,cloud)
+
+class UploadedTargetReadinessTests(UploadedTargetFixture):
+    def register_target_reference(self,raw,*,held=False):
+        self.pdf.write_bytes(raw);self.course['source_sha256']=worker.digest(self.pdf)
+        self.course['reference_quality']={'state':'ready_visual','source_sha256':self.course['source_sha256'],'topics_sha256':topics_digest(self.course['topics'])}
+        if held:self.course['reference_review']={'comparison_readiness':'scope_incomplete','readiness_reason':'مفردات المرجع غير مكتملة في الدليل'}
+        (self.root/'equivalency-pilot/catalog.json').write_text(json.dumps(self.catalog,ensure_ascii=False));self.processor=worker.Processor(self.root)
+
+    def test_uploading_a_known_held_reference_cannot_bypass_its_hold(self):
+        value,raw=self.uploaded_task();self.register_target_reference(raw,held=True)
+        with patch('scripts.cloud_worker.compare',side_effect=AssertionError('held reference cannot infer')):
+            report=self.processor.process(value,Mock(input_pdf=Mock(return_value=raw)))
+        self.assertEqual(report['calculation']['decision'],'insufficient');self.assertIn('target',report['calculation']['reference_review'])
+        self.assertNotIn('context',report['target'])
+
+    def test_known_ready_target_with_different_row_count_is_held(self):
+        value,raw=self.uploaded_task(self.course['topics']+[{'id':'t2','text':'صف إضافي مختلف'}]);self.register_target_reference(raw)
+        with patch('scripts.cloud_worker.compare',side_effect=AssertionError('mismatched denominator cannot infer')):
+            report=self.processor.process(value,Mock(input_pdf=Mock(return_value=raw)))
+        self.assertEqual(report['calculation']['decision'],'insufficient')
+
+    def test_unknown_target_with_explicit_extraction_holes_is_held(self):
+        value,raw=self.uploaded_task();metadata={**value['payload']['target'],'table_evidence':[{'empty_rows':[2]}]}
+        value['payload']['target']['extraction_integrity']=worker.extraction_integrity(metadata)
+        with patch('scripts.cloud_worker.compare',side_effect=AssertionError('partial target cannot infer')):
+            report=self.processor.process(value,Mock(input_pdf=Mock(return_value=raw)))
+        self.assertEqual(report['calculation']['decision'],'insufficient')
+
+
+class TargetPdfTransportTests(unittest.TestCase):
+    def test_target_pdf_uses_leased_target_endpoint_and_rejects_invalid_roles(self):
+        data=pdf_bytes('target transport fixture');opener=SimpleNamespace(open=Mock(return_value=io.BytesIO(data)));client=worker.CloudClient(CONFIG,opener);value=task('compare')
+        self.assertEqual(client.input_pdf(value,role='target'),data)
+        self.assertTrue(opener.open.call_args.args[0].full_url.endswith('/input-target-pdf'))
+        opener.open.reset_mock()
+        with self.assertRaises(ValueError):client.input_pdf(value,role='../source')
+        opener.open.assert_not_called()

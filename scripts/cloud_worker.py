@@ -37,7 +37,7 @@ if str(ROOT) not in sys.path:
 
 from scripts.equivalency.engine import RUBRIC_VERSION, calculate, compare, search, validate_pairs
 from scripts.equivalency.grounding import validate_evidence
-from scripts.equivalency.reference_quality import reference_pending, evidence_calculation
+from scripts.equivalency.reference_quality import reference_pending, evidence_calculation, reference_problem, extraction_integrity, uploaded_target_reference
 from scripts.equivalency.extract import apply_readings, digest, extract_cached
 from scripts.equivalency.server import clean_beneficiary, clean_topics
 
@@ -214,8 +214,11 @@ class CloudClient:
     def heartbeat(self, task):
         return self.request('POST', f"/api/worker/tasks/{task['id']}/heartbeat", {'lease_token': task['lease_token']})
 
-    def input_pdf(self, task):
-        return self.request('GET', f"/api/worker/tasks/{task['id']}/input-pdf", lease=task['lease_token'], binary=True)
+    def input_pdf(self, task, *, role='source'):
+        if role not in ('source','target'):
+            raise ValueError('invalid_pdf_role')
+        endpoint = 'input-target-pdf' if role == 'target' else 'input-pdf'
+        return self.request('GET', f"/api/worker/tasks/{task['id']}/{endpoint}", lease=task['lease_token'], binary=True)
 
     def complete(self, task, result=None, error=None):
         body = {'lease_token': task['lease_token'], 'result': result}
@@ -312,7 +315,7 @@ class LeaseHeartbeat:
                 LOGGER.warning('lease_heartbeat_retry status=%s', error.status)
 
 
-SOURCE_FIELDS = {'id','name','code','hours','university','institution','context','context_id','topics','source_sha256','catalog_course_id','upload_pdf','warnings','status','reviewed','source_note','extraction_method','extractor','reading_note','transcription_model','transcription_model_digest','transcription_models','page_proof','excluded_rows','source_text_blocks','fixed_topic_curriculum','source_context','library_only','match_status','reference_review','reference_quality','source_media_kind','original_filename','visual_verification_status','visual_verification','visual_verification_proof','visual_verification_method','visual_verification_cache_key','visual_response_proof','visual_spatial_proof','image_proof'}
+SOURCE_FIELDS = {'id','name','code','hours','university','institution','context','context_id','topics','source_sha256','catalog_course_id','upload_pdf','warnings','status','reviewed','source_note','extraction_method','extractor','reading_note','transcription_model','transcription_model_digest','transcription_models','page_proof','excluded_rows','source_text_blocks','fixed_topic_curriculum','source_context','library_only','match_status','reference_review','reference_quality','source_media_kind','original_filename','visual_verification_status','visual_verification','visual_verification_proof','visual_verification_method','visual_verification_cache_key','visual_response_proof','visual_spatial_proof','image_proof','extraction_integrity'}
 
 
 def public_source(value, *, catalog_pdf=None):
@@ -363,7 +366,7 @@ class Processor:
             raise TaskInputError('مرجع جلسة المستفيد غير صالح.')
         return private_directory(directory)
 
-    def save_pdf(self, task, source_id, cloud, expected=None):
+    def save_pdf(self, task, source_id, cloud, expected=None, *, role='source'):
         source_id = require_id(source_id, TASK_ID)
         directory = private_directory(self.session_directory(task['session_id']) / 'sources')
         path = directory / (source_id + '.pdf')
@@ -371,7 +374,7 @@ class Processor:
             raise TaskInputError('مرجع ملف التوصيف غير صالح.')
         if path.is_file() and expected and digest(path) == expected:
             return path
-        raw = cloud.input_pdf(task)
+        raw = cloud.input_pdf(task, role='target') if role == 'target' else cloud.input_pdf(task)
         if len(raw) > PDF_LIMIT or not raw.startswith(b'%PDF-'):
             raise TaskInputError('يلزم ملف PDF صالح لا يزيد عن 12 ميغابايت.')
         if expected and hashlib.sha256(raw).hexdigest() != expected:
@@ -393,16 +396,24 @@ class Processor:
         temporary.replace(path)
         return path
 
-    def existing_source(self, task, cloud):
+    def existing_input(self, task, cloud, *, role='source'):
         payload = task['payload']
-        value = payload.get('source')
+        if role not in ('source','target'):
+            raise TaskInputError('نوع المقرر غير صالح.')
+        uploaded_target = role == 'target'
+        if uploaded_target and (payload.get('target_mode') != 'uploaded' or 'target_id' in payload):
+            raise TaskInputError('نوع المقرر الهدف لا يطابق المهمة.')
+        value = payload.get(role)
+        label = 'المقرر الهدف' if uploaded_target else 'المقرر المصدر'
         if not isinstance(value, dict):
-            raise TaskInputError('المقرر المصدر غير موجود في هذه الجلسة.')
+            raise TaskInputError(label + ' غير موجود في هذه الجلسة.')
         source_id = require_id(value.get('id'), TASK_ID)
-        if require_id(payload.get('source_id'), TASK_ID) != source_id:
-            raise TaskInputError('هوية المقرر المصدر لا تطابق المهمة.')
+        if require_id(payload.get('target_source_id' if uploaded_target else 'source_id'), TASK_ID) != source_id:
+            raise TaskInputError('هوية ' + label + ' لا تطابق المهمة.')
         if value.get('session_id', task['session_id']) != task['session_id']:
-            raise TaskInputError('المقرر المصدر لا ينتمي إلى جلسة المستفيد.')
+            raise TaskInputError(label + ' لا ينتمي إلى جلسة المستفيد.')
+        if uploaded_target and (not value.get('upload_pdf') or value.get('catalog_course_id') or value.get('source_pdf')):
+            raise TaskInputError('يلزم ملف توصيف مرفوع للمقرر الهدف.')
         trusted = None
         if value.get('catalog_course_id'):
             trusted = self.sources.get(value['catalog_course_id'])
@@ -424,9 +435,41 @@ class Processor:
         path = None
         if source.get('upload_pdf') or value.get('has_pdf'):
             expected = require_id(source.get('source_sha256'), SESSION_ID, 'بصمة التوصيف المرفوع غير صالحة.')
-            path = self.save_pdf(task, source_id, cloud, expected)
+            path = self.save_pdf(task, source_id, cloud, expected, **({'role':'target'} if uploaded_target else {}))
             source['upload_pdf'] = True
         return source, trusted, path
+
+
+    def existing_source(self, task, cloud):
+        return self.existing_input(task, cloud)
+
+    def comparison_target(self, task, cloud):
+        payload = task['payload']
+        if payload.get('target_mode') == 'uploaded':
+            target, _, path = self.existing_input(task, cloud, role='target')
+            expected = [{'id':t['id'],'text':t.get('corrected_text') or t['text']} for t in target['topics']]
+            supplied = payload.get('target_topics', expected)
+            if supplied != expected:
+                raise TaskInputError('مفردات الهدف المرفوع ثابتة وفق التوصيف المحفوظ.')
+            return target, path
+        if payload.get('target_mode') not in (None,'catalog') or 'target_source_id' in payload:
+            raise TaskInputError('نوع المقرر الهدف غير صالح.')
+        if payload.get('target_id') not in self.courses:
+            raise TaskInputError('المقرر الهدف غير موجود في البرنامج والخطة المحددين.')
+        target = copy.deepcopy(self.courses[payload['target_id']])
+        self.course_path(target)
+        return target, None
+
+    def comparison_hold(self, target, source, *, uploaded=False):
+        reference = target
+        if uploaded:
+            anchor, problem = uploaded_target_reference(target, self.sources.values())
+            if problem:
+                return {'provider':'reference_pending','pairs':[],'rubric':RUBRIC_VERSION,'reference_review':{'target':problem}}
+            if anchor is not None:
+                self.course_path(anchor)
+                reference = anchor
+        return reference_pending(reference, source, RUBRIC_VERSION)
 
     def process(self, task, cloud):
         validate_task(task)
@@ -455,7 +498,8 @@ class Processor:
                         # has stronger evidence than repeating model OCR.
                         approved = next((c for c in self.sources.values()
                                          if c.get('source_sha256') == digest(path)
-                                         and c.get('reference_quality', {}).get('state') == 'ready_visual'), None)
+                                         and c.get('reference_quality', {}).get('state') == 'ready_visual'
+                                         and reference_problem(c) is None), None)
                         if approved is not None:
                             self.course_path(approved)
                             source = {'source_sha256':digest(path),'topics':copy.deepcopy(approved['topics']),
@@ -474,6 +518,7 @@ class Processor:
                             source = verify_pdf_topics(path, source, extraction_cache)
                 except Exception:
                     raise TaskInputError('تعذرت قراءة محتوى الملف المرفوع.') from None
+                source['extraction_integrity'] = extraction_integrity(source)
                 source = public_source(source)
                 source.update(name=str(payload.get('name') or 'المقرر المرفوع')[:200], upload_pdf=True,
                               source_media_kind='image' if payload.get('input_kind') == 'image' else 'pdf')
@@ -494,6 +539,7 @@ class Processor:
             self.verify_catalog()
             return source
         source, trusted_source, source_pdf = self.existing_source(task, cloud)
+        target_pdf = None
         try:
             if task['kind'] == 'search':
                 source['topics'] = clean_topics(payload.get('topics', source['topics']), source['topics'])
@@ -502,20 +548,18 @@ class Processor:
             else:
                 if payload.get('reviewed') is not True:
                     raise TaskInputError('يلزم تأكيد مراجعة مفردات المقررين قبل إصدار التقرير.')
-                if payload.get('target_id') not in self.courses:
-                    raise TaskInputError('المقرر الهدف غير موجود في البرنامج والخطة المحددين.')
-                target = copy.deepcopy(self.courses[payload['target_id']])
-                self.course_path(target)
+                target, target_pdf = self.comparison_target(task, cloud)
                 source['topics'] = clean_topics(payload.get('source_topics', source['topics']), source['topics'])
                 target['topics'] = clean_topics(payload.get('target_topics', target['topics']), target['topics'])
                 beneficiary = clean_beneficiary(payload.get('beneficiary'))
-                evidence = reference_pending(self.courses[payload['target_id']], trusted_source or source, RUBRIC_VERSION)
+                evidence = self.comparison_hold(target, trusted_source or source, uploaded=payload.get('target_mode') == 'uploaded')
                 if evidence is None:
                     evidence = compare(target, source, model=self.model, cache_dir=private_directory(directory / 'comparisons'))
                 if evidence['pairs']:
                     validate_evidence(evidence,target['topics'],source['topics'])
                 result = {'id': task['id'], 'source': source, 'target': public_source(target, catalog_pdf=target.get('source_pdf')), 'evidence': evidence, 'calculation': evidence_calculation(target['topics'], source['topics'], evidence), 'beneficiary': beneficiary, 'created_at': datetime.now(timezone.utc).isoformat(), 'catalog_id': self.catalog['catalog_id'], 'reviewed_by': 'automated_pipeline' if payload.get('review_mode') == 'automatic' else 'user_confirmed_extraction', 'human_reviewed': payload.get('review_mode') != 'automatic'}
-                self.course_path(target)
+                result['target_mode'] = 'uploaded' if payload.get('target_mode') == 'uploaded' else 'catalog'
+                if target_pdf is None: self.course_path(target)
         except TaskInputError:
             raise
         except Exception:
@@ -524,6 +568,8 @@ class Processor:
         self.verify_catalog()
         if trusted_source:
             self.course_path(trusted_source)
+        if target_pdf and digest(target_pdf) != target.get('source_sha256'):
+            raise TaskInputError('تغير توصيف المقرر الهدف أثناء معالجة المهمة.')
         if source_pdf and digest(source_pdf) != source.get('source_sha256'):
             raise TaskInputError('تغير التوصيف المرفوع أثناء معالجة المهمة.')
         return result
@@ -547,10 +593,7 @@ class Processor:
         else:
             self.existing_source(value, cloud)
             if value['kind'] == 'compare':
-                target = self.courses.get(value['payload'].get('target_id'))
-                if target is None:
-                    raise TaskInputError('المقرر الهدف لم يعد متاحًا في المكتبة.')
-                self.course_path(target)
+                target, target_pdf = self.comparison_target(value, cloud)
                 # A completed but unacknowledged task may survive a code/rubric
                 # upgrade. File integrity alone does not make its old evidence
                 # valid under today's rules. Never regrade a saved report here;
@@ -565,6 +608,12 @@ class Processor:
                             or report['target']['id'] != target['id']):
                         raise ValueError('obsolete_or_mismatched_checkpoint')
                     targets, sources = report['target']['topics'], report['source']['topics']
+                    if value['payload'].get('target_mode') == 'uploaded':
+                        effective = lambda rows: [(t['id'],t.get('corrected_text') or t['text']) for t in rows]
+                        if (report.get('target_mode') != 'uploaded'
+                                or report['target'].get('source_sha256') != target.get('source_sha256')
+                                or effective(targets) != effective(target['topics'])):
+                            raise ValueError('uploaded_target_checkpoint_changed')
                     pairs = evidence['pairs']
                     if not isinstance(pairs, list):
                         raise ValueError('invalid_checkpoint_pairs')
@@ -572,7 +621,7 @@ class Processor:
                         validate_evidence(evidence, targets, sources)
                     # Empty/unresolved topics legitimately return insufficient
                     # with no pairs; calculate owns that deterministic policy.
-                    pending=reference_pending(target,self.sources.get(report['source'].get('catalog_course_id')) or report['source'],RUBRIC_VERSION)
+                    pending=self.comparison_hold(target,self.sources.get(report['source'].get('catalog_course_id')) or report['source'],uploaded=value['payload'].get('target_mode') == 'uploaded')
                     if pending is not None and evidence!=pending:
                         raise ValueError('reference_readiness_changed')
                     if evidence.get('provider')=='reference_pending' and evidence!=pending:

@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-03",
+  "feature": "uploaded source and uploaded target alongside repository search",
+  "modes": [
+    "repository",
+    "upload_pair"
+  ],
+  "policy_changed": false,
+  "catalog_or_reference_pdf_modified": false,
+  "target_denominator": "immutable effective topics of the server-owned target artifact",
+  "public_release_verified": false,
+  "tests": {
+    "python": 378,
+    "node_passed": 165,
+    "node_optional_skips": 4,
+    "chrome_passed": 89,
+    "pdf_import_verified": 448
+  },
+  "verified_checks": [
+    "Exclusive catalog or uploaded target identity",
+    "Both artifacts must belong to the current session",
+    "Uploaded target requires a real PDF container, not manual or catalog-source metadata",
+    "Both original PDF hashes rechecked, including resumable checkpoints",
+    "Client cannot override target topics or target scope",
+    "Known held reference cannot bypass readiness through upload",
+    "Explicit target extraction holes withhold judgment, hours-only warnings do not",
+    "One source row versus two atomic target rows calculates 50 percent",
+    "Concurrent identical files in different roles get distinct request identifiers",
+    "No repository search in direct-upload mode; repository search resumes when switched",
+    "Uploaded reports have neutral institutional headings and private PDF links"
+  ],
+  "local_only": true,
+  "public_followup": "queued after deployment, no public fixture or model calls in unit tests"
+}

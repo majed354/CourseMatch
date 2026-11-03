@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from .engine import RUBRIC_VERSION, calculate, compare, search, topic_text
-from .reference_quality import reference_pending, evidence_calculation
+from .reference_quality import reference_pending, evidence_calculation, extraction_integrity, uploaded_target_reference
 from .extract import ROOT, digest, extract_pdf, extract_cached, apply_readings
 
 
@@ -150,33 +150,56 @@ class Pilot:
             source = {"name": str(data.get("name") or "المقرر المدخل")[:200], "topics": clean_topics(data.get("topics", [])),
                       "reviewed": False, "warnings": [], "status": "manual", "source_note": "مفردات أدخلها المستخدم؛ ليست مستخرجة من PDF"}
         source["id"] = key
+        if source.get("upload_pdf"):source["extraction_integrity"] = extraction_integrity(source)
         self.path("sources", key).write_text(json.dumps(source, ensure_ascii=False, indent=2))
         return source
+
+    def verify_uploaded(self, course):
+        path = self.path('sources',course['id'],'pdf')
+        if path.is_symlink() or not path.is_file() or digest(path) != course.get('source_sha256'):
+            raise ValueError('بصمة التوصيف المرفوع لا تطابق الملف المحفوظ')
 
     def job(self, data):
         beneficiary = clean_beneficiary(data.get("beneficiary"))
         source = self.source(data["source_id"])
-        target = dict(self.courses[data["target_id"]])
-        self.verify_course(target)
+        if ('target_id' in data) + ('target_source_id' in data) != 1:
+            raise ValueError('اختر هدفًا واحدًا: من المستودع أو من توصيف مرفوع')
+        uploaded_target = 'target_source_id' in data
+        if uploaded_target:
+            if 'target_topics' in data or any(k in data for k in ('context_id','context_ids','all_contexts','version','catalog_id')):
+                raise ValueError('مفردات وسياق الهدف المرفوع ثابتة وفق ملفه')
+            target = self.source(data['target_source_id'])
+            if not target.get('upload_pdf') or target.get('catalog_course_id') or target.get('source_pdf'):
+                raise ValueError('يلزم توصيف مرفوع للمقرر الهدف')
+            self.verify_uploaded(target)
+        else:
+            target = dict(self.courses[data['target_id']])
+            self.verify_course(target)
+        if source.get('upload_pdf'):self.verify_uploaded(source)
         if source.get("catalog_course_id"):
             self.verify_course(self.sources[source["catalog_course_id"]])
         if data.get("review_mode") != 'automatic' and data.get("reviewed") is not True:
             raise ValueError("راجع مفردات المقررين وأكد صحة النص قبل المقارنة")
         source["topics"] = clean_topics(data.get("source_topics", source["topics"]), source["topics"])
-        target["topics"] = clean_topics(data.get("target_topics", target["topics"]), target["topics"])
+        target["topics"] = clean_topics(target['topics'] if uploaded_target else data.get('target_topics',target['topics']),target['topics'])
         key = secrets.token_hex(16)
         self.jobs[key] = {"id": key, "status": "queued", "message": "بانتظار محرك المقارنة المحلي"}
 
         def run():
             try:
                 self.jobs[key].update(status="running", message="تدقيق توافق المفردات بالنموذج المحلي")
-                evidence = reference_pending(self.courses[data['target_id']], (self.sources[source['catalog_course_id']] if source.get('catalog_course_id') else source), RUBRIC_VERSION) or compare(target, source, model=self.model)
-                result = {"id": key, "source": source, "target": target, "evidence": evidence,
+                reference, problem = (uploaded_target_reference(target,self.sources.values()) if uploaded_target else (None,None))
+                if reference is not None:self.verify_course(reference)
+                evidence = ({'provider':'reference_pending','pairs':[],'rubric':RUBRIC_VERSION,'reference_review':{'target':problem}} if problem else
+                            reference_pending(reference or target,(self.sources[source['catalog_course_id']] if source.get('catalog_course_id') else source),RUBRIC_VERSION)) or compare(target,source,model=self.model)
+                result = {"id": key, "source": source, "target": target, "target_mode": "uploaded" if uploaded_target else "catalog", "evidence": evidence,
                           "beneficiary": beneficiary, "created_at": datetime.now(timezone.utc).isoformat(),
                           "calculation": evidence_calculation(target["topics"], source["topics"], evidence),
                           "catalog_id": self.catalog["catalog_id"], "reviewed_by": "automated_pipeline" if data.get('review_mode') == 'automatic' else "user_confirmed_extraction", "human_reviewed": data.get('review_mode') != 'automatic',
                           "notice": "نتيجة تجريبية للمفردات وفق سياسة 80/80/60؛ درجات توافق المفردات تقدير آلي يحتاج اعتماد المختص. الساعات واللوائح خارج هذا الحكم."}
-                self.verify_course(target)
+                if uploaded_target:self.verify_uploaded(target)
+                else:self.verify_course(target)
+                if source.get('upload_pdf'):self.verify_uploaded(source)
                 self.save_report(result)
                 self.jobs[key].update(status="done", message="اكتملت المقارنة", result=result)
             except Exception as e:
@@ -217,7 +240,7 @@ def serve(root=ROOT, port=8799, model="qwen3.8:27b-q8_0"):
                     return self.send(200, (pilot.root / "equivalency-pilot" / name).read_bytes(), mime)
                 if route == "/api/catalog":
                     pilot.verify_catalog()
-                    return self.send(200, {"catalog": pilot.catalog, "token": pilot.token, "model": pilot.model})
+                    return self.send(200, {"catalog": pilot.catalog, "token": pilot.token, "model": pilot.model, "capabilities":{"uploaded_target":True,"queued":False,"reference_editable":True,"image_upload":True,"pdf_visual_verification":True,"max_upload_mb":12}})
                 if route.startswith("/api/jobs/"):
                     key = route.rsplit("/", 1)[-1]
                     job = pilot.jobs.get(key)

@@ -736,3 +736,105 @@ test('three authenticated missing-request responses stop recovery without automa
   assert.equal(context.calls.length,4);assert.equal(context.calls.filter(c=>c.options?.method==='POST').length,1);
   assert.equal(vm.runInContext('pendingQueueRequests.size',context),0);
 });
+
+
+function uploadedCourse(id='uploaded-target') {return {id,name:'مقرر مرفوع '+id,upload_pdf:true,topics:[{id:'t1',text:'مفردة أكاديمية من التوصيف',page:1}]};}
+function pdfFile(name='course.pdf'){return {name,type:'application/pdf',size:8,arrayBuffer:async()=>new TextEncoder().encode('%PDF-1.4').buffer};}
+
+test('pair mode reuses the current source without retrieval and returning to repository resumes automatic search',async()=>{
+ const {context,element}=ui();context.sourceInput=uploadedCourse('original');context.requests=[];
+ await vm.runInContext(`api=async(route,body)=>{requests.push({route,body});return {candidates:[],scope_count:10}};setComparisonMode('upload_pair');setSource(sourceInput)`,context);
+ assert.equal(context.requests.length,0);assert.equal(element('searchScopePanel').hidden,true);assert.equal(element('targetUploadPanel').hidden,false);assert.equal(element('candidatePanel').hidden,true);assert.equal(element('pairCompareButton').disabled,true);
+ await vm.runInContext("setComparisonMode('repository')",context);
+ assert.deepEqual(context.requests.map(x=>x.route),['/api/search']);assert.equal(context.requests[0].body.all_contexts,true);assert.equal(element('targetUploadPanel').hidden,true);assert.equal(element('pairComparisonPanel').hidden,true);assert.equal(element('searchScopePanel').hidden,false);
+});
+
+test('uploaded target uses the same private PDF or image intake, read-only topics and no search',async()=>{
+ for(const image of[false,true]){
+  const {context,element}=ui();context.original=uploadedCourse('original');context.targetInput=uploadedCourse();context.requests=[];
+  await vm.runInContext("api=async(route,body)=>{requests.push({route,body});return targetInput};setComparisonMode('upload_pair');setSource(original)",context);
+  element('targetPdfFile').files=[image?{name:'target.png',type:'image/png',size:10}:pdfFile()];
+  if(image)context.CourseImageUpload={...context.CourseImageUpload,prepare:async()=>({bytes:new Uint8Array([37,80,68,70])})};
+  await element('targetExtractButton').onclick({target:element('targetExtractButton')});
+  assert.deepEqual(context.requests.map(x=>x.route),['/api/sources']);assert.equal(context.requests[0].body.input_kind,image?'image':undefined);assert.equal(context.requests[0].body.original_filename,image?'target.png':undefined);assert.ok(context.requests[0].body.pdf_base64);assert.equal(element('pairCompareButton').disabled,false);assert.equal(element('uploadedTargetTopics').querySelector('textarea').readOnly,true);assert.equal(element('uploadedTargetPanel').hidden,false);assert.match(element('uploadedTargetMeta').innerHTML,/\/pdf\/uploaded-target/);
+ }
+});
+
+test('pair comparison sends only owner artifact IDs, automatic mode and beneficiary',async()=>{
+ const {context,element}=ui();context.original=uploadedCourse('original');context.targetInput=uploadedCourse();context.requests=[];
+ await vm.runInContext("setComparisonMode('upload_pair');uploadedTarget=targetInput;setSource(original);api=async(route,body)=>{requests.push({route,body});return {id:'pair-job'}};waitForReport=async()=>{}",context);
+ element('beneficiaryName').value='مستفيد المقارنة';element('beneficiaryNumber').value='00042';await element('pairCompareButton').onclick({target:element('pairCompareButton')});
+ const call=JSON.parse(JSON.stringify(context.requests[0]));assert.equal(call.route,'/api/jobs');assert.deepEqual(call.body,{source_id:'original',target_source_id:'uploaded-target',review_mode:'automatic',beneficiary:{name:'مستفيد المقارنة',number:'00042'}});assert.equal(element('reviewed').checked,false);
+});
+
+test('switching mode discards an in-flight repository search instead of opening a stale candidate',async()=>{
+ const {context,element,catalog}=ui();context.original=uploadedCourse('original');context.candidate=catalog.courses.find(c=>c.topics.length);
+ const pending=vm.runInContext("api=()=>new Promise(resolve=>globalThis.finishSearch=resolve);setSource(original)",context);
+ await vm.runInContext("setComparisonMode('upload_pair')",context);context.finishSearch({candidates:[context.candidate],scope_count:20});await pending;
+ assert.equal(element('candidatePanel').hidden,true);assert.equal(vm.runInContext('target',context),null);assert.equal(element('reportPanel').hidden,true);
+});
+
+test('a late target extraction is discarded after its file changes or after mode changes away and back',async()=>{
+ for(const change of['file','mode']){
+  const {context,element}=ui();context.targetInput=uploadedCourse();await vm.runInContext("setComparisonMode('upload_pair');api=()=>new Promise(resolve=>globalThis.finishTarget=resolve)",context);element('targetPdfFile').files=[pdfFile()];
+  const pending=element('targetExtractButton').onclick({target:element('targetExtractButton')});await new Promise(resolve=>setImmediate(resolve));
+  if(change==='file')element('targetPdfFile').onchange();else await vm.runInContext("setComparisonMode('repository');setComparisonMode('upload_pair')",context);
+  context.finishTarget(context.targetInput);await pending;assert.equal(vm.runInContext('uploadedTarget',context),null);assert.equal(element('uploadedTargetPanel').hidden,true);assert.equal(element('pairCompareButton').disabled,true);
+ }
+});
+
+test('switching mode discards a late original extraction without launching search in the new mode',async()=>{
+ const {context,element}=ui();context.original=uploadedCourse('old');context.calls=[];element('pdfFile').files=[pdfFile()];
+ vm.runInContext("api=(route,body)=>{calls.push(route);return new Promise(resolve=>globalThis.finishOriginal=resolve)}",context);
+ const pending=element('extractButton').onclick({target:element('extractButton')});await new Promise(resolve=>setImmediate(resolve));await vm.runInContext("setComparisonMode('upload_pair')",context);context.finishOriginal(context.original);await pending;
+ assert.equal(vm.runInContext('source',context),undefined);assert.equal(element('sourcePanel').hidden,true);assert.deepEqual([...context.calls],['/api/sources']);
+});
+
+test('changing either uploaded file closes the old report and disables issuance until both sources are ready',async()=>{
+ for(const input of['pdfFile','targetPdfFile']){
+  const {context,element}=ui();context.original=uploadedCourse('original');context.targetInput=uploadedCourse();context.oldReport=reportFixture();
+  await vm.runInContext("setComparisonMode('upload_pair');uploadedTarget=targetInput;setSource(original);showReport(oldReport)",context);element(input).onchange();
+  assert.equal(element('reportPanel').hidden,true);assert.equal(vm.runInContext('currentReport',context),null);assert.equal(element('pairCompareButton').disabled,true);
+ }
+});
+
+test('a late pair job acknowledgement cannot reopen a report after a target file change',async()=>{
+ const {context,element}=ui();context.original=uploadedCourse('original');context.targetInput=uploadedCourse();context.polls=[];
+ await vm.runInContext("setComparisonMode('upload_pair');uploadedTarget=targetInput;setSource(original);api=()=>new Promise(resolve=>globalThis.finishJob=resolve);waitForReport=async id=>polls.push(id)",context);
+ const pending=element('pairCompareButton').onclick({target:element('pairCompareButton')});element('targetPdfFile').onchange();context.finishJob({id:'stale-job'});await pending;
+ assert.equal(context.polls.length,0);assert.equal(element('reportPanel').hidden,true);assert.equal(element('pairCompareButton').disabled,true);
+});
+
+test('a late completed pair report cannot reopen after changing mode away and back',async()=>{
+ const {context,element}=ui();context.original=uploadedCourse('original');context.targetInput=uploadedCourse();context.reportInput=reportFixture();
+ await vm.runInContext("setComparisonMode('upload_pair');uploadedTarget=targetInput;setSource(original);api=()=>new Promise(resolve=>globalThis.finishPoll=resolve)",context);
+ const pending=vm.runInContext("waitForReport('old-job',{sourceId:source.id,targetId:target.id,mode:comparisonMode,revision:comparisonSequence,beneficiary:{}})",context);
+ await vm.runInContext("source=null;setComparisonMode('repository');source=original;setComparisonMode('upload_pair')",context);context.finishPoll({status:'done',result:context.reportInput});await pending;assert.equal(element('reportPanel').hidden,true);
+});
+
+test('uploaded report has neutral target identity, private links and unchanged academic evidence',()=>{
+ const input=reportFixture();input.target_mode='uploaded';input.source.upload_pdf=true;input.target.upload_pdf=true;input.target.university='جامعة الهدف';const {html}=renderedReport(input);
+ assert.match(html,/<h1>تقرير مقارنة المقررات<\/h1>/);assert.ok(html.includes('المقرر الأصل'));assert.ok(html.includes('جامعة الهدف'));assert.ok(html.includes('/pdf/source'));assert.ok(html.includes('/pdf/target'));assert.ok(!html.includes('جامعة الطائف'));assert.ok(!html.includes('الأنظمة'));assert.ok(!html.includes('الخطة'));assert.ok(html.includes('تعليل الدليل 0'));assert.ok(html.includes('report-stamp approved'));assert.equal(input.target.context.program,'الأنظمة');
+ delete input.target.university;const neutral=renderedReport(input).html;assert.equal((neutral.match(/مقرر مرفوع للمقارنة/g)||[]).length,2);assert.ok(!neutral.includes('مقرر مصدر المعادلة'));
+});
+
+
+test('identical concurrent original and target uploads retain separate recovery nonces and source identities',async()=>{
+ const {context,element}=ui();const posts=[],releases=[];context.setTimeout=callback=>{callback();return 0};
+ context.fetch=async(route,options)=>{
+  assert.equal(route,'/api/sources','pair intake must not search or recover the other role');assert.equal(options.method,'POST');const body=JSON.parse(options.body);posts.push(body);
+  await new Promise(resolve=>releases.push(resolve));return {status:200,ok:true,json:async()=>uploadedCourse(body.intake_role==='source'?'original-artifact':'target-artifact')};
+ };
+ await vm.runInContext("requestRecovery=true;setComparisonMode('upload_pair')",context);
+ const sameFile=pdfFile('same.pdf');element('pdfFile').files=[sameFile];element('targetPdfFile').files=[sameFile];element('uploadName').value='نفس الاسم';element('targetUploadName').value='نفس الاسم';
+ const sourcePending=element('extractButton').onclick({target:element('extractButton')}),targetPending=element('targetExtractButton').onclick({target:element('targetExtractButton')});
+ for(let n=0;n<30&&posts.length<2;n++)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(posts.length,2);assert.deepEqual(posts.map(x=>x.intake_role).sort(),['source','target']);assert.equal(new Set(posts.map(x=>x.request_id)).size,2);for(const p of posts)assert.match(p.request_id,/^[a-f0-9]{32}$/);
+ const neutral=p=>({...p,intake_role:undefined,request_id:undefined});assert.deepEqual(neutral(posts[0]),neutral(posts[1]));releases.forEach(resolve=>resolve());await Promise.all([sourcePending,targetPending]);
+ assert.equal(vm.runInContext('source.id',context),'original-artifact');assert.equal(vm.runInContext('uploadedTarget.id',context),'target-artifact');assert.equal(vm.runInContext('pendingQueueRequests.size',context),0);assert.equal(element('pairCompareButton').disabled,false);
+});
+
+test('repository uploads retain the source role and automatic retrieval contract',async()=>{
+ const state=ui(),candidate=state.catalog.courses.find(c=>c.topics.length);installSearchAPI(state,[candidate]);state.context.uploadExtractedSource={...candidate,context:null};state.element('pdfFile').files=[pdfFile()];await state.element('extractButton').onclick({target:state.element('extractButton')});
+ const calls=JSON.parse(JSON.stringify(state.context.requests));assert.deepEqual(calls.map(x=>x.route),['/api/sources','/api/search']);assert.equal(calls[0].body.intake_role,'source');assert.equal(calls[0].body.input_kind,undefined);assert.equal(calls[1].body.all_contexts,true);assert.equal(calls[1].body.limit,8);
+});

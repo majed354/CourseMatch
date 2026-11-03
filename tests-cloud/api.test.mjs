@@ -347,3 +347,107 @@ test('legacy requests retain independent random IDs and no recovery payload fiel
   assert.notEqual(first.operation_id,second.operation_id);assert.equal(s.repository.tasks.size,2);
   for(const task of s.repository.tasks.values())assert.equal(Object.hasOwn(task.payload,'request_id'),false);
 });
+
+test('uploaded comparison queues a server-owned target snapshot and restores authoritative report metadata',async()=>{
+  const s=setup(),a=await s.bootstrap(),source=await s.source(a),target=await s.source(a,{pdf:true});
+  assert.equal(a.capabilities.uploaded_target,true);
+  const response=await s.post('/api/jobs',{source_id:source.id,target_source_id:target.id,review_mode:'automatic',target:{id:'forged',topics:[]},beneficiary:{name:'مستفيد',number:'DEMO-02'}},a);
+  assert.equal(response.status,202);const {id}=await response.json();
+  const task=(await(await s.worker('claim',{worker_id:'uploaded-target'})).json()).task;
+  assert.equal(task.id,id);assert.equal(task.payload.target_mode,'uploaded');assert.equal(task.payload.target_source_id,target.id);
+  assert.equal(task.payload.target_id,undefined);assert.deepEqual(task.payload.target,target);assert.deepEqual(task.payload.target_topics,course.topics);
+  const result={source,target:{...target,name:'اسم مزور',context:{program:'نطاق مزور'},source_pdf:'https://foreign.test/private.pdf',upload_pdf:false,topics:target.topics.map(t=>({...t,page:999}))},target_mode:'catalog',catalog_id:catalog.catalog_id,calculation:{decision:'insufficient'}};
+  assert.equal((await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result})).status,200);
+  const report=(await(await s.request('/api/jobs/'+id,{cookie:a.cookie})).json()).result;
+  assert.deepEqual(report.target,target);assert.equal(report.target.id,target.id);assert.equal(report.target_mode,'uploaded');
+  assert.equal(report.human_reviewed,false);assert.equal(report.reviewed_by,'automated_pipeline');assert.equal(report.beneficiary.number,'DEMO-02');
+  assert.equal(report.payload,undefined);assert.equal(report.target.pdf_key,undefined);
+  assert.equal((await s.request('/pdf/'+target.id,{cookie:a.cookie})).status,200);
+});
+
+test('jobs require exactly one target selector and forbid uploaded target scope or topic overrides',async()=>{
+  const s=setup(),a=await s.bootstrap(),source=await s.source(a),target=await s.source(a,{pdf:true});
+  const base={source_id:source.id,review_mode:'automatic'};
+  for(const selectors of [{},{target_id:course.id,target_source_id:target.id},{target_source_id:null},{target_source_id:'bad'},{target_id:null}]) {
+    assert.equal((await s.post('/api/jobs',{...base,...selectors},a)).status,400);
+  }
+  for(const extra of [{target_topics:target.topics},{context_id:'plan47'},{context_ids:[]},{all_contexts:false},{version:'47'},{catalog_id:course.id}]) {
+    assert.equal((await s.post('/api/jobs',{...base,target_source_id:target.id,...extra},a)).status,400);
+  }
+  assert.equal([...s.repository.tasks.values()].filter(t=>t.kind==='compare').length,0);
+  assert.equal((await s.post('/api/jobs',{...base,target_id:course.id},a)).status,202);
+});
+
+test('uploaded target must be a completed owned actual upload, not manual or catalog artifacts',async()=>{
+  const s=setup(),a=await s.bootstrap(),b=await s.bootstrap(),source=await s.source(a),manual=await s.source(a),fromCatalog=await s.source(a,{catalogId:course.id}),foreign=await s.source(b,{pdf:true});
+  const base={source_id:source.id,review_mode:'automatic'};
+  for(const target of [manual,fromCatalog])assert.equal((await s.post('/api/jobs',{...base,target_source_id:target.id},a)).status,400);
+  assert.equal((await s.post('/api/jobs',{...base,target_source_id:foreign.id},a)).status,404);
+  const queued=await(await s.post('/api/sources',{pdf_base64:Buffer.from('%PDF-1.7\nnot ready').toString('base64')},a)).json();
+  assert.equal((await s.post('/api/jobs',{...base,target_source_id:queued.operation_id},a)).status,404);
+  assert.equal([...s.repository.tasks.values()].filter(t=>t.kind==='compare').length,0);
+});
+
+test('source and uploaded target TTLs are checked independently before accepting a comparison',async()=>{
+  const s=setup(),a=await s.bootstrap(),source=await s.source(a),target=await s.source(a,{pdf:true});
+  const sourceArtifact=[...s.repository.artifacts.values()].find(t=>t.id===source.id),targetArtifact=[...s.repository.artifacts.values()].find(t=>t.id===target.id);
+  const expires=sourceArtifact.expires_at,body={source_id:source.id,target_source_id:target.id,review_mode:'automatic'};
+  targetArtifact.expires_at=s.now();assert.equal((await s.post('/api/jobs',body,a)).status,404);targetArtifact.expires_at=expires;
+  sourceArtifact.expires_at=s.now();assert.equal((await s.post('/api/jobs',body,a)).status,404);
+  assert.equal([...s.repository.tasks.values()].filter(t=>t.kind==='compare').length,0);
+});
+
+test('claim fences expired or changed uploaded target evidence without changing the queued snapshot',async()=>{
+  for(const mutation of ['expired','topics','sha','id']) {
+    const s=setup(),a=await s.bootstrap(),source=await s.source(a),target=await s.source(a,{pdf:true});
+    const {id}=await(await s.post('/api/jobs',{source_id:source.id,target_source_id:target.id,review_mode:'automatic'},a)).json();
+    const artifact=[...s.repository.artifacts.values()].find(t=>t.id===target.id),task=[...s.repository.tasks.values()].find(t=>t.id===id);
+    const frozen=structuredClone(task.payload.target);
+    if(mutation==='expired')artifact.expires_at=s.now();
+    if(mutation==='topics')artifact.value.topics=[{id:'t1',text:'نص مختلف'}];
+    if(mutation==='sha')artifact.value.source_sha256='different';
+    if(mutation==='id')artifact.value.id='f'.repeat(32);
+    const claimed=await s.worker('claim',{worker_id:'target-fenced'});assert.equal((await claimed.json()).task,null);
+    assert.deepEqual(task.payload.target,frozen);
+    const state=await(await s.request('/api/jobs/'+id,{cookie:a.cookie})).json();assert.equal(state.status,'error');assert.equal(state.result,undefined);
+  }
+});
+
+test('uploaded target worker completion rejects wrong identity, SHA or denominator before publishing',async()=>{
+  const s=setup(),a=await s.bootstrap(),source=await s.source(a),target=await s.source(a,{pdf:true});
+  const {id}=await(await s.post('/api/jobs',{source_id:source.id,target_source_id:target.id,review_mode:'automatic'},a)).json();
+  const task=(await(await s.worker('claim',{worker_id:'target-proof'})).json()).task;
+  const base={source,target,catalog_id:catalog.catalog_id,calculation:{decision:'equivalent'}};
+  for(const forged of [{...target,id:course.id},{...target,source_sha256:'different'},{...target,topics:[]},{...target,topics:[{id:'t1',text:'موضوع مختلف'}]}]) {
+    assert.equal((await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result:{...base,target:forged}})).status,400);
+    assert.equal((await(await s.request('/api/jobs/'+id,{cookie:a.cookie})).json()).status,'running');
+  }
+  assert.equal((await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result:base})).status,200);
+});
+
+test('leased target PDF download uses the owned target artifact, never caller paths or public credentials',async()=>{
+  const s=setup(),a=await s.bootstrap(),b=await s.bootstrap(),source=await s.source(a),target=await s.source(a,{pdf:true});
+  const {id}=await(await s.post('/api/jobs',{source_id:source.id,target_source_id:target.id,review_mode:'automatic',target_pdf_key:'forged/path'},a)).json();
+  const task=(await(await s.worker('claim',{worker_id:'target-download'})).json()).task;
+  const path='/api/worker/tasks/'+id+'/input-target-pdf',headers={Authorization:'Bearer '+env.COURSEMATCH_WORKER_TOKEN,'X-Lease-Token':task.lease_token};
+  const response=await s.request(path,{headers});assert.equal(response.status,200);assert.equal(await response.text(),'%PDF-1.7\nfixture');
+  assert.equal((await s.request(path,{headers:{...headers,'X-Lease-Token':'0'.repeat(48)}})).status,409);
+  assert.equal((await s.request(path,{cookie:b.cookie})).status,403);
+  assert.equal((await s.request('/api/worker/tasks/'+id+'/input-pdf',{headers})).status,404); // source is manual
+  assert.equal(task.payload.target_pdf_key,undefined);
+  await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,error:'اختبار انتهاء الحجز'});
+  assert.equal((await s.request(path,{headers})).status,409);
+  const catalogJob=await(await s.post('/api/jobs',{source_id:source.id,target_id:course.id,review_mode:'automatic'},a)).json();
+  const catalogTask=(await(await s.worker('claim',{worker_id:'target-download'})).json()).task;
+  assert.equal(catalogTask.id,catalogJob.id);
+  assert.equal((await s.request('/api/worker/tasks/'+catalogJob.id+'/input-target-pdf',{headers:{...headers,'X-Lease-Token':catalogTask.lease_token}})).status,404);
+});
+
+test('uploaded comparison preserves request recovery without another enqueue or payload exposure',async()=>{
+  const s=setup(),a=await s.bootstrap(),source=await s.source(a),target=await s.source(a,{pdf:true}),request_id='9'.repeat(32);
+  const accepted=await s.post('/api/jobs',{source_id:source.id,target_source_id:target.id,review_mode:'automatic',request_id},a);assert.equal(accepted.status,202);
+  const {id}=await accepted.json(),count=s.repository.tasks.size;
+  assert.deepEqual(await(await s.request('/api/requests/'+request_id,{cookie:a.cookie})).json(),{id,status:'queued',kind:'compare'});
+  assert.equal((await(await s.post('/api/jobs',{request_id},a)).json()).id,id);assert.equal(s.repository.tasks.size,count);
+  const publicTask=await(await s.request('/api/jobs/'+id,{cookie:a.cookie})).json();assert.equal(publicTask.payload,undefined);assert.equal(publicTask.target,undefined);
+});
