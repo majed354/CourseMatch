@@ -288,12 +288,27 @@
     "runtime/service/qa/najran-final-independent-fff7868-20261103.json"
   ],
   "neutral_pending_report_presentation": {
-    "status": "locally_verified_awaiting_public_GET_only_check",
+    "status": "deployed_and_public_GET_only_verified",
     "behavior": "Replace unverified model absence assertions with a neutral academic explanation for rejection_review reports only.",
     "same_report_evidence_and_calculation": true,
     "node_chrome_enabled_passed": 186,
     "skipped": 0,
     "new_comparison_required": false,
-    "worker_restart_required": false
+    "worker_restart_required": false,
+    "UI_release": "6ee13c919daae7671235399f0c4c4e2d24c9f634",
+    "engine_release": "2630549af7e198ecd001ce9ffd8b49d085e24dc1",
+    "deploy_id": "6aea3d1dadd73e9f6f87160f",
+    "deploy_state": "ready",
+    "public_assets_match_build": true,
+    "github_actions_run": 41708349880,
+    "github_actions_conclusion": "success",
+    "comparison_POST_count": 0,
+    "GET_failures": 0,
+    "report_JSON_and_calculation_unchanged": true,
+    "neutral_reason_verified": true,
+    "PDF_pages": 3,
+    "all_13_target_rows_preserved": true,
+    "all_PDF_pages_visually_reviewed_by_root": true,
+    "private_evidence": "runtime/service/qa/external-rejection-guard-public-20261103/final-GET-view-6ee13c9/"
   }
 }
