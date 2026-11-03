@@ -1,5 +1,5 @@
 {
-  "status": "native_v6_verified_private_source_awaiting_activation",
+  "status": "native_v6_public_source_verified_C01_comparison_starting",
   "baseline_commit": "6f4025e",
   "policy": {
     "course_coverage": 80,
@@ -151,7 +151,26 @@
       "PDF_pages": 3,
       "PDF_all_pages_viewed": true
     },
-    "new_cases_C02_through_C08_started": 0
+    "new_cases_C02_through_C08_started": 0,
+    "C01_cell_regression": {
+      "status": "semantic_comparison_running",
+      "original_PDF": true,
+      "source_POSTs": 1,
+      "search_POSTs": 1,
+      "comparison_POSTs": 1,
+      "source_text_injected": false,
+      "expected_verdict_supplied": false,
+      "source_visual_status": "completed",
+      "source_rows": 12,
+      "all_effective_rows_equal_audited_private_source": true,
+      "all_12_images_equal": true,
+      "all_14_raw_response_hashes_verified": true,
+      "execution_gate_released": true,
+      "proposal_targets_audited": 8,
+      "unit_location_downgrades_resolved_in_proposals": true,
+      "remaining_unrequested_subfacet_claims_in_t1": true,
+      "course_verdict_not_yet_issued": true
+    }
   },
   "independent_CPU_audit": {
     "valid_boundary_cases": 25,
@@ -244,7 +263,7 @@
   },
   "native_v6": {
     "protocol": "native-cell-v6-blind-three-way-reading",
-    "status": "verified_private_not_activated",
+    "status": "public_source_verified",
     "python_tests": 566,
     "node_chrome_tests": 202,
     "skipped": 0,
@@ -267,5 +286,38 @@
     },
     "course_verdict_issued": false,
     "audit_sha256": "cdc74c9be868380f5638b221bb76f5405c4c240637b0e44aa92bc9938e8c3622"
+  },
+  "native_v6_release": {
+    "commit": "811bf5ca778658ee41135b89e74f2190c570f812",
+    "deploy_id": "6aea652c2e9a9a968e5213e3",
+    "state": "ready",
+    "error_message": null,
+    "public_bytes_match": true,
+    "healthz_status": 200,
+    "CI_run": "41734102677",
+    "CI": "success",
+    "worker_and_interactive_restarted": true,
+    "API_models_tunnel_awake_preserved": true
+  },
+  "global_structure_audit": {
+    "kind": "CPU_structure_not_academic_accuracy",
+    "catalog_appearances": 993,
+    "catalog_contexts": 21,
+    "available_appearances": 601,
+    "available_contexts": 20,
+    "available_unique_target_PDFs": 350,
+    "target_PDFs_total": 431,
+    "library_PDFs": 17,
+    "contextual_original_topics": 8033,
+    "contextual_literal_parts": 28225,
+    "unique_reading_original_topics": 4741,
+    "unique_reading_literal_parts": 16797,
+    "structural_failures": 0,
+    "empty_or_nonletter_parts": 0,
+    "courses_over_100_topics": 0,
+    "largest_available_course_topics": 21,
+    "parts_per_topic_max": 74,
+    "unique_topics_over_12_parts": 163,
+    "academic_judgments_verified_by_this_audit": false
   }
 }
