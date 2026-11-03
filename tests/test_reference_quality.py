@@ -27,6 +27,18 @@ class ReferenceQualityTests(unittest.TestCase):
         self.assertEqual(c['decision'],'insufficient');self.assertIsNone(c['strict_coverage']);self.assertEqual(c['reference_review']['target'],'لم تثبت جميع صفوف المرجع')
     def test_uploads_and_manual_inputs_retain_existing_student_review_gate(self):
         self.assertIsNone(reference_problem({'topics':[{'id':'s','text':'مدخل طالب'}]}))
+    def test_failed_or_uncertain_visual_reading_cannot_turn_into_definitive_rejection(self):
+        for status in ('unavailable','uncertain'):
+            source={'upload_pdf':True,'visual_verification_status':status,'topics':[{'id':'s','text':'التةريف بة م ثصول الفقو'}]}
+            evidence=reference_pending(self.t,source,RUBRIC_VERSION)
+            self.assertTrue(evidence['reference_review']['source'])
+            calculation=evidence_calculation(self.t['topics'],source['topics'],evidence)
+            self.assertEqual(calculation['decision'],'insufficient')
+            self.assertIsNone(calculation['strict_coverage']);self.assertIsNone(calculation['lenient_coverage'])
+    def test_completed_upload_or_manual_entry_is_not_held_by_this_visual_gate(self):
+        for source in ({'upload_pdf':True,'visual_verification_status':'completed'},
+                       {'upload_pdf':False,'visual_verification_status':'unavailable'},{}):
+            self.assertIsNone(reference_problem(source))
     def test_empty_or_forged_reference_state_does_not_authorize_judgment(self):
         for state in ('',None,'verified','ready'):
             self.quality['state']=state;self.assertTrue(reference_problem(self.t))

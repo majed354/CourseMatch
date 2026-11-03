@@ -8,7 +8,13 @@ def topics_digest(topics):
     return hashlib.sha256(json.dumps(topics,ensure_ascii=False,sort_keys=True,allow_nan=False).encode()).hexdigest()
 
 
+def upload_reading_problem(course):
+    if course.get('upload_pdf') is True and course.get('visual_verification_status') in ('unavailable','uncertain'):
+        return 'لم تثبت قراءة نص بعض مفردات التوصيف المرفوع بما يكفي لإصدار حكم قطعي.'
+
+
 def reference_problem(course):
+    if problem:=upload_reading_problem(course):return problem
     review=course.get('reference_review',{})
     if review.get('comparison_readiness','ready')!='ready':
         return review.get('readiness_reason') or 'لم يكتمل تحديد نطاق مفردات المرجع.'
@@ -124,6 +130,7 @@ def uploaded_target_reference(target, catalog_sources):
     """
     if not isinstance(target, dict):
         return None, _INTEGRITY_BINDING_PROBLEM
+    if problem:=upload_reading_problem(target):return None,problem
     try:
         effective = _effective_texts(target)
         if problem := _integrity_problem(target):

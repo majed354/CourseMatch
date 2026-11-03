@@ -11,7 +11,9 @@ import unittest
 from unittest.mock import patch
 
 import pymupdf
+from jsonschema import Draft202012Validator
 from scripts.equivalency import image_input as image
+from scripts.equivalency.engine import calculate
 
 
 def answer(rows,reason='stop'):
@@ -395,3 +397,128 @@ class ImageInputTests(unittest.TestCase):
         warm=VisionCaller([]);second=image.verify_pdf_topics(path,source,self.cache,caller=warm);self.assertEqual(second['visual_verification_status'],'completed');self.assertEqual(warm.chats,[])
         changed=copy.deepcopy(source);changed['topics'][0]['bbox']=[1,2,3,4];new=VisionCaller([answer([{'id':'t1','text':changed['topics'][0]['text']}])]);third=image.verify_pdf_topics(path,changed,self.cache,caller=new)
         self.assertNotEqual(first['visual_verification_cache_key'],third['visual_verification_cache_key']);self.assertEqual(len(new.chats),1)
+
+    def test_native_model_schema_requires_every_id_as_text_without_forcing_readable_content(self):
+        schema=image.native_schema(['t1','t2']);validator=Draft202012Validator(schema)
+        Draft202012Validator.check_schema(schema)
+        for bad in [{'rows':[]},{'rows':{}},{'rows':{'t1':'Topic'}},
+                    {'rows':{'t1':'Topic','t2':'Other','invented':'Extra'}},
+                    {'rows':{'t1':'Topic','t2':''}},{'rows':{'t1':'Topic','t2':None}}]:
+            with self.subTest(bad=bad):self.assertFalse(validator.is_valid(bad))
+        self.assertTrue(validator.is_valid({'rows':{'t1':image.UNKNOWN,'t2':image.UNKNOWN}}))
+        source=self.extracted();unknown={'t1':image.UNKNOWN}
+        caller=VisionCaller([answer(unknown),answer(unknown)])
+        result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'uncertain')
+        self.assertEqual(result['topics'][0]['text'],source['topics'][0]['text'])
+        self.assertIn(image.UNKNOWN,result['topics'][0]['corrected_text'])
+        self.assertTrue(result['topics'][0]['corrected_text'].startswith(source['topics'][0]['text']))
+        self.assertFalse(result['reviewed'])
+        self.assertEqual(calculate(source['topics'],result['topics'],[])['decision'],'insufficient')
+        self.assertEqual(result['visual_verification_proof']['native_protocol_version'],image.NATIVE_PROTOCOL_VERSION)
+        self.assertEqual(caller.chats[0][1]['format']['properties']['rows']['type'],'object')
+        self.assertNotIn('أعد rows فارغة',caller.chats[0][1]['messages'][0]['content'])
+
+    def test_native_map_order_is_canonical_but_legacy_array_order_remains_strict(self):
+        response=answer({'t2':'Topic two','t1':'Topic one'});before=copy.deepcopy(response)
+        self.assertEqual(image._rows(response,'native',['t1','t2']),
+                         [{'id':'t1','text':'Topic one'},{'id':'t2','text':'Topic two'}])
+        self.assertEqual(response,before)
+        for rows in [{'t1':'Topic'},{'t1':'Topic','t2':'Other','extra':'No'},
+                     [{'id':'t2','text':'Topic two'},{'id':'t1','text':'Topic one'}]]:
+            with self.subTest(rows=rows),self.assertRaisesRegex(ValueError,'native_row_identity_mismatch'):
+                image._rows(answer(rows),'native',['t1','t2'])
+        legacy=[{'id':'t1','text':'Topic one'},{'id':'t2','text':'Topic two'}]
+        self.assertEqual(image._rows(answer(legacy),'native',['t1','t2']),legacy)
+
+    def test_native_fallback_keeps_all_anchors_on_a_partially_affected_page(self):
+        native=[{'id':'t1','text':'Unaffected page one','pages':[1]},
+                {'id':'t2','text':'Anchor before','pages':[2]},
+                {'id':'t3','text':'Broken native','pages':[2]},
+                {'id':'t4','text':'Anchor after','pages':[2]},
+                {'id':'t5','text':'Unaffected page three','pages':[3]}]
+        primary={n['id']:n['text'] for n in native};primary['t3']='Correct visual reading'
+        fallback={'t4':'Unrelated fallback drift','t3':'Correct visual reading','t2':image.UNKNOWN}
+        directory=image._directory(self.cache/'partial-page')
+        caller=VisionCaller([answer(primary),answer(fallback)])
+        result=image._transcribe(directory,'partial-page-key',[b'one',b'two',b'three'],
+                                 'native',native,caller,'gemma4:e4b',60,page_numbers=[1,2,3],fallback_timeout=300)
+        payload=caller.chats[1][1]
+        self.assertEqual(payload['format']['properties']['rows']['required'],['t2','t3','t4'])
+        self.assertEqual(payload['messages'][1]['images'],[base64.b64encode(b'two').decode()])
+        self.assertEqual(result['rows'],[{'id':key,'text':primary[key]} for key in primary])
+        self.assertEqual([call[2] for call in caller.chats],[60,300])
+        self.assertEqual(result['native_protocol_version'],image.NATIVE_PROTOCOL_VERSION)
+
+    def test_native_page_anchor_closure_includes_continuations_without_replacing_unaffected_primary(self):
+        native=[{'id':'a','text':'First anchor','pages':[1]},
+                {'id':'b','text':'Broken native','pages':[1]},
+                {'id':'c','text':'Continuation one two','pages':[1,2]},
+                {'id':'d','text':'Continuation two three','pages':[2,3]},
+                {'id':'e','text':'Last anchor','pages':[3]}]
+        primary={n['id']:n['text'] for n in native};primary['b']='Correct visual reading'
+        fallback={key:('Correct visual reading' if key=='b' else 'Different unrelated anchor') for key in reversed(primary)}
+        directory=image._directory(self.cache/'closure')
+        caller=VisionCaller([answer(primary),answer(fallback)])
+        result=image._transcribe(directory,'closure-key',[b'one',b'two',b'three'],'native',native,caller,
+                                 'gemma4:e4b',60,page_numbers=[1,2,3],fallback_timeout=300)
+        self.assertEqual(caller.chats[1][1]['format']['properties']['rows']['required'],list(primary))
+        self.assertEqual(len(caller.chats[1][1]['messages'][1]['images']),3)
+        self.assertEqual(result['rows'],[{'id':key,'text':primary[key]} for key in primary])
+
+    def test_native_older_protocol_cache_is_not_reused_and_raw_map_response_is_retained(self):
+        path=self.native();source=self.extracted();reply=answer({'t1':source['topics'][0]['text']})
+        caller=VisionCaller([reply]);first=image.verify_pdf_topics(path,source,self.cache,caller=caller)
+        receipt=next(self.cache.rglob('cache.json'));saved=json.loads(receipt.read_text())
+        self.assertEqual(saved.pop('native_protocol_version'),image.NATIVE_PROTOCOL_VERSION)
+        receipt.write_text(json.dumps(saved))
+        fresh=VisionCaller([reply]);second=image.verify_pdf_topics(path,source,self.cache,caller=fresh)
+        self.assertEqual(len(fresh.chats),1);self.assertEqual(second['visual_verification_status'],'completed')
+        raw=list(self.cache.rglob('raw-response-*.json'))
+        self.assertEqual(len(raw),2)
+        self.assertTrue(all(isinstance(json.loads(json.loads(p.read_text())['message']['content'])['rows'],dict) for p in raw))
+        self.assertEqual(first['visual_verification_cache_key'],second['visual_verification_cache_key'])
+
+    def test_native_orthographic_agreement_keeps_primary_text_exactly(self):
+        pairs=[('طرق التأليف فيه.','طرق التأليف فيه .'),
+               ('حجية الإجماع','حجية الاجماع'),
+               ('آثارُ الإذن، وأحكامه.','اثار الاذن واحكامه'),
+               ('استعمال ٱلأدوات','استعمال الادوات')]
+        for primary,second in pairs:
+            with self.subTest(primary=primary):
+                merged=image._merge_rows([{'id':'t1','text':primary}],[{'id':'t1','text':second}],'native')
+                self.assertEqual(merged,[{'id':'t1','text':primary}])
+                self.assertEqual(image._merge_text(primary,second,native=True),primary)
+
+    def test_native_orthographic_agreement_does_not_hide_words_negation_unknown_or_numeric_ranges(self):
+        pairs=[('حجية الإجماع','حجية القياس'),('تجب النفقة','لا تجب النفقة'),
+               ('تجب النفقة','تجب '+image.UNKNOWN),
+               ('تفسير الآيات 1-3','تفسير الآيات 13'),
+               ('تفسير الآيات 1-3','تفسير الآيات 1،3'),
+               ('الكفر وأحكامه','القفر وأحكامه'),
+               ('الهبة وشروطها','التبة وشروطها')]
+        for primary,second in pairs:
+            with self.subTest(primary=primary,second=second):
+                self.assertIn(image.UNKNOWN,image._merge_text(primary,second,native=True))
+
+    def test_image_text_agreement_stays_strict_despite_native_spelling_tolerance(self):
+        for primary,second in [('طرق التأليف فيه.','طرق التأليف فيه .'),('حجية الإجماع','حجية الاجماع')]:
+            with self.subTest(primary=primary):
+                self.assertIn(image.UNKNOWN,image._merge_text(primary,second))
+                merged=image._merge_rows([{'number':1,'text':primary}],[{'number':1,'text':second}],'image')
+                self.assertIn(image.UNKNOWN,merged[0]['text'])
+
+    def test_native_two_readers_can_agree_on_punctuation_and_hamza_without_false_uncertainty(self):
+        source={'topics':[{'id':'t1','text':'طرق التاليف فيه.','page':1,'bbox':[10,20,300,50]},
+                          {'id':'t2','text':'حجية الاجماع','page':1,'bbox':[10,50,300,80]}],
+                'warnings':[],'reviewed':False,'extraction_method':'native_grid'}
+        primary={'t1':'طرق التأليف فيه.','t2':'حجية الإجماع'}
+        second={'t1':'طرق التأليف فيه .','t2':'حجية الاجماع'}
+        caller=VisionCaller([answer(primary),answer(second)])
+        result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'completed')
+        self.assertEqual([t['corrected_text'] for t in result['topics']],list(primary.values()))
+        self.assertEqual([t['text'] for t in result['topics']],[t['text'] for t in source['topics']])
+        self.assertFalse(result['reviewed']);self.assertEqual(len(caller.chats),2)
+        self.assertEqual(result['visual_verification_proof']['numeric_disagreements'],[])
+        self.assertEqual(result['visual_verification_proof']['native_protocol_version'],'native-map-v3-orthographic-agreement')

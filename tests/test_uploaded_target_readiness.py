@@ -29,6 +29,14 @@ class UploadedTargetReadinessTests(unittest.TestCase):
         course['reference_review'] = {'comparison_readiness': 'blocked', 'readiness_reason': 'النطاق غير مكتمل'}
         self.assertTrue(uploaded_target_reference(target, [course])[1])
 
+    def test_failed_visual_target_is_held_even_when_its_bytes_match_a_ready_anchor(self):
+        course=self.course();target=self.uploaded(course)
+        for status in ('unavailable','uncertain'):
+            target['visual_verification_status']=status
+            self.assertTrue(uploaded_target_reference(target,[course])[1])
+        target['visual_verification_status']='completed'
+        self.assertIs(uploaded_target_reference(target,[course])[0],course)
+
     def test_ready_anchor_matches_effective_ordered_text_ignoring_ids_and_audit_only(self):
         course = self.course(); course['topics'][0]['corrected_text'] = 'النص المصحح'
         course['reference_quality']['topics_sha256'] = topics_digest(course['topics'])

@@ -241,8 +241,7 @@ class IndependentGroundingReviewTests(unittest.TestCase):
         # First repair omits the reviewer alternative. It must be rejected,
         # rather than silently dropping the source that can change the result.
         responses = [answer({'pairs': [weak]}), answer({'reviews': rows}),
-                     answer({'pairs': [weak]}), answer({'pairs': [weak, positive]}),
-                     answer({'reviews': rows})]
+                     answer({'pairs': [weak]}), answer({'pairs': [weak, positive]})]
         with tempfile.TemporaryDirectory() as folder, \
                 patch('scripts.equivalency.engine.local_model', return_value='mock-digest'), \
                 patch('scripts.equivalency.engine.post_ollama', side_effect=responses) as call:
@@ -253,10 +252,13 @@ class IndependentGroundingReviewTests(unittest.TestCase):
             self.assertEqual(pairs[('t', 's2')]['adjudication']['state'], 'confirmed')
             retry_instruction = call.call_args_list[3].args[1]['messages'][-1]['content']
             self.assertIn('بدائل مراجعة', retry_instruction)
-            final_review = json.loads(call.call_args_list[-1].args[1]['messages'][1]['content'])
-            self.assertEqual({(p['target_id'], p['source_id']) for p in final_review['requested_pairs']},
-                             {('t', 's1'), ('t', 's2')})
-            self.assertNotIn('score', json.dumps(final_review))
+            # The already valid, score-blinded review included both edges.
+            # A new numeric proposal adds no new text to review: retain the
+            # literal evidence, rather than asking the model to generate it again.
+            self.assertEqual(call.call_count,4)
+            self.assertEqual(result['grounding_rounds'][-1]['reused_review_count'],2)
+            first_review = json.loads(call.call_args_list[1].args[1]['messages'][1]['content'])
+            self.assertNotIn('score', json.dumps(first_review))
 
     def test_repair_cannot_forget_an_earlier_confirmed_positive_pair(self):
         targets = [topic('t1', 'تفسير البسملة'), topic('t2', 'تفسير الاستعاذة')]

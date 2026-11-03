@@ -384,20 +384,22 @@ def compare(target, source, *, model="qwen3.8:27b-q8_0", cache_dir=None):
     if proposal['provider']!='ollama_local':
         if proposal['pairs']: validate_evidence(proposal,target['topics'],source['topics'])
         return proposal
-    started=time.monotonic(); rounds=[]
+    started=time.monotonic(); rounds=[];previous_pairs=None
     for attempt in range(2):
         from .atomic_scope import confirmed_atomic
         fixed=[p for p in proposal['pairs'] if p.get('scope_proof')]
         semantic=[p for p in proposal['pairs'] if not p.get('scope_proof')]
         review=review_pairs(target['topics'],source['topics'],semantic,excluded_pairs=fixed,model=model,
-                            model_digest=proposal['model_digest'],cache_dir=directory,caller=post_ollama)
+                            model_digest=proposal['model_digest'],cache_dir=directory,caller=post_ollama,
+                            previous_pairs=previous_pairs)
         reviewed=adjudicate(semantic,review['reviews'],target['topics'],source['topics'])+[confirmed_atomic(p) for p in fixed]
         disagreement=[p for p in reviewed if p['adjudication']['state']=='uncertain']
         rounds.append({'proposal_cache_key':proposal['cache_key'],'review_cache_key':review['cache_key'],
-                       'uncertain_pairs':len(disagreement)})
+                       'uncertain_pairs':len(disagreement),'reused_review_count':review.get('reused_review_count',0)})
         if not disagreement or attempt: break
         # Feedback contains literal evidence and academic observations only;
         # no expected acceptance rate or manually selected replacement score.
+        previous_pairs=semantic
         proposal=_propose_pairs(target,source,model=model,cache_dir=directory,
                                  review_feedback=[p['adjudication']['review'] for p in reviewed
                                                   if p['adjudication'].get('kind')!='deterministic_atomic_scope'

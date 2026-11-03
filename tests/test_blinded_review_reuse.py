@@ -1,0 +1,207 @@
+"""CPU-only score-blinded review reuse and strict v4 cache promotion.
+
+All replies are fixtures. Reuse is evidence preservation for unchanged inputs,
+not approval of semantic conclusions or a replacement for strict validators.
+"""
+import copy
+import hashlib
+import json
+from pathlib import Path
+import tempfile
+import unittest
+
+from scripts.equivalency import grounding as g
+
+
+def ids(rows):
+    return {(row['target_id'], row['source_id']) for row in rows}
+
+
+def proposal(target, source, score=87):
+    return {'target_id': target['id'], 'source_id': source['id'], 'score': score,
+            'reason': 'PRIVATE_GENERATOR_REASON_NEVER_REVIEW',
+            'target_quote': target['text'], 'source_quote': source['text']}
+
+
+def review(target, source, verdict='strict', reason='الصياغة الأصلية لدليل المراجعة.'):
+    return {'target_id': target['id'], 'source_id': source['id'],
+            'facets': [{'target_start': 1, 'target_end': len(target['text'].split()),
+                        'source_quote': source['text'] if verdict == 'strict' else '',
+                        'support': 'aligned' if verdict == 'strict' else 'absent'}],
+            'reason': reason, 'verdict': verdict,
+            'possible_tiers': ['strict', 'lenient'] if verdict == 'strict' else []}
+
+
+def answer(rows):
+    return {'done': True, 'done_reason': 'stop', 'message': {'content': json.dumps({'reviews': rows}, ensure_ascii=False)}}
+
+
+class BlindedReviewReuseTests(unittest.TestCase):
+    def setUp(self):
+        self.targets = [{'id': 'ta', 'text': 'تعريف العقد وأركانه'}, {'id': 'tb', 'text': 'شروط الوكالة وآثارها'}]
+        self.sources = [{'id': 'sa', 'text': 'شرح تعريف العقد وأركانه'},
+                        {'id': 'sb', 'text': 'بيان شروط الوكالة وآثارها'},
+                        {'id': 'sx', 'text': 'تفصيل تعريف العقد وأركانه وتطبيقاته'}]
+        self.prior_pairs = [proposal(self.targets[0], self.sources[0], 11)]
+        self.current_pairs = [proposal(self.targets[0], self.sources[0], 99), proposal(self.targets[1], self.sources[1], 67)]
+
+    def run_review(self, folder, batches, *, targets=None, sources=None, pairs=None,
+                   previous=None, digest='fixture-model-digest', excluded=()):
+        calls = []
+        def caller(endpoint, payload):
+            self.assertEqual(endpoint, 'chat'); calls.append(copy.deepcopy(payload))
+            if len(calls) > len(batches): self.fail('Unexpected extra model invocation')
+            return answer(copy.deepcopy(batches[len(calls) - 1]))
+        self.calls = calls
+        return g.review_pairs(targets or self.targets, sources or self.sources,
+                              self.current_pairs if pairs is None else pairs,
+                              model='fixture-local', model_digest=digest, cache_dir=folder,
+                              caller=caller, previous_pairs=previous, excluded_pairs=excluded)
+
+    def seed(self, folder):
+        rows = [review(self.targets[0], self.sources[0]), review(self.targets[0], self.sources[2])]
+        result = self.run_review(folder, [rows], pairs=self.prior_pairs)
+        self.assertEqual(len(self.calls), 1)
+        return result
+
+    def assert_blinded(self, calls):
+        text = json.dumps(calls, ensure_ascii=False)
+        self.assertNotIn('PRIVATE_GENERATOR_REASON_NEVER_REVIEW', text)
+        for call in calls:
+            body = json.loads(call['messages'][1]['content'])
+            self.assertNotIn('"score"', json.dumps(body))
+
+    def payload(self, targets=None, sources=None, wanted=None):
+        targets, sources = targets or self.targets, sources or self.sources
+        wanted = ids(self.prior_pairs) if wanted is None else wanted
+        value = {'target': [{'id': t['id'], 'text': t['text'],
+                             'numbered_words': [str(i) + ': ' + w.group() for i, w in enumerate(g.word_spans(t['text']), 1)]}
+                            for t in targets],
+                 'source': [{'id': s['id'], 'text': s['text']} for s in sources],
+                 'requested_pairs': [{'target_id': t, 'source_id': s} for t, s in sorted(wanted)]}
+        facts = g.scope_facts(targets, sources, wanted)
+        if any(f['target'] is not None or f['source'] is not None for f in facts): value['scope_facts'] = facts
+        return value
+
+    def write_legacy(self, folder, *, version=None, stored_version=None):
+        version = version or g.LEGACY_VERSION
+        payload = self.payload()
+        key = hashlib.sha256(json.dumps([version, g.LEGACY_SYSTEM, g.LEGACY_MODEL_SCHEMA,
+                                        g.SCHEMA, 'fixture-model-digest', payload],
+                                       ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        rows = g.decode_reviews([review(self.targets[0], self.sources[0]),
+                                 review(self.targets[0], self.sources[2])], self.targets)
+        value = {'version': stored_version or version, 'cache_key': key, 'reviews': rows, 'validation_attempts': 1}
+        path = Path(folder) / 'facet-reviews' / (key + '.json'); path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(value, ensure_ascii=False))
+        return path, value
+
+    def test_same_inputs_reuse_verbatim_reviews_and_only_request_the_new_pair(self):
+        with tempfile.TemporaryDirectory() as folder:
+            previous = self.seed(folder)
+            result = self.run_review(folder, [[review(self.targets[1], self.sources[1])]], previous=self.prior_pairs)
+            self.assertEqual(len(self.calls), 1)
+            body = json.loads(self.calls[0]['messages'][1]['content'])
+            self.assertTrue(body['completion_only']); self.assertEqual(ids(body['requested_pairs']), {('tb', 'sb')})
+            self.assertEqual(ids(body['retained_pairs']), {('ta', 'sa'), ('ta', 'sx')})
+            for old in previous['reviews']:
+                self.assertEqual(next(r for r in result['reviews'] if (r['target_id'], r['source_id']) == (old['target_id'], old['source_id'])), old)
+            self.assertEqual(result['reused_review_count'], 2)
+            self.assertEqual(result['reused_review_cache_keys'], [previous['cache_key']])
+            self.assertIn(('ta', 'sx'), ids(result['reviews']))  # reviewer-discovered positive alternative
+            g.validate_reviews(result['reviews'], self.targets, self.sources, ids(self.current_pairs))
+            self.assert_blinded(self.calls)
+
+    def test_duplicate_in_completion_cannot_reassess_any_retained_review_and_stays_raw(self):
+        with tempfile.TemporaryDirectory() as folder:
+            previous = self.seed(folder)
+            duplicate = review(self.targets[0], self.sources[0], 'weak', reason='RAW_DUPLICATE_REASSESSMENT')
+            result = self.run_review(folder, [[duplicate, review(self.targets[1], self.sources[1])]], previous=self.prior_pairs)
+            self.assertEqual(next(r for r in result['reviews'] if r['source_id'] == 'sa'), previous['reviews'][0])
+            trace = json.loads((Path(folder) / 'facet-reviews/traces' / (result['cache_key'] + '.json')).read_text())
+            self.assertIn('RAW_DUPLICATE_REASSESSMENT', json.dumps(trace, ensure_ascii=False))
+            self.assertEqual(trace['reused_review_cache_keys'], [previous['cache_key']])
+            self.assert_blinded(self.calls)
+
+    def test_any_full_input_text_or_model_digest_change_prevents_reuse(self):
+        for changed in ('target', 'source', 'digest'):
+            with self.subTest(changed=changed), tempfile.TemporaryDirectory() as folder:
+                self.seed(folder); targets, sources = copy.deepcopy(self.targets), copy.deepcopy(self.sources)
+                digest = 'fixture-model-digest'
+                # Changing even an unused source changes the full bound input.
+                if changed == 'target': targets[1]['text'] += ' وتطبيقاتها'
+                if changed == 'source': sources[2]['text'] += ' وأمثلتها'
+                if changed == 'digest': digest = 'different-model-digest'
+                result = self.run_review(folder, [[review(targets[i], sources[i]) for i in range(2)]],
+                                         targets=targets, sources=sources, digest=digest, previous=self.prior_pairs)
+                body = json.loads(self.calls[0]['messages'][1]['content'])
+                self.assertNotIn('completion_only', body); self.assertEqual(ids(body['requested_pairs']), ids(self.current_pairs))
+                self.assertEqual(result['reused_review_count'], 0); self.assertEqual(result['reused_review_cache_keys'], [])
+                self.assert_blinded(self.calls)
+
+    def test_changed_resolved_scope_cannot_reuse_a_prior_positive_alternative(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.seed(folder)
+            result = self.run_review(folder, [[review(self.targets[i], self.sources[i]) for i in range(2)]],
+                                     previous=self.prior_pairs, excluded=[{'target_id': 'ta', 'source_id': 'sx'}])
+            body = json.loads(self.calls[0]['messages'][1]['content'])
+            self.assertEqual(body['resolved_pairs'], [{'target_id': 'ta', 'source_id': 'sx'}])
+            self.assertNotIn('completion_only', body); self.assertEqual(result['reused_review_count'], 0)
+            self.assertNotIn(('ta', 'sx'), ids(result['reviews']))
+
+    def test_tampered_previous_cache_is_strictly_revalidated_before_any_reuse(self):
+        with tempfile.TemporaryDirectory() as folder:
+            previous = self.seed(folder); cache = Path(folder) / 'facet-reviews' / (previous['cache_key'] + '.json')
+            corrupt = json.loads(cache.read_text()); corrupt['reviews'][0]['facets'][0]['source_quote'] = 'اقتباس مزور'
+            cache.write_text(json.dumps(corrupt, ensure_ascii=False))
+            result = self.run_review(folder, [[review(self.targets[i], self.sources[i]) for i in range(2)]], previous=self.prior_pairs)
+            self.assertEqual(result['reused_review_count'], 0); self.assertEqual(ids(result['reviews']), ids(self.current_pairs))
+            trace = json.loads((Path(folder) / 'facet-reviews/traces' / (result['cache_key'] + '.json')).read_text())
+            self.assertTrue(any(attempt.get('invalid_cache') for attempt in trace['attempts']))
+            self.assertIn('اقتباس مزور', json.dumps(trace, ensure_ascii=False))
+
+    def test_missing_new_pair_after_two_calls_fails_without_erasing_prior_cache(self):
+        with tempfile.TemporaryDirectory() as folder:
+            previous = self.seed(folder); cache = Path(folder) / 'facet-reviews' / (previous['cache_key'] + '.json')
+            before = cache.read_bytes()
+            with self.assertRaises(ValueError): self.run_review(folder, [[], []], previous=self.prior_pairs)
+            self.assertEqual(len(self.calls), 2); self.assertEqual(cache.read_bytes(), before)
+            for call in self.calls:
+                self.assertEqual(ids(json.loads(call['messages'][1]['content'])['requested_pairs']), {('tb', 'sb')})
+            self.assertEqual({p.name for p in (Path(folder) / 'facet-reviews').glob('*.json')}, {cache.name})
+            self.assert_blinded(self.calls)
+
+    def test_valid_v4_cache_promotes_without_model_call_and_records_exact_origin(self):
+        with tempfile.TemporaryDirectory() as folder:
+            legacy, saved = self.write_legacy(folder); before = legacy.read_bytes()
+            result = self.run_review(folder, [], pairs=self.prior_pairs)
+            self.assertEqual(self.calls, []); self.assertEqual(result['version'], g.VERSION)
+            self.assertEqual(result['reviews'], saved['reviews']); self.assertEqual(result['validation_attempts'], 0)
+            self.assertEqual(result['reused_review_cache_keys'], [saved['cache_key']]); self.assertEqual(result['reused_review_count'], 2)
+            self.assertNotEqual(result['cache_key'], saved['cache_key']); self.assertEqual(legacy.read_bytes(), before)
+            trace = json.loads((Path(folder) / 'facet-reviews/traces' / (result['cache_key'] + '.json')).read_text())
+            self.assertEqual(trace['attempts'], []); self.assertEqual(trace['reused_review_cache_keys'], [saved['cache_key']])
+            g.validate_reviews(result['reviews'], self.targets, self.sources, ids(self.prior_pairs))
+
+    def test_v4_promotion_requires_exact_input_key_and_never_accepts_v3(self):
+        for mismatch in ('target', 'source', 'digest', 'v3-key', 'v3-marker', 'invalid-v4-proof'):
+            with self.subTest(mismatch=mismatch), tempfile.TemporaryDirectory() as folder:
+                version = 'blinded-facet-review-v3-explicit-range-facts'
+                legacy, saved = self.write_legacy(folder, version=version if mismatch == 'v3-key' else None,
+                                                   stored_version=version if mismatch == 'v3-marker' else None)
+                if mismatch == 'invalid-v4-proof':
+                    saved['reviews'][0]['facets'][0]['source_quote'] = 'دليل غير حرفي'
+                    legacy.write_text(json.dumps(saved, ensure_ascii=False))
+                targets, sources, digest = copy.deepcopy(self.targets), copy.deepcopy(self.sources), 'fixture-model-digest'
+                if mismatch == 'target': targets[0]['text'] += ' وآثاره'
+                if mismatch == 'source': sources[0]['text'] += ' وآثاره'
+                if mismatch == 'digest': digest = 'different-model-digest'
+                result = self.run_review(folder, [[review(targets[0], sources[0])]], targets=targets, sources=sources,
+                                         digest=digest, pairs=self.prior_pairs)
+                self.assertEqual(len(self.calls), 1); self.assertEqual(result['reused_review_count'], 0)
+                self.assertEqual(result['reused_review_cache_keys'], []); self.assertNotEqual(result['cache_key'], saved['cache_key'])
+                self.assert_blinded(self.calls)
+
+
+if __name__ == '__main__':
+    unittest.main()

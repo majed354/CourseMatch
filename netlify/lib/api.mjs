@@ -6,6 +6,15 @@ const messages = {queued:'بانتظار المحرك',running:'جارٍ إعد�
 const outputHeaders = {'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
   'Referrer-Policy':'no-referrer','Vary':'Cookie','Cross-Origin-Resource-Policy':'same-origin'};
 const hidden = new Set(['input_pdf_key','pdf_key','worker_token','session_secret','local_path']);
+const unreadableReportMessage = 'تعذر اعتماد هذا الحكم لعدم ثبوت قراءة أحد التوصيفين.';
+function unverifiedUpload(value) {
+  return plain(value) && value.upload_pdf === true && ['unavailable','uncertain'].includes(value.visual_verification_status);
+}
+function unsafeFinalReport(value, ...trustedInputs) {
+  return plain(value) && ['equivalent','lenient','not_equivalent'].includes(value.calculation?.decision)
+    && [value.source,value.target,...trustedInputs].some(unverifiedUpload);
+}
+
 function publicValue(value) {
   if (Array.isArray(value)) return value.map(publicValue);
   if (!plain(value)) return value;
@@ -101,6 +110,7 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
       ready.target_mode = uploaded ? 'uploaded' : 'catalog';
       if (uploaded) ready.target = publicValue(structuredClone(original));
       else Object.assign(ready.target,{id:original.id,code:original.code,name:original.name,context_id:original.context_id,context:original.context,source_pdf:original.source_pdf});
+      if (unsafeFinalReport(ready,task.payload.source_visual_verification)) throw new HttpError(400,unreadableReportMessage);
       ready.beneficiary = beneficiary(task.payload.beneficiary);
     }
     return ready;
@@ -208,6 +218,11 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
       if (request.method === 'GET' && operationPath) {
         const row = await repository.getTask(scope,operationPath[2],session.id,now);
         if (!row || (operationPath[1] === 'jobs') !== (row.kind === 'compare')) throw new HttpError(404,'الطلب غير موجود أو انتهت صلاحيته');
+        // Historical evidence stays untouched in storage, but a final verdict
+        // from an unverified uploaded reading must not be displayed again.
+        if (row.kind === 'compare' && unsafeFinalReport(row.result,row.payload?.source_visual_verification,row.payload?.target_mode === 'uploaded' ? row.payload.target : undefined)) {
+          return respond({id:row.id,status:'error',message:unreadableReportMessage,error:unreadableReportMessage});
+        }
         return respond({id:row.id,status:row.status,message:row.error || messages[row.status],...(row.result ? {result:publicValue(row.result)} : {}),...(row.error ? {error:row.error} : {})});
       }
       if (request.method === 'GET' && pdfPath) {
@@ -220,7 +235,13 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
       if (request.method !== 'POST') throw new HttpError(404,'المسار غير موجود');
       const data = await readJson(request);
       const beneficiaryPath = pathname.match(/^\/api\/reports\/([a-f0-9]{32})\/beneficiary$/);
-      if (beneficiaryPath) return respond(publicValue(await repository.updateBeneficiary(scope,beneficiaryPath[1],session.id,beneficiary(data.beneficiary),now)));
+      if (beneficiaryPath) {
+        const report = await repository.getArtifact(scope,beneficiaryPath[1],session.id,now,'report');
+        if (!report) throw new HttpError(404,'التقرير غير موجود أو انتهت صلاحيته');
+        const task = await repository.getTask(scope,beneficiaryPath[1],session.id,now);
+        if (unsafeFinalReport(report.value,task?.payload?.source_visual_verification,task?.payload?.target_mode === 'uploaded' ? task.payload.target : undefined)) throw new HttpError(400,unreadableReportMessage);
+        return respond(publicValue(await repository.updateBeneficiary(scope,beneficiaryPath[1],session.id,beneficiary(data.beneficiary),now)));
+      }
       if (!['/api/sources','/api/search','/api/jobs'].includes(pathname)) throw new HttpError(404,'المسار غير موجود');
       const kind = {'/api/sources':'source','/api/search':'search','/api/jobs':'compare'}[pathname];
       const requestId = data.request_id;
@@ -268,6 +289,7 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
           if (data.review_mode !== undefined && data.review_mode !== 'automatic') throw new HttpError(400,'نمط التحقق غير صالح');
           if (data.review_mode !== 'automatic' && data.reviewed !== true) throw new HttpError(400,'أكد مراجعة مفردات المقررين قبل المقارنة');
           payload = {source_id:source.id,reviewed:true,review_mode:data.review_mode === 'automatic' ? 'automatic' : 'user_confirmed',beneficiary:beneficiary(data.beneficiary)};
+          payload.source_visual_verification = {upload_pdf:!!source.pdf_key,visual_verification_status:source.value.visual_verification_status};
           if (uploadedTarget) {
             // Immutable, server-owned artifact snapshot: completion stays sync
             // within the repositories' atomic transaction callbacks.

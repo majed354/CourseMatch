@@ -36,5 +36,103 @@
       60,
       300
     ]
+  },
+  "runtime_activation": {
+    "worker_commit": "454a2a9ced25002b0b7cd54bcc4fa2316d57dd14",
+    "public_interface_commit": "db88dbeb6df45b7242aa86d0022567e0032b100e",
+    "restarted": [
+      "compare_worker",
+      "interactive_worker"
+    ],
+    "api_models_named_tunnel_preserved": true,
+    "public_files_guard": 459,
+    "private_files_included": false,
+    "github_actions_run": 41685883501,
+    "github_actions_conclusion": "success"
+  },
+  "independent_cpu_review": {
+    "checks": 6,
+    "blocking_findings": [],
+    "guard_AST_unchanged": [
+      "initial_generator_SYSTEM",
+      "RUBRIC_VERSION",
+      "PAIR_SCHEMA",
+      "validate_pairs",
+      "calculate",
+      "validate_reviews",
+      "adjudicate",
+      "validate_evidence"
+    ]
+  },
+  "source_audit": {
+    "KSU": {
+      "old_and_new_source_rows": 12,
+      "old_and_new_target_rows": 13,
+      "printed_digit_inside_topic_is_not_a_parser_hours_merge": true
+    },
+    "Najran": {
+      "source_rows": 15,
+      "target_rows": 13,
+      "cause": "broken PDF font-to-Unicode mapping despite legible rendered text",
+      "primary_visual_response": "15 valid rows",
+      "fallback_interruption": "client disconnected at 60 seconds while Qwen comparison occupied runtime"
+    },
+    "additional_cases": {
+      "UQU_intisar": {
+        "ready_target_rows": 16,
+        "original_source_physical_rows": 15,
+        "mixed_exam_and_academic_row_must_be_kept": true,
+        "public_run": "prepared_only"
+      },
+      "KSU_taharah_old_target": {
+        "readiness": "held_missing_original_scope",
+        "suitable_for_definitive_rejection_control": false,
+        "source_topic_page_span": 5,
+        "native_visual_page_cap": 3
+      }
+    }
+  },
+  "first_public_regression": {
+    "worker_commit": "454a2a9ced25002b0b7cd54bcc4fa2316d57dd14",
+    "overall_status": "partial_failure_and_unvalidated_academic_result",
+    "KSU": {
+      "terminal_status": "error",
+      "report_issued": false,
+      "model_calls": 7,
+      "missing_pair_repair_seconds": 20.188075458,
+      "retained_proposal_pairs_verbatim": 13,
+      "added_pairs": 1,
+      "remaining_failure": "unchanged-pair review regenerated and repeated five unknown/definitive contradictions"
+    },
+    "Najran": {
+      "terminal_status": "done",
+      "academic_validity": "not established; unsafe for definitive display",
+      "decision_as_issued": "not_equivalent",
+      "strict_count_as_issued": 0,
+      "lenient_count_as_issued": 0,
+      "denominator": 13,
+      "visual_verification_status": "unavailable",
+      "reason": "fallback returned empty rows despite a valid primary reading",
+      "raw_result_preserved": true
+    },
+    "transport_errors": 0,
+    "repeated_POSTs": 0
+  },
+  "second_repair": {
+    "review_version": "blinded-facet-review-v5-evidence-first-reuse",
+    "native_protocol": "native-map-v3-orthographic-agreement",
+    "schema_before_verdict": true,
+    "bound_review_reuse": true,
+    "legacy_revalidation": "v4 only, unchanged semantic validators, exact full input/model/scope binding",
+    "automatic_grade_or_verdict_rewriting": false,
+    "input_visual_failure_gate": "uploaded unavailable/uncertain can only produce insufficient; unsafe historical results hidden without raw mutation",
+    "tests": {
+      "python": 416,
+      "node_passed": 172,
+      "node_optional_skips": 4,
+      "chrome_passed": 89,
+      "pdf_import_verified": 448
+    },
+    "public_rerun_verified": false
   }
 }

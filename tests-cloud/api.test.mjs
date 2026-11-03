@@ -15,13 +15,14 @@ function setup(options = {}) {
   const worker = (path,data,extra = {}) => request('/api/worker/'+path,{method:'POST',data,origin:null,headers:{Authorization:'Bearer '+env.COURSEMATCH_WORKER_TOKEN,...extra}});
   const bootstrap = async () => {const response=await request('/api/catalog');return {response,cookie:response.headers.get('set-cookie').split(';')[0],...(await response.json())};};
   const post = (path,data,session) => request(path,{method:'POST',data,cookie:session.cookie,token:session.token});
-  async function source(session,{pdf=false,catalogId} = {}) {
+  async function source(session,{pdf=false,catalogId,visualStatus} = {}) {
     const body = catalogId ? {catalog_id:catalogId} : pdf ? {name:'مصدر اختباري',pdf_base64:Buffer.from('%PDF-1.7\nfixture').toString('base64')} : {name:'مصدر اختباري',topics:course.topics};
     const created = await post('/api/sources',body,session);assert.equal(created.status,202);
     const {operation_id:id} = await created.json();
     const task = (await(await worker('claim',{worker_id:'mac-test'})).json()).task;
     assert.equal(task.id,id);
     const result={id:'ignored-worker-id',name:'مصدر اختباري',topics:course.topics,source_sha256:'fingerprint',input_pdf_key:'must-not-leak'};
+    if(visualStatus !== undefined)result.visual_verification_status=visualStatus;
     const complete=await worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result});assert.equal(complete.status,200);
     return (await(await request('/api/operations/'+id,{cookie:session.cookie})).json()).result;
   }
@@ -450,4 +451,72 @@ test('uploaded comparison preserves request recovery without another enqueue or 
   assert.deepEqual(await(await s.request('/api/requests/'+request_id,{cookie:a.cookie})).json(),{id,status:'queued',kind:'compare'});
   assert.equal((await(await s.post('/api/jobs',{request_id},a)).json()).id,id);assert.equal(s.repository.tasks.size,count);
   const publicTask=await(await s.request('/api/jobs/'+id,{cookie:a.cookie})).json();assert.equal(publicTask.payload,undefined);assert.equal(publicTask.target,undefined);
+});
+
+test('new final verdicts reject unavailable or uncertain uploaded sources even if worker hides their status',async()=>{
+  for(const status of ['unavailable','uncertain'])for(const decision of ['equivalent','lenient','not_equivalent']) {
+    const s=setup(),a=await s.bootstrap(),source=await s.source(a,{pdf:true,visualStatus:status});
+    const {id}=await(await s.post('/api/jobs',{source_id:source.id,target_id:course.id,review_mode:'automatic'},a)).json();
+    const task=(await(await s.worker('claim',{worker_id:'reading-guard'})).json()).task;
+    const result={source:{...source,upload_pdf:false,visual_verification_status:'completed'},target:course,catalog_id:catalog.catalog_id,calculation:{decision}};
+    const response=await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result});
+    assert.equal(response.status,400);assert.equal((await response.json()).error,'تعذر اعتماد هذا الحكم لعدم ثبوت قراءة أحد التوصيفين.');
+    const state=await(await s.request('/api/jobs/'+id,{cookie:a.cookie})).json();assert.equal(state.status,'running');assert.equal(state.result,undefined);
+    assert.equal([...s.repository.artifacts.values()].filter(a=>a.kind==='report').length,0);
+  }
+});
+
+test('uploaded target reading gate runs after canonical snapshot and permits only insufficient',async()=>{
+  for(const status of ['unavailable','uncertain']) {
+    const s=setup(),a=await s.bootstrap(),source=await s.source(a),target=await s.source(a,{pdf:true,visualStatus:status});
+    const {id}=await(await s.post('/api/jobs',{source_id:source.id,target_source_id:target.id,review_mode:'automatic'},a)).json();
+    const task=(await(await s.worker('claim',{worker_id:'target-reading-guard'})).json()).task;
+    const base={source,target:{...target,upload_pdf:false,visual_verification_status:'completed'},catalog_id:catalog.catalog_id};
+    for(const decision of ['equivalent','lenient','not_equivalent']) {
+      assert.equal((await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result:{...base,calculation:{decision}}})).status,400);
+    }
+    assert.equal((await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result:{...base,calculation:{decision:'insufficient'}}})).status,200);
+    const report=(await(await s.request('/api/jobs/'+id,{cookie:a.cookie})).json()).result;
+    assert.equal(report.calculation.decision,'insufficient');assert.equal(report.target.upload_pdf,true);assert.equal(report.target.visual_verification_status,status);
+    assert.equal((await s.post('/api/reports/'+id+'/beneficiary',{beneficiary:{name:'مستفيد',number:'SAFE-HELD'}},a)).status,200);
+  }
+});
+
+test('historical unsafe final reports stay raw in storage but GET and beneficiary update cannot republish them',async()=>{
+  for(const role of ['source','target'])for(const status of ['unavailable','uncertain']) {
+    const s=setup(),a=await s.bootstrap(),b=await s.bootstrap();
+    const source=await s.source(a,{pdf:role==='source',visualStatus:role==='source'?status:undefined});
+    const target=role==='target'?await s.source(a,{pdf:true,visualStatus:status}):course;
+    const job=await(await s.post('/api/jobs',{source_id:source.id,...(role==='target'?{target_source_id:target.id}:{target_id:target.id}),review_mode:'automatic'},a)).json();
+    const task=(await(await s.worker('claim',{worker_id:'historical-reading-guard'})).json()).task;
+    const result={source:{...source,warnings:['PRIVATE_WARNING_DO_NOT_DISPLAY'],source_note:'PRIVATE_RAW_READING'},target,catalog_id:catalog.catalog_id,calculation:{decision:'insufficient'}};
+    assert.equal((await s.worker('tasks/'+job.id+'/complete',{lease_token:task.lease_token,result})).status,200);
+    // Fixture only: represent a report persisted by the pre-guard version.
+    const storedTask=[...s.repository.tasks.values()].find(t=>t.id===job.id),artifact=[...s.repository.artifacts.values()].find(a=>a.id===job.id);
+    storedTask.result.calculation={decision:'not_equivalent',strict_count:0,lenient_count:0,total_topics:13,strict_coverage:0,lenient_coverage:0};
+    const rawTask=structuredClone(storedTask),rawArtifact=structuredClone(artifact);
+    const response=await s.request('/api/jobs/'+job.id,{cookie:a.cookie});assert.equal(response.status,200);
+    const blocked=await response.json();assert.deepEqual(blocked,{id:job.id,status:'error',message:'تعذر اعتماد هذا الحكم لعدم ثبوت قراءة أحد التوصيفين.',error:'تعذر اعتماد هذا الحكم لعدم ثبوت قراءة أحد التوصيفين.'});
+    assert.equal(blocked.result,undefined);assert.equal(JSON.stringify(blocked).includes('PRIVATE_'),false);
+    let updates=0;const update=s.repository.updateBeneficiary.bind(s.repository);s.repository.updateBeneficiary=async(...args)=>{updates++;return update(...args);};
+    const denied=await s.post('/api/reports/'+job.id+'/beneficiary',{beneficiary:{name:'تعديل',number:'DENIED'}},a);
+    assert.equal(denied.status,400);assert.equal((await denied.json()).error,blocked.error);assert.equal(updates,0);
+    assert.equal((await s.request('/api/jobs/'+job.id,{cookie:b.cookie})).status,404);
+    assert.equal((await s.post('/api/reports/'+job.id+'/beneficiary',{beneficiary:{name:'غير المالك'}},b)).status,404);
+    assert.deepEqual(storedTask,rawTask);assert.deepEqual(artifact,rawArtifact);assert.equal(storedTask.status,'done');
+    assert.equal(storedTask.result.calculation.decision,'not_equivalent');assert.equal(storedTask.result.calculation.total_topics,13);
+  }
+});
+
+test('manual, canonical and completed uploads keep their existing final report and beneficiary routes',async()=>{
+  for(const kind of ['manual','catalog','completed']) {
+    const s=setup(),a=await s.bootstrap();
+    const source=await s.source(a,kind==='catalog'?{catalogId:course.id,visualStatus:'unavailable'}:kind==='completed'?{pdf:true,visualStatus:'completed'}:{visualStatus:'uncertain'});
+    const {id}=await(await s.post('/api/jobs',{source_id:source.id,target_id:course.id,review_mode:'automatic'},a)).json();
+    const task=(await(await s.worker('claim',{worker_id:'safe-reading-report'})).json()).task;
+    const result={source,target:{...course,visual_verification_status:'unavailable'},catalog_id:catalog.catalog_id,calculation:{decision:'not_equivalent'}};
+    assert.equal((await s.worker('tasks/'+id+'/complete',{lease_token:task.lease_token,result})).status,200);
+    const state=await(await s.request('/api/jobs/'+id,{cookie:a.cookie})).json();assert.equal(state.status,'done');assert.equal(state.result.calculation.decision,'not_equivalent');
+    assert.equal((await s.post('/api/reports/'+id+'/beneficiary',{beneficiary:{number:'SAFE-FINAL'}},a)).status,200);
+  }
 });
