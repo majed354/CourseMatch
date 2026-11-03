@@ -1,6 +1,6 @@
 {
   "date": "2026-11-03",
-  "status": "in_progress",
+  "status": "final_release_prepared",
   "policy_changed": false,
   "diagnosed_release": "72d805b",
   "cases": [
@@ -134,5 +134,67 @@
       "pdf_import_verified": 448
     },
     "public_rerun_verified": false
+  },
+  "second_public_regression": {
+    "release": "bca4b241331a17a6b2c8d8269684f711aa65c67e",
+    "deploy_id": "6aea2a551af7108a309b0b99",
+    "old_unsafe_report_hidden": true,
+    "old_raw_task_and_artifact_fingerprints_unchanged": true,
+    "KSU": {
+      "input": "actual new upload, returning owner",
+      "source_topics": 12,
+      "target_topics": 13,
+      "visual_status": "completed",
+      "decision": "insufficient",
+      "confirmed_strict": 6,
+      "confirmed_lenient": 8,
+      "possible_lenient": 12,
+      "required_targets": 11
+    },
+    "Najran": {
+      "input": "fresh original upload and automatic correction",
+      "source_topics": 15,
+      "target_topics": 13,
+      "visual_status": "completed",
+      "warnings": [],
+      "report_issued": false,
+      "remaining_failure": "uncertain review returned empty positive possibilities twice"
+    },
+    "UQU": {
+      "input": "fresh original upload",
+      "source_topics": 15,
+      "target_topics": 16,
+      "visual_status": "completed",
+      "decision": "insufficient",
+      "possible_individually_linked_targets": 16,
+      "distinct_possible_source_matching": 12,
+      "required_targets": 13
+    },
+    "unexpected_GET_500": 1,
+    "automatic_POST_replays": 0,
+    "academic_accept_or_reject_demonstrated": false
+  },
+  "final_local_verification": {
+    "python": 435,
+    "node_passed": 177,
+    "node_optional_skips": 5,
+    "browser_enabled_js_suite_passed": 94,
+    "print_footer_browser_regression": 1,
+    "verified_pdf_sources": 448,
+    "native_protocol": "native-map-v4-marked-alef-conflicts",
+    "review_version": "blinded-facet-review-v5-evidence-first-reuse",
+    "audit_failure_outcome": "formal insufficient, no scores or approval stamp",
+    "technical_errors_still_errors": true,
+    "GET_retry_status_500_added": true,
+    "GET_max_attempts": 7,
+    "POST_replay_added": false,
+    "print_actual_layout": {
+      "KSU_pages_before": 4,
+      "KSU_pages_after": 3,
+      "UQU_pages": 4,
+      "approved_control_pages": 3,
+      "all_10_pages_visually_reviewed": true,
+      "academic_content_and_first_page_report_ID_preserved": true
+    }
   }
 }

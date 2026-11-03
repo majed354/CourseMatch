@@ -110,7 +110,7 @@ class ReviewSchemaContractTests(unittest.TestCase):
         for verdict, supports, choices in [
                 ('strict', ['aligned'], [['strict', 'lenient']]),
                 ('lenient', ['related'], [['lenient']]), ('weak', ['limited'], [[]]),
-                ('uncertain', ['unknown'], [[], ['lenient'], ['strict', 'lenient'], ['lenient', 'strict']])]:
+                ('uncertain', ['unknown'], [['lenient'], ['strict', 'lenient'], ['lenient', 'strict']])]:
             for possible in choices:
                 self.accepts(row(verdict, supports, possible))
             for possible in [['strict'], ['strict', 'strict'], ['lenient', 'lenient'], ['weak'], ['strict', 'lenient', 'strict']]:
@@ -119,6 +119,20 @@ class ReviewSchemaContractTests(unittest.TestCase):
         self.rejects(row('strict', ['aligned'], []))
         self.rejects(row('lenient', ['related'], []))
         self.rejects(row('weak', ['limited'], ['lenient']))
+        self.rejects(row('uncertain', ['unknown'], []))
+
+    def test_empty_uncertain_needs_an_explicit_boolean_exception(self):
+        schema = model_review_schema(BASE, allow_empty_uncertain=True)
+        validator = Draft202012Validator(schema)
+        value = row('uncertain', ['unknown'], [])
+        validator.validate({'reviews': [value]})
+        self.rejects(value)
+        self.assertEqual(model_review_schema(BASE), self.schema)
+        for flag in ('true', 1, None, []):
+            with self.subTest(flag=flag), self.assertRaises(ValueError):
+                model_review_schema(BASE, allow_empty_uncertain=flag)
+        with self.assertRaises(ValidationError):
+            validator.validate({'reviews': [row('lenient', ['unknown'], [])]})
 
     def test_original_word_span_types_required_keys_and_extra_field_rejection_survive(self):
         original = row('strict', ['aligned'])

@@ -521,4 +521,33 @@ class ImageInputTests(unittest.TestCase):
         self.assertEqual([t['text'] for t in result['topics']],[t['text'] for t in source['topics']])
         self.assertFalse(result['reviewed']);self.assertEqual(len(caller.chats),2)
         self.assertEqual(result['visual_verification_proof']['numeric_disagreements'],[])
-        self.assertEqual(result['visual_verification_proof']['native_protocol_version'],'native-map-v3-orthographic-agreement')
+        self.assertEqual(result['visual_verification_proof']['native_protocol_version'],'native-map-v4-marked-alef-conflicts')
+
+    def test_native_distinct_explicit_alef_marks_are_real_disagreement_in_both_orders(self):
+        pairs=[('أحكام الأيمان','أحكام الإيمان'),
+               ('آيات الأيمان','آيات الإيمان'),
+               ('أَ','إِ'),('آ','أ'),('ٱ','إ')]
+        for a,b in pairs:
+            for first,second in [(a,b),(b,a)]:
+                with self.subTest(first=first,second=second):
+                    self.assertFalse(image._native_readings_agree(first,second,punctuation=True))
+                    self.assertIn(image.UNKNOWN,image._merge_text(first,second,native=True))
+                    merged=image._merge_rows([{'id':'t1','text':first}],[{'id':'t1','text':second}],'native')
+                    self.assertIn(image.UNKNOWN,merged[0]['text'])
+
+    def test_native_one_omitted_alef_mark_is_compatible_without_rewriting_primary(self):
+        for a,b in [('حجية الإجماع','حجية الاجماع'),('آيات','ايات'),('أَحكام','احكام'),('ٱلأدوات','الادوات')]:
+            for first,second in [(a,b),(b,a)]:
+                with self.subTest(first=first,second=second):
+                    self.assertTrue(image._native_readings_agree(first,second,punctuation=False))
+                    self.assertEqual(image._merge_text(first,second,native=True),first)
+
+    def test_native_marked_alef_conflict_remains_uncertain_in_real_transcription_flow(self):
+        source=self.extracted();source['topics'][0]['text']='احكام الايمان'
+        caller=VisionCaller([answer({'t1':'أحكام الأيمان'}),answer({'t1':'أحكام الإيمان'})])
+        result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'uncertain')
+        self.assertIn(image.UNKNOWN,result['topics'][0]['corrected_text'])
+        self.assertEqual(result['topics'][0]['text'],source['topics'][0]['text'])
+        self.assertEqual(calculate(source['topics'],result['topics'],[])['decision'],'insufficient')
+        self.assertFalse(result['reviewed'])

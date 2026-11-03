@@ -35,9 +35,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.equivalency.engine import RUBRIC_VERSION, calculate, compare, search, validate_pairs
+from scripts.equivalency.engine import RUBRIC_VERSION, EvidenceValidationError, calculate, compare, search, validate_pairs
 from scripts.equivalency.grounding import validate_evidence
-from scripts.equivalency.reference_quality import reference_pending, evidence_calculation, reference_problem, extraction_integrity, uploaded_target_reference
+from scripts.equivalency.reference_quality import audit_incomplete, reference_pending, evidence_calculation, reference_problem, extraction_integrity, uploaded_target_reference
 from scripts.equivalency.extract import apply_readings, digest, extract_cached
 from scripts.equivalency.server import clean_beneficiary, clean_topics
 
@@ -554,7 +554,10 @@ class Processor:
                 beneficiary = clean_beneficiary(payload.get('beneficiary'))
                 evidence = self.comparison_hold(target, trusted_source or source, uploaded=payload.get('target_mode') == 'uploaded')
                 if evidence is None:
-                    evidence = compare(target, source, model=self.model, cache_dir=private_directory(directory / 'comparisons'))
+                    try:
+                        evidence = compare(target, source, model=self.model, cache_dir=private_directory(directory / 'comparisons'))
+                    except EvidenceValidationError as error:
+                        evidence = audit_incomplete(error,RUBRIC_VERSION)
                 if evidence['pairs']:
                     validate_evidence(evidence,target['topics'],source['topics'])
                 result = {'id': task['id'], 'source': source, 'target': public_source(target, catalog_pdf=target.get('source_pdf')), 'evidence': evidence, 'calculation': evidence_calculation(target['topics'], source['topics'], evidence), 'beneficiary': beneficiary, 'created_at': datetime.now(timezone.utc).isoformat(), 'catalog_id': self.catalog['catalog_id'], 'reviewed_by': 'automated_pipeline' if payload.get('review_mode') == 'automatic' else 'user_confirmed_extraction', 'human_reviewed': payload.get('review_mode') != 'automatic'}
@@ -591,7 +594,7 @@ class Processor:
             elif source.get('upload_pdf'):
                 self.save_pdf(value, source['id'], cloud, source['source_sha256'])
         else:
-            self.existing_source(value, cloud)
+            input_source, _, _ = self.existing_source(value, cloud)
             if value['kind'] == 'compare':
                 target, target_pdf = self.comparison_target(value, cloud)
                 # A completed but unacknowledged task may survive a code/rubric
@@ -619,6 +622,14 @@ class Processor:
                         raise ValueError('invalid_checkpoint_pairs')
                     if pairs:
                         validate_evidence(evidence, targets, sources)
+                    if evidence.get('provider')=='audit_incomplete':
+                        effective=lambda rows:[(t['id'],t.get('corrected_text') or t['text']) for t in rows]
+                        expected_sources=clean_topics(value['payload'].get('source_topics',input_source['topics']),input_source['topics'])
+                        expected_targets=clean_topics(value['payload'].get('target_topics',target['topics']),target['topics'])
+                        if (effective(sources)!=effective(expected_sources) or effective(targets)!=effective(expected_targets)
+                                or report['source'].get('source_sha256')!=input_source.get('source_sha256')
+                                or report['target'].get('source_sha256')!=target.get('source_sha256')):
+                            raise ValueError('incomplete_evidence_inputs_changed')
                     # Empty/unresolved topics legitimately return insufficient
                     # with no pairs; calculate owns that deterministic policy.
                     pending=self.comparison_hold(target,self.sources.get(report['source'].get('catalog_course_id')) or report['source'],uploaded=value['payload'].get('target_mode') == 'uploaded')

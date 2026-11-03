@@ -15,14 +15,18 @@ _PROPERTY_ORDER = ('target_id', 'source_id', 'facets', 'reason', 'verdict', 'pos
 _SUPPORTS = ('aligned', 'related', 'limited', 'absent', 'unknown')
 
 
-def model_review_schema(base_schema):
+def model_review_schema(base_schema, *, allow_empty_uncertain=False):
     """Return four explicit row branches from the existing word-span schema.
 
     Only portable anyOf/enum/array bounds express conditional restrictions.
     The caller keeps the original validators, and supplies a schema whose facet
     items already use target_start/target_end rather than generated quotes.
-    Neither the base schema nor model responses are mutated.
+    Neither the base schema nor model responses are mutated. Empty uncertain
+    bounds require an explicit batch-level hard verse-exclusion exception; the
+    unchanged per-pair validator still verifies that exception for every row.
     """
+    if type(allow_empty_uncertain) is not bool:
+        raise ValueError('allow_empty_uncertain_must_be_boolean')
     result = copy.deepcopy(base_schema)
     try:
         row = result['properties']['reviews']['items']
@@ -57,7 +61,7 @@ def model_review_schema(base_schema):
         else:
             value['properties']['facets'] = {'anyOf': [array(singleton, 1, 1), array(allowed, 2)]}
         choices = {'strict': [['strict', 'lenient']], 'lenient': [['lenient']], 'weak': [[]],
-                   'uncertain': [[], ['lenient'], ['strict', 'lenient'], ['lenient', 'strict']]}[verdict]
+                   'uncertain': ([[]] if allow_empty_uncertain else []) + [['lenient'], ['strict', 'lenient'], ['lenient', 'strict']]}[verdict]
         tiers = value['properties']['possible_tiers']
         tiers['enum'] = choices
         tiers['minItems'] = min(map(len, choices))

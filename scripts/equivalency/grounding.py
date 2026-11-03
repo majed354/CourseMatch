@@ -37,8 +37,14 @@ MODEL_SCHEMA['properties']['reviews']['items']['properties']['facets']['items']=
 LEGACY_MODEL_SCHEMA = copy.deepcopy(MODEL_SCHEMA)
 LEGACY_SYSTEM = SYSTEM
 from .review_schema import model_review_schema
-MODEL_SCHEMA = model_review_schema(MODEL_SCHEMA)
+PRIOR_MODEL_SCHEMA = model_review_schema(LEGACY_MODEL_SCHEMA, allow_empty_uncertain=True)
+MODEL_SCHEMA = model_review_schema(LEGACY_MODEL_SCHEMA)
 SYSTEM += '''\nأنتج معرفي الزوج ثم أدلة facets أولًا، وبعدها السبب والتصنيف. المخطط يمنع الجمع بين unknown وتصنيف قطعي؛ إذا بقي نطاق مجهول فلا تبدل unknown إلى absent لمجرد ملاءمة تصنيف سبق أن اخترته. عدم اليقين ليس درجة منخفضة ولا إثبات غياب. repair_only أو completion_only يطلبان الأزواج المحددة فقط، والأزواج في retained_pairs لها أدلة سابقة صحيحة لم تتغير نصوصها، فلا تعِد تقديرها.'''
+
+# Preserve the exact bca4b24 v5 identity for strict promotion, never reinterpret
+# an old review under a looser validator or discard its original raw evidence.
+PRIOR_SYSTEM = SYSTEM
+SYSTEM += '\nFor uncertain, possible_tiers must retain a positive possible bound unless scope_facts prove hard verse exclusion below60. An empty list is not a low score or a substitute for unknown evidence. The schema permits an empty list only in a batch with such exclusion; the per-pair validator still checks each exception.'
 
 
 def word_spans(text):
@@ -180,6 +186,7 @@ def validate_reviews(reviews, targets, sources, requested):
 def review_pairs(targets, sources, pairs, *, model, model_digest, cache_dir, caller, excluded_pairs=(), previous_pairs=None):
     """Only IDs/text are visible; scores, reasons and expectations stay outside."""
     from .engine import topic_text
+    from .ranges import range_issues
     requested={(p['target_id'],p['source_id']) for p in pairs}
     excluded={(p['target_id'],p['source_id']) for p in excluded_pairs}
     common={'target':[{'id':t['id'],'text':topic_text(t),'numbered_words':[str(i)+': '+m.group() for i,m in enumerate(word_spans(topic_text(t)),1)]} for t in targets],
@@ -196,7 +203,7 @@ def review_pairs(targets, sources, pairs, *, model, model_digest, cache_dir, cal
     attempts=[]
     def load_validated(value):
         wanted={(r['target_id'],r['source_id']) for r in value['requested_pairs']}
-        for version,system,schema in [(VERSION,SYSTEM,MODEL_SCHEMA),(LEGACY_VERSION,LEGACY_SYSTEM,LEGACY_MODEL_SCHEMA)]:
+        for version,system,schema in [(VERSION,SYSTEM,MODEL_SCHEMA),(VERSION,PRIOR_SYSTEM,PRIOR_MODEL_SCHEMA),(LEGACY_VERSION,LEGACY_SYSTEM,LEGACY_MODEL_SCHEMA)]:
             candidate=cache_key(value,version,system,schema);file=directory/(candidate+'.json')
             if not file.exists():continue
             try:
@@ -235,9 +242,15 @@ def review_pairs(targets, sources, pairs, *, model, model_digest, cache_dir, cal
                     'retained_pairs':[{'target_id':r['target_id'],'source_id':r['source_id']} for r in retained]}
     messages=[{'role':'system','content':SYSTEM},{'role':'user','content':json.dumps(generation,ensure_ascii=False)}]
     for attempt in range(2):
-        response=caller('chat',{'model':model,'stream':False,'think':False,'format':MODEL_SCHEMA,'messages':messages,
+        # The exception is about a deterministic verse upper bound, never
+        # about proposal grades or the desired course result. Keep the general
+        # cache identity strict; full texts/scope bind this deterministic choice.
+        allow_empty = bool(range_issues([{'target_id':t,'source_id':s,'score':60} for t,s in sorted(required)],targets,sources))
+        request_schema = model_review_schema(LEGACY_MODEL_SCHEMA, allow_empty_uncertain=allow_empty)
+        response=caller('chat',{'model':model,'stream':False,'think':False,'format':request_schema,'messages':messages,
                          'options':{'temperature':0,'seed':73,'num_ctx':32768,'num_predict':min(24000,max(7000,len(requested)*700))}})
-        record={'response':response,'request_payload':json.loads(messages[1]['content'])}; attempts.append(record)
+        record={'response':response,'request_payload':json.loads(messages[1]['content']),
+                'allow_empty_uncertain':allow_empty}; attempts.append(record)
         try:
             if response.get('done_reason')=='length': raise ValueError('مراجعة الأجزاء مبتورة')
             raw_reviews=json.loads(response['message']['content'])['reviews']
@@ -261,7 +274,10 @@ def review_pairs(targets, sources, pairs, *, model, model_digest, cache_dir, cal
         except (ValueError,KeyError,TypeError) as error:
             record['validation_error']=str(error)
             trace.parent.mkdir(parents=True,exist_ok=True); trace.write_text(json.dumps({'payload':payload,'attempts':attempts},ensure_ascii=False,indent=2))
-            if attempt or response.get('done_reason')=='length': raise ValueError('لم تكتمل مراجعة أدلة الأجزاء؛ لم يصدر حكم. '+str(error)) from error
+            if attempt or response.get('done_reason')=='length':
+                from .engine import EvidenceValidationError
+                raise EvidenceValidationError(stage='facet_review',target_ids=sorted({t for t,_ in required}),
+                    message='لم تكتمل مراجعة أدلة الأجزاء؛ لم يصدر حكم. '+str(error)) from error
             if record.get('validation_errors'):
                 repair_payload={**payload,'repair_only':True,
                     'requested_pairs':[{'target_id':t,'source_id':s} for t,s in sorted(required)],

@@ -940,3 +940,72 @@ class TargetPdfTransportTests(unittest.TestCase):
         opener.open.reset_mock()
         with self.assertRaises(ValueError):client.input_pdf(value,role='../source')
         opener.open.assert_not_called()
+
+class AuditIncompleteWorkerTests(UploadedTargetFixture):
+    def typed_failure(self,stage='facet_review'):
+        return worker.EvidenceValidationError('/private/raw-response.json secret model output',stage=stage,target_ids=['t1'])
+
+    def test_only_typed_evidence_failure_issues_bound_private_artifact_study_without_grades(self):
+        for stage in ['proposal','facet_review']:
+            value,target_pdf=self.uploaded_task();source_pdf=pdf_bytes('uploaded original fixture')
+            value['payload']['source'].update(upload_pdf=True,source_sha256=__import__('hashlib').sha256(source_pdf).hexdigest())
+            cloud=Mock(input_pdf=Mock(side_effect=lambda task,role='source':target_pdf if role=='target' else source_pdf))
+            before=copy.deepcopy(value)
+            with patch('scripts.cloud_worker.compare',side_effect=self.typed_failure(stage)):
+                report=self.processor.process(value,cloud)
+            self.assertEqual(report['calculation']['decision'],'insufficient')
+            self.assertIsNone(report['calculation']['strict_coverage']);self.assertIsNone(report['calculation']['lenient_coverage'])
+            self.assertEqual(report['evidence'],{'provider':'audit_incomplete','rubric':worker.RUBRIC_VERSION,'pairs':[],
+                                                'evidence_review':{'stage':stage,'target_ids':['t1']}})
+            for key in ['source','target']:
+                self.assertEqual(report[key]['source_sha256'],value['payload'][key]['source_sha256'])
+            self.assertEqual(value,before);self.assertFalse(report['human_reviewed'])
+            self.assertNotIn('/private/',json.dumps(report));self.assertNotIn('secret',json.dumps(report))
+
+    def test_unrelated_runtime_file_and_network_failures_never_become_academic_reports(self):
+        for index,error in enumerate([RuntimeError('private bug'),OSError('/private/path'),urllib.error.URLError('private network failure')],1):
+            with self.subTest(error=type(error).__name__),patch('scripts.cloud_worker.compare',side_effect=error):
+                claimed=self.compare_task();claimed['id']=f'{index:032x}';cloud=Mock();instance=worker.Worker(CONFIG,self.root,cloud=cloud,processor=self.processor)
+                self.assertTrue(instance.process_task(claimed))
+                reply=cloud.complete.call_args.kwargs;self.assertIsNone(reply['result']);self.assertTrue(reply['error'])
+                self.assertNotIn('private',reply['error'])
+
+    def saved_hold(self):
+        claimed=self.compare_task(review_mode='automatic')
+        with patch('scripts.cloud_worker.compare',side_effect=self.typed_failure()):
+            result=self.processor.process(claimed,Mock())
+        instance=worker.Worker(CONFIG,self.root,cloud=Mock(),processor=self.processor)
+        return instance,claimed,instance.checkpoints.save(claimed,self.catalog['catalog_id'],result,None)
+
+    def test_formal_incomplete_checkpoint_retries_ack_without_model_or_mutation(self):
+        instance,claimed,saved=self.saved_hold();before=copy.deepcopy(saved)
+        self.processor.verify_checkpoint(saved,instance.cloud)
+        with patch.object(self.processor,'process',side_effect=AssertionError('no model on valid checkpoint')):
+            self.assertTrue(instance.process_task(claimed))
+        self.assertEqual(instance.cloud.complete.call_args.kwargs,{'result':before['result'],'error':None})
+        self.assertEqual(saved,before)
+
+    def test_formal_checkpoint_rejects_forged_grade_metadata_input_or_new_reference_hold(self):
+        instance,claimed,saved=self.saved_hold()
+        for mutation in ['grade','pairs','stage','foreign_id','extra_private_key','source_text','target_text','source_hash','target_hash','reference_hold']:
+            bad=copy.deepcopy(saved);report=bad['result'];e=report['evidence']
+            if mutation=='grade':report['calculation'].update(decision='equivalent',strict_coverage=100)
+            elif mutation=='pairs':e['pairs']=[{'target_id':'t1','source_id':'s1','score':100}]
+            elif mutation=='stage':e['evidence_review']['stage']='network'
+            elif mutation=='foreign_id':e['evidence_review']['target_ids']=['not-current']
+            elif mutation=='extra_private_key':e['raw_path']='/private/raw.json'
+            elif mutation=='source_text':report['source']['topics'][0]['text']='Different private source'
+            elif mutation=='target_text':report['target']['topics'][0]['text']='Different target'
+            elif mutation=='source_hash':report['source']['source_sha256']='0'*64
+            elif mutation=='target_hash':report['target']['source_sha256']='0'*64
+            else:self.processor.courses[self.course['id']]['reference_review']={'comparison_readiness':'scope_incomplete'}
+            with self.subTest(mutation=mutation),self.assertRaises(worker.TaskInputError):
+                self.processor.verify_checkpoint(bad,instance.cloud)
+            self.processor.courses[self.course['id']].pop('reference_review',None)
+
+    def test_reference_or_visual_hold_has_precedence_over_model_audit_failure(self):
+        value=self.compare_task();value['payload']['source'].update(upload_pdf=True,visual_verification_status='unavailable',source_sha256=worker.digest(self.pdf))
+        with patch('scripts.cloud_worker.compare',side_effect=AssertionError('unready source must not compare')) as model:
+            report=self.processor.process(value,Mock(input_pdf=Mock(return_value=self.pdf.read_bytes())))
+        model.assert_not_called();self.assertEqual(report['evidence']['provider'],'reference_pending')
+        self.assertEqual(report['calculation']['decision'],'insufficient')

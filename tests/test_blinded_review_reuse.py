@@ -9,6 +9,9 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from urllib.error import HTTPError
+
+from jsonschema import Draft202012Validator, ValidationError
 
 from scripts.equivalency import grounding as g
 
@@ -92,6 +95,19 @@ class BlindedReviewReuseTests(unittest.TestCase):
         rows = g.decode_reviews([review(self.targets[0], self.sources[0]),
                                  review(self.targets[0], self.sources[2])], self.targets)
         value = {'version': stored_version or version, 'cache_key': key, 'reviews': rows, 'validation_attempts': 1}
+        path = Path(folder) / 'facet-reviews' / (key + '.json'); path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(value, ensure_ascii=False))
+        return path, value
+
+    def write_prior_v5(self, folder, *, invalid_empty=False):
+        key = hashlib.sha256(json.dumps([g.VERSION, g.PRIOR_SYSTEM, g.PRIOR_MODEL_SCHEMA,
+                                        g.SCHEMA, 'fixture-model-digest', self.payload()],
+                                       ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        rows = g.decode_reviews([review(self.targets[0], self.sources[0])], self.targets)
+        if invalid_empty:
+            rows[0].update(verdict='uncertain', possible_tiers=[])
+            rows[0]['facets'][0].update(support='unknown', source_quote='')
+        value = {'version':g.VERSION, 'cache_key':key, 'reviews':rows, 'validation_attempts':1}
         path = Path(folder) / 'facet-reviews' / (key + '.json'); path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(value, ensure_ascii=False))
         return path, value
@@ -203,5 +219,107 @@ class BlindedReviewReuseTests(unittest.TestCase):
                 self.assert_blinded(self.calls)
 
 
+    def test_valid_prior_v5_schema_cache_promotes_without_rewriting_its_evidence(self):
+        with tempfile.TemporaryDirectory() as folder:
+            prior, saved = self.write_prior_v5(folder); before = prior.read_bytes()
+            result = self.run_review(folder, [], pairs=self.prior_pairs)
+            self.assertEqual(self.calls, []); self.assertEqual(result['reviews'], saved['reviews'])
+            self.assertEqual(result['reused_review_cache_keys'], [saved['cache_key']])
+            self.assertNotEqual(result['cache_key'], saved['cache_key'])
+            self.assertEqual(result['validation_attempts'], 0); self.assertEqual(prior.read_bytes(), before)
+            trace = json.loads((Path(folder) / 'facet-reviews/traces' / (result['cache_key'] + '.json')).read_text())
+            self.assertEqual(trace['reused_review_cache_keys'], [saved['cache_key']])
+
+    def test_invalid_prior_v5_empty_uncertainty_cannot_be_promoted(self):
+        with tempfile.TemporaryDirectory() as folder:
+            prior, saved = self.write_prior_v5(folder, invalid_empty=True); before = prior.read_bytes()
+            result = self.run_review(folder, [[review(self.targets[0], self.sources[0])]], pairs=self.prior_pairs)
+            self.assertEqual(len(self.calls), 1); self.assertEqual(result['reused_review_count'], 0)
+            self.assertEqual(result['reused_review_cache_keys'], []); self.assertEqual(prior.read_bytes(), before)
+            self.assertEqual(result['reviews'][0]['verdict'], 'strict')  # fixture's own new review, no coercion
+            trace = json.loads((Path(folder) / 'facet-reviews/traces' / (result['cache_key'] + '.json')).read_text())
+            self.assertTrue(any(r.get('invalid_cache') for r in trace['attempts']))
+
+    def test_general_batch_schema_rejects_empty_and_model_repairs_its_own_bounds(self):
+        invalid = review(self.targets[0], self.sources[0], 'weak')
+        invalid.update(verdict='uncertain', possible_tiers=[])
+        invalid['facets'][0].update(support='unknown', source_quote='')
+        repaired = copy.deepcopy(invalid); repaired['possible_tiers'] = ['lenient']
+        with tempfile.TemporaryDirectory() as folder:
+            result = self.run_review(folder, [[invalid], [repaired]], pairs=self.prior_pairs)
+        self.assertEqual(len(self.calls), 2)
+        for call in self.calls:
+            with self.assertRaises(ValidationError):
+                Draft202012Validator(call['format']).validate({'reviews':[invalid]})
+        self.assertEqual(result['reviews'][0]['possible_tiers'], ['lenient'])
+        self.assertEqual(invalid['possible_tiers'], [])  # no in-place or automatic change
+        self.assert_blinded(self.calls)
+
+    def test_hard_verse_exclusion_uses_explicit_empty_exception_without_loosening_global_schema(self):
+        targets = [{'id':'tv','text':'تفسير سورة البقرة الآيات1-10'}]
+        sources = [{'id':'sv','text':'تفسير سورة البقرة الآيات1-2'}]
+        uncertain = review(targets[0], sources[0], 'weak')
+        uncertain.update(verdict='uncertain', possible_tiers=[])
+        uncertain['facets'][0].update(support='unknown', source_quote='')
+        with tempfile.TemporaryDirectory() as folder:
+            result = self.run_review(folder, [[uncertain]], targets=targets, sources=sources,
+                                     pairs=[proposal(targets[0], sources[0])])
+        Draft202012Validator(self.calls[0]['format']).validate({'reviews':[uncertain]})
+        with self.assertRaises(ValidationError):
+            Draft202012Validator(g.MODEL_SCHEMA).validate({'reviews':[uncertain]})
+        self.assertEqual(result['reviews'][0]['possible_tiers'], [])
+        self.assertEqual(result['reviews'][0]['verdict'], 'uncertain')
+        self.assert_blinded(self.calls)
+
+    def test_mixed_batch_exception_does_not_allow_empty_for_an_unexcluded_pair(self):
+        from scripts.equivalency.engine import EvidenceValidationError
+        targets = [self.targets[0], {'id':'tv','text':'تفسير سورة البقرة الآيات1-10'}]
+        sources = [self.sources[0], {'id':'sv','text':'تفسير سورة البقرة الآيات1-2'}]
+        rows = []
+        for target, source in zip(targets, sources):
+            value = review(target, source, 'weak'); value.update(verdict='uncertain', possible_tiers=[])
+            value['facets'][0].update(support='unknown', source_quote=''); rows.append(value)
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaises(EvidenceValidationError) as caught:
+                self.run_review(folder, [rows, [rows[0]]], targets=targets, sources=sources,
+                                pairs=[proposal(t,s) for t,s in zip(targets,sources)])
+            self.assertEqual(caught.exception.stage, 'facet_review')
+            self.assertEqual(set(caught.exception.target_ids), {'ta'})
+        self.assertEqual(len(self.calls), 2)
+        Draft202012Validator(self.calls[0]['format']).validate({'reviews':rows})
+        with self.assertRaises(ValidationError):
+            Draft202012Validator(self.calls[1]['format']).validate({'reviews':[rows[0]]})
+        self.assertEqual(ids(json.loads(self.calls[1]['messages'][1]['content'])['requested_pairs']), {('ta','sa')})
+
+    def test_exhaustion_and_truncation_are_typed_but_transport_errors_are_not_converted(self):
+        from scripts.equivalency.engine import EvidenceValidationError
+        for kind in ('invalid','truncated'):
+            calls = []
+            def caller(endpoint,payload):
+                calls.append(copy.deepcopy(payload))
+                if kind == 'truncated': return {'done':True,'done_reason':'length','message':{'content':'{incomplete'}}
+                value = review(self.targets[0],self.sources[0],'weak')
+                value['facets'][0]['support'] = 'unknown'
+                return answer([value])
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as folder:
+                with self.assertRaises(EvidenceValidationError) as caught:
+                    g.review_pairs(self.targets,self.sources,self.prior_pairs,model='fixture-local',
+                                   model_digest='digest',cache_dir=folder,caller=caller)
+                self.assertIsInstance(caught.exception,ValueError)
+                self.assertEqual(caught.exception.stage,'facet_review')
+                self.assertEqual(set(caught.exception.target_ids),{'ta'})
+                self.assertEqual(len(calls),1 if kind=='truncated' else 2)
+        for error in (TimeoutError('queue timeout'), HTTPError('http://127.0.0.1/api/chat',503,'busy',{},None)):
+            calls = []
+            def technical(endpoint,payload): calls.append(payload); raise error
+            with self.subTest(error=type(error).__name__), tempfile.TemporaryDirectory() as folder:
+                with self.assertRaises(type(error)) as caught:
+                    g.review_pairs(self.targets,self.sources,self.prior_pairs,model='fixture-local',
+                                   model_digest='digest',cache_dir=folder,caller=technical)
+                self.assertIs(caught.exception,error); self.assertNotIsInstance(caught.exception,EvidenceValidationError)
+                self.assertEqual(len(calls),1)
+
+
 if __name__ == '__main__':
+
     unittest.main()

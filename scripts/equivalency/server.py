@@ -14,8 +14,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from .engine import RUBRIC_VERSION, calculate, compare, search, topic_text
-from .reference_quality import reference_pending, evidence_calculation, extraction_integrity, uploaded_target_reference
+from .engine import RUBRIC_VERSION, EvidenceValidationError, calculate, compare, search, topic_text
+from .reference_quality import audit_incomplete, reference_pending, evidence_calculation, extraction_integrity, uploaded_target_reference
 from .extract import ROOT, digest, extract_pdf, extract_cached, apply_readings
 
 
@@ -191,7 +191,12 @@ class Pilot:
                 reference, problem = (uploaded_target_reference(target,self.sources.values()) if uploaded_target else (None,None))
                 if reference is not None:self.verify_course(reference)
                 evidence = ({'provider':'reference_pending','pairs':[],'rubric':RUBRIC_VERSION,'reference_review':{'target':problem}} if problem else
-                            reference_pending(reference or target,(self.sources[source['catalog_course_id']] if source.get('catalog_course_id') else source),RUBRIC_VERSION)) or compare(target,source,model=self.model)
+                            reference_pending(reference or target,(self.sources[source['catalog_course_id']] if source.get('catalog_course_id') else source),RUBRIC_VERSION))
+                if evidence is None:
+                    try:
+                        evidence=compare(target,source,model=self.model)
+                    except EvidenceValidationError as error:
+                        evidence=audit_incomplete(error,RUBRIC_VERSION)
                 result = {"id": key, "source": source, "target": target, "target_mode": "uploaded" if uploaded_target else "catalog", "evidence": evidence,
                           "beneficiary": beneficiary, "created_at": datetime.now(timezone.utc).isoformat(),
                           "calculation": evidence_calculation(target["topics"], source["topics"], evidence),
@@ -203,7 +208,7 @@ class Pilot:
                 self.save_report(result)
                 self.jobs[key].update(status="done", message="اكتملت المقارنة", result=result)
             except Exception as e:
-                self.jobs[key].update(status="error", message=str(e))
+                self.jobs[key].update(status="error", message="تعذر استكمال المقارنة؛ أعد المحاولة لاحقًا.")
                 traceback.print_exc()
         self.executor.submit(run)
         return self.jobs[key]

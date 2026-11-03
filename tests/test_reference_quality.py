@@ -42,3 +42,35 @@ class ReferenceQualityTests(unittest.TestCase):
     def test_empty_or_forged_reference_state_does_not_authorize_judgment(self):
         for state in ('',None,'verified','ready'):
             self.quality['state']=state;self.assertTrue(reference_problem(self.t))
+
+class IncompleteEvidenceCalculationTests(unittest.TestCase):
+    def setUp(self):
+        self.targets=[{'id':'t1','text':'موضوع هدف موثق'},{'id':'t2','text':'موضوع آخر'}]
+        self.sources=[{'id':'s1','text':'موضوع مصدر موثق'}]
+        self.evidence={'provider':'audit_incomplete','rubric':RUBRIC_VERSION,'pairs':[],
+                       'evidence_review':{'stage':'facet_review','target_ids':['t2']}}
+
+    def test_formal_incomplete_study_has_no_partial_or_zero_grade(self):
+        original=copy.deepcopy(self.evidence)
+        calculation=evidence_calculation(self.targets,self.sources,self.evidence)
+        self.assertEqual(calculation['decision'],'insufficient')
+        self.assertIsNone(calculation['strict_coverage']);self.assertIsNone(calculation['lenient_coverage'])
+        self.assertEqual(calculation['strict_matches'],{});self.assertEqual(calculation['lenient_matches'],{})
+        self.assertEqual(calculation['reason'],'لم تثبت أدلة توافق كافية لحسم المعادلة.')
+        self.assertEqual(calculation['evidence_review'],self.evidence['evidence_review'])
+        self.assertEqual(self.evidence,original)
+        calculation['evidence_review']['target_ids'].append('t1')
+        self.assertEqual(self.evidence,original)
+
+    def test_incomplete_evidence_requires_exact_current_bound_contract(self):
+        variants=[]
+        for field,value in [('rubric','old-rubric'),('pairs',[{'score':100}]),('debug','/private/raw.json')]:
+            changed=copy.deepcopy(self.evidence);changed[field]=value;variants.append(changed)
+        for review in [{},{'stage':'network','target_ids':['t1']},{'stage':'proposal','target_ids':[]},
+                       {'stage':'proposal','target_ids':['foreign']},{'stage':'proposal','target_ids':['t1','t1']},
+                       {'stage':'proposal','target_ids':['t1'],'reason':'private model response'},
+                       {'stage':'proposal','target_ids':[None]}]:
+            changed=copy.deepcopy(self.evidence);changed['evidence_review']=review;variants.append(changed)
+        for changed in variants:
+            with self.subTest(changed=changed),self.assertRaises(ValueError):
+                evidence_calculation(self.targets,self.sources,changed)

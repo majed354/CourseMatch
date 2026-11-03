@@ -838,3 +838,106 @@ test('repository uploads retain the source role and automatic retrieval contract
  const state=ui(),candidate=state.catalog.courses.find(c=>c.topics.length);installSearchAPI(state,[candidate]);state.context.uploadExtractedSource={...candidate,context:null};state.element('pdfFile').files=[pdfFile()];await state.element('extractButton').onclick({target:state.element('extractButton')});
  const calls=JSON.parse(JSON.stringify(state.context.requests));assert.deepEqual(calls.map(x=>x.route),['/api/sources','/api/search']);assert.equal(calls[0].body.intake_role,'source');assert.equal(calls[0].body.input_kind,undefined);assert.equal(calls[1].body.all_contexts,true);assert.equal(calls[1].body.limit,8);
 });
+
+test('report polling recovers one transient GET 500 HTML or JSON and renders the same completed job',async()=>{
+  for(const errorFormat of ['html','json']) {
+    const {context,element}=ui();context.setTimeout=callback=>{callback();return 0;};
+    const id='a'.repeat(32);context.jobId=id;context.errorFormat=errorFormat;context.calls=[];context.urls=[];context.errorBodyReads=0;
+    context.completedReport={...reportFixture({beneficiary:{name:'مستفيد الاسترداد',number:'٠٠١500'}}),id};
+    vm.runInContext(`history.replaceState=(_state,_title,url)=>urls.push(url);
+      fetch=async(route,options)=>{
+        calls.push({route,options});
+        if(calls.length===1)return {ok:false,status:500,headers:{get:()=>null},json:async()=>{
+          errorBodyReads++;if(errorFormat==='html')throw SyntaxError('HTML500');
+          return {error:'temporary 500',id:'f'.repeat(32),operation_id:'f'.repeat(32),status:'done'};
+        }};
+        return {ok:true,status:200,json:async()=>({id:jobId,status:'done',result:completedReport})};
+      };`,context);
+    await vm.runInContext('waitForReport(jobId)',context);
+    assert.equal(context.calls.length,2);assert.equal(context.errorBodyReads,0);
+    assert.deepEqual(context.calls.map(call=>call.route),['/api/jobs/'+id,'/api/jobs/'+id]);
+    assert.ok(context.calls.every(call=>!call.options.method&&call.options.credentials==='same-origin'&&!call.options.body));
+    assert.deepEqual(context.urls,['?report='+id]);assert.equal(vm.runInContext('currentReport.id',context),id);
+    assert.equal(element('reportPanel').hidden,false);assert.ok(element('report').innerHTML.includes('مستفيد الاسترداد'));
+    assert.ok(element('report').innerHTML.includes('٠٠١500'));assert.equal(vm.runInContext('pendingQueueRequests.size',context),0);
+  }
+});
+
+test('permanent GET 500 HTML or JSON stops after seven attempts without creating or resubmitting a job',async()=>{
+  for(const errorFormat of ['html','json']) {
+    const {context,element}=ui();context.setTimeout=callback=>{callback();return 0;};
+    context.jobId='b'.repeat(32);context.errorFormat=errorFormat;context.calls=[];
+    vm.runInContext(`fetch=async(route,options)=>{calls.push({route,options});return {ok:false,status:500,headers:{get:()=>null},json:async()=>{
+      if(errorFormat==='html')throw SyntaxError('HTML500');return {error:'permanent fixture500'};
+    }};};`,context);
+    await assert.rejects(vm.runInContext('waitForReport(jobId)',context),/تعذر تنفيذ الطلب|permanent fixture500/);
+    assert.equal(context.calls.length,7);assert.ok(context.calls.every(call=>call.route==='/api/jobs/'+context.jobId));
+    assert.ok(context.calls.every(call=>!call.options.method&&!call.options.body&&call.options.credentials==='same-origin'));
+    assert.equal(element('reportPanel').hidden,true);assert.equal(vm.runInContext('currentReport==null',context),true);
+    assert.equal(vm.runInContext('pendingQueueRequests.size',context),0);
+  }
+});
+
+test('adding GET 500 resilience never retries a POST source, search or comparison automatically',async()=>{
+  for(const route of ['/api/sources','/api/search','/api/jobs'])for(const errorFormat of ['html','json']) {
+    const {context}=ui();context.setTimeout=callback=>{callback();return 0;};
+    context.route=route;context.errorFormat=errorFormat;context.calls=[];context.bodyInput={source_id:'c'.repeat(32),target_id:'d'.repeat(20)};
+    vm.runInContext(`requestRecovery=false;token='fixture-csrf';fetch=async(route,options)=>{calls.push({route,options});return {ok:false,status:500,json:async()=>{
+      if(errorFormat==='html')throw SyntaxError('HTML500');return {error:'POST fixture500'};
+    }};};`,context);
+    await assert.rejects(vm.runInContext('api(route,bodyInput)',context),/تعذر تنفيذ الطلب|POST fixture500/);
+    assert.equal(context.calls.length,1);assert.equal(context.calls[0].route,route);
+    assert.equal(context.calls[0].options.method,'POST');assert.equal(context.calls[0].options.credentials,'same-origin');
+    assert.equal(context.calls[0].options.headers['X-Equivalency-Token'],'fixture-csrf');
+    assert.deepEqual(JSON.parse(context.calls[0].options.body),context.bodyInput);
+    assert.equal(vm.runInContext('pendingQueueRequests.size',context),0);
+  }
+});
+
+test('an accepted POST with lost 500 acknowledgment recovers only through GET and keeps one nonce and one job',async()=>{
+  const {context,element}=ui();context.setTimeout=callback=>{callback();return 0;};
+  const id='e'.repeat(32);context.jobId=id;context.calls=[];context.jobReads=0;
+  context.completedReport={...reportFixture({beneficiary:{name:'مستفيد الطلب الأصلي',number:'DEMO-ONE-POST'}}),id};
+  context.bodyInput={source_id:'1'.repeat(32),target_id:'2'.repeat(20),review_mode:'automatic'};
+  vm.runInContext(`requestRecovery=true;token='fixture-csrf';fetch=async(route,options)=>{
+    calls.push({route,options});
+    if(options?.method==='POST')return {ok:false,status:500,json:async()=>{throw SyntaxError('lost accepted acknowledgment');}};
+    if(route.startsWith('/api/requests/'))return {ok:true,status:200,json:async()=>({id:jobId,status:'running',kind:'compare'})};
+    if(route==='/api/jobs/'+jobId&&++jobReads===1)return {ok:false,status:500,headers:{get:()=>null},json:async()=>{throw SyntaxError('temporary polling HTML500');}};
+    if(route==='/api/jobs/'+jobId)return {ok:true,status:200,json:async()=>({id:jobId,status:'done',result:completedReport})};
+    throw Error('unexpected route '+route);
+  };`,context);
+  const accepted=await vm.runInContext('api("/api/jobs",bodyInput)',context);assert.equal(accepted.id,id);
+  await vm.runInContext('waitForReport(jobId)',context);
+  const posts=context.calls.filter(call=>call.options?.method==='POST');assert.equal(posts.length,1);
+  const submitted=JSON.parse(posts[0].options.body);assert.match(submitted.request_id,/^[a-f0-9]{32}$/);
+  assert.equal(submitted.source_id,context.bodyInput.source_id);assert.equal(submitted.target_id,context.bodyInput.target_id);
+  assert.equal(posts[0].options.headers['X-Equivalency-Token'],'fixture-csrf');
+  assert.deepEqual(context.calls.map(call=>call.route),['/api/jobs','/api/requests/'+submitted.request_id,'/api/jobs/'+id,'/api/jobs/'+id]);
+  assert.ok(context.calls.slice(1).every(call=>!call.options.method&&!call.options.body&&call.options.credentials==='same-origin'));
+  assert.equal(vm.runInContext('currentReport.id',context),id);assert.equal(vm.runInContext('pendingQueueRequests.size',context),0);
+  assert.ok(element('report').innerHTML.includes('DEMO-ONE-POST'));
+});
+
+test('incomplete evidence audit renders a formal pending report without zero coverage or private engine details',()=>{
+  const input=reportFixture({decision:'insufficient',total:13});
+  input.id='6'.repeat(32);
+  input.calculation={...input.calculation,strict_coverage:null,lenient_coverage:null,
+    evidence_review:{stage:'facet_review',target_ids:['t1']},
+    reason:'PRIVATE_RAW_VALIDATION_ERROR uncertain_empty_bounds'};
+  input.evidence={provider:'audit_incomplete',pairs:[],rubric:'PRIVATE_RUBRIC_ID',
+    model:'qwen3.8:27b-q8_0',reviewer_model:'gemma4:e4b',
+    evidence_review:{stage:'facet_review',target_ids:['t1']},
+    raw_error:'PRIVATE_RAW_VALIDATION_ERROR uncertain_empty_bounds'};
+  const before=JSON.stringify(input),{html,element}=renderedReport(input);
+  assert.equal(element('reportPanel').hidden,false);
+  assert.ok(html.includes('data-decision="insufficient"'));assert.ok(html.includes('تعذر الحسم'));
+  assert.ok(html.includes('لعدم كفاية أدلة التوافق بين مفردات المقررين'));
+  assert.ok(html.includes('report-stamp pending'));assert.ok(!html.includes('report-stamp approved'));
+  assert.ok(html.includes('coverage-pending'));assert.ok(html.includes('لم تُحسب التغطية'));
+  for(const mode of ['strict','lenient'])assert.ok(html.includes(`data-mode="${mode}" data-count="" data-total="13" data-coverage=""`));
+  assert.ok(!html.includes('coverage-gauge'));assert.ok(!html.includes('coverage-bar-fill'));
+  assert.doesNotMatch(html,/(?:^|[^\d٠-٩])(?:0(?:[.,]0+)?|٠(?:[٫,]٠+)?)\s*%/u);
+  for(const privateValue of ['audit_incomplete','facet_review','qwen3.8','gemma4','PRIVATE_RAW_VALIDATION_ERROR','uncertain_empty_bounds','PRIVATE_RUBRIC_ID'])assert.ok(!html.includes(privateValue),privateValue+' must remain outside the formal report');
+  assert.equal(JSON.stringify(input),before,'rendering must not convert the preserved audit failure into scores or modify its evidence');
+});

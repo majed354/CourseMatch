@@ -30,7 +30,7 @@ from .engine import local_model, post_ollama
 from .extract import norm
 
 VERSION = 'image-input-local-vision-v6-independent-reading'
-NATIVE_PROTOCOL_VERSION = 'native-map-v3-orthographic-agreement'
+NATIVE_PROTOCOL_VERSION = 'native-map-v4-marked-alef-conflicts'
 FALLBACK_MODEL = 'qwen3.8:27b-q8_0'
 MAX_PIXELS = 32_000_000
 MAX_DIMENSION = 12_000
@@ -154,9 +154,19 @@ def _identity(model, caller):
 
 
 def _native_agreement_text(text, *, punctuation):
-    text=norm(text).translate(str.maketrans({'أ':'ا','إ':'ا','آ':'ا','ٱ':'ا'}))
+    text=norm(text)
     if punctuation:text=''.join(' ' if unicodedata.category(c).startswith('P') else c for c in text)
     return ' '.join(text.split())
+
+
+def _native_readings_agree(first, second, *, punctuation):
+    a=_native_agreement_text(first,punctuation=punctuation)
+    b=_native_agreement_text(second,punctuation=punctuation)
+    marked_alefs={'أ','إ','آ','ٱ'}
+    # A bare alef may be an omitted mark in one reading. Two different explicit
+    # marks are conflicting evidence (الأيمان / الإيمان), never canonical noise.
+    return len(a)==len(b) and all(x==y or (x=='ا' and y in marked_alefs) or
+                                 (y=='ا' and x in marked_alefs) for x,y in zip(a,b))
 
 
 def _merge_text(first, second, native=False):
@@ -165,7 +175,7 @@ def _merge_text(first, second, native=False):
         # Harmless spelling/layout agreement does not authorize numeral or
         # verse-range punctuation changes. Preserve the primary reading verbatim.
         punctuation=not any(c.isdigit() for c in first+second)
-        if _native_agreement_text(first,punctuation=punctuation)==_native_agreement_text(second,punctuation=punctuation):return first
+        if _native_readings_agree(first,second,punctuation=punctuation):return first
     words=lambda s:re.findall(r'\[غير واضح\]|\S+',s)
     a,b=words(first),words(second);ak,bk=[norm(x) for x in a],[norm(x) for x in b];result=[]
     for op,i,j,k,l in SequenceMatcher(a=ak,b=bk,autojunk=False).get_opcodes():

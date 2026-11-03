@@ -51,6 +51,21 @@ class MissingReviewPairs(ValueError):
             [{'target_id':t,'source_id':s} for t,s in sorted(missing)],ensure_ascii=False))
 
 
+class EvidenceValidationError(ValueError):
+    """Bounded model evidence failed validation; no academic grade was accepted.
+
+    Transport, file integrity and programming errors are deliberately different
+    exceptions. Callers may issue a formal indeterminate study for this case,
+    without publishing invalid model output or treating it as a rejection.
+    """
+    def __init__(self, message, *, stage, target_ids):
+        if stage not in ('proposal','facet_review') or not isinstance(target_ids,list) or any(not isinstance(t,str) or not t for t in target_ids):
+            raise ValueError('invalid_evidence_failure_metadata')
+        self.stage=stage
+        self.target_ids=sorted(set(target_ids))
+        super().__init__(message)
+
+
 def unresolved_topics(topics):
     return [t["id"] for t in topics if re.search(r'\[\s*غير\s*واضح\s*\]',topic_text(t))
             or norm(topic_text(t)).strip(".،: …") in ("", "أخرى", "اخرى", "غير محدد", "يحدد لاحقًا", "يحدد لاحقا")
@@ -336,7 +351,8 @@ def _propose_pairs(target, source, *, model="qwen3.8:27b-q8_0", cache_dir=None, 
             trace.parent.mkdir(parents=True,exist_ok=True)
             trace.write_text(json.dumps({'cache_key':key,'model':model,'model_digest':model_digest,'payload':payload,'rejected_cache':cached_rejection,'attempts':attempts},ensure_ascii=False,indent=2))
             if attempt or response.get('done_reason')=='length':
-                raise ValueError('لم تجتز المقارنة التحقق من الأدلة؛ لم يصدر حكم. '+str(error)) from error
+                raise EvidenceValidationError('لم تجتز المقارنة التحقق من الأدلة؛ لم يصدر حكم. '+str(error),
+                                              stage='proposal',target_ids=[t['id'] for t in targets]) from error
             if isinstance(error,MissingReviewPairs):
                 repair_base=error.checked
                 repair_payload={**payload,'repair_only':True,

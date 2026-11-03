@@ -35,8 +35,29 @@ def reference_pending(target,source,rubric):
     return {'provider':'reference_pending','pairs':[],'rubric':rubric,'reference_review':issues}
 
 
+def audit_incomplete(error,rubric):
+    """Expose only bounded failure identity; model text stays in private traces."""
+    return {'provider':'audit_incomplete','pairs':[],'rubric':rubric,
+            'evidence_review':{'stage':error.stage,'target_ids':list(error.target_ids)}}
+
+
 def evidence_calculation(targets,sources,evidence):
-    from .engine import calculate
+    from .engine import RUBRIC_VERSION, calculate
+    if evidence.get('provider')=='audit_incomplete':
+        review=evidence.get('evidence_review')
+        if (set(evidence)!={'provider','pairs','rubric','evidence_review'}
+                or evidence.get('rubric')!=RUBRIC_VERSION or evidence.get('pairs')!=[]
+                or not isinstance(review,dict) or set(review)!={'stage','target_ids'}
+                or review.get('stage') not in ('proposal','facet_review')):
+            raise ValueError('invalid_incomplete_evidence')
+        ids=review['target_ids'];current={t['id'] for t in targets}
+        if (not isinstance(ids,list) or not ids or any(not isinstance(t,str) or t not in current for t in ids)
+                or len(set(ids))!=len(ids)):
+            raise ValueError('invalid_incomplete_evidence_targets')
+        result=calculate(targets,sources,[],reviewed=False)
+        result.update(evidence_review={'stage':review['stage'],'target_ids':list(ids)},
+                      reason='لم تثبت أدلة توافق كافية لحسم المعادلة.')
+        return result
     result=calculate(targets,sources,evidence['pairs'],reviewed=evidence.get('provider')!='reference_pending')
     if evidence.get('provider')=='reference_pending':
         result.update(reference_review=evidence['reference_review'],reason='لم تكتمل مراجعة نص المرجع أو نطاق مفرداته؛ يلزم استكماله قبل إصدار الحكم.')

@@ -55,3 +55,28 @@ class UploadedTargetPilotTests(unittest.TestCase):
         target={**self.target,'id':'catalog-target'};target.pop('upload_pdf');self.pilot.courses[target['id']]=target
         job=self.pilot.job({'source_id':self.source['id'],'target_id':target['id'],'review_mode':'automatic'})
         self.assertEqual(job['status'],'done');self.assertEqual(job['result']['target_mode'],'catalog')
+
+    def test_typed_evidence_failure_is_formal_incomplete_without_private_error_text(self):
+        from scripts.equivalency.engine import EvidenceValidationError,RUBRIC_VERSION
+        for stage in ['proposal','facet_review']:
+            error=EvidenceValidationError('/private/raw-response.json secret model output',stage=stage,target_ids=['t1'])
+            before=copy.deepcopy([self.source,self.target])
+            with patch('scripts.equivalency.server.compare',side_effect=error):job=self.pilot.job(self.data())
+            self.assertEqual(job['status'],'done');report=job['result']
+            self.assertEqual(report['evidence'],{'provider':'audit_incomplete','rubric':RUBRIC_VERSION,'pairs':[],
+                                                'evidence_review':{'stage':stage,'target_ids':['t1']}})
+            self.assertEqual(report['calculation']['decision'],'insufficient')
+            self.assertIsNone(report['calculation']['strict_coverage']);self.assertIsNone(report['calculation']['lenient_coverage'])
+            self.assertFalse(report['human_reviewed'])
+            for key,course in [('source',self.source),('target',self.target)]:
+                self.assertEqual(report[key]['source_sha256'],course['source_sha256'])
+            self.assertNotIn('secret',json.dumps(report));self.assertNotIn('/private/',json.dumps(report))
+            self.assertEqual([self.source,self.target],before)
+
+    def test_generic_operational_failures_remain_job_errors_without_academic_report(self):
+        import urllib.error
+        for error in [RuntimeError('private programming details'),OSError('/private/path'),urllib.error.URLError('private network details')]:
+            with self.subTest(error=type(error).__name__),patch('scripts.equivalency.server.compare',side_effect=error),patch('scripts.equivalency.server.traceback.print_exc'):
+                job=self.pilot.job(self.data())
+            self.assertEqual(job['status'],'error');self.assertNotIn('result',job)
+            self.assertNotIn('private',job['message'])
