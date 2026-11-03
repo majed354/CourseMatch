@@ -3,6 +3,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {projectPublicCatalog} from './public_catalog.mjs';
+import {validatedActiveRoutes} from './service_routes.mjs';
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const output=path.join(root,'dist');
 // A static package only. The Python API/model service is a separate runtime;
@@ -19,13 +20,14 @@ await fs.writeFile(path.join(output,'catalog.json'),JSON.stringify(publicCatalog
 let commit;try{commit=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim()}catch{commit='uncommitted'}
 await fs.writeFile(path.join(output,'build-info.json'),JSON.stringify({project:'CourseMatch',commit,catalog_id:catalog.catalog_id,built_at:new Date().toISOString()}));
 await fs.writeFile(path.join(output,'404.html'),'<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>CourseMatch</title><p>الصفحة غير موجودة.</p></html>');
-// A live HTTPS tunnel has a generated address. Preserve only the validated
+// A live HTTPS tunnel has a generated or explicitly configured address. Preserve only the validated
 // supervisor-generated public routes when rebuilding static assets.
 try {
   const routes=await fs.readFile(path.join(root,'runtime/service/active-redirects'),'utf8');
-  const allowed=/^\/api\/worker\/\* \/404\.html 404!\n\/api\/\* (https:\/\/[a-z0-9-]+\.trycloudflare\.com)\/api\/:splat 200\n\/pdf\/\* \1\/pdf\/:splat 200\n\/healthz \1\/healthz 200\n$/;
-  if(!allowed.test(routes))throw Error('Invalid active service routes');
-  await fs.writeFile(path.join(output,'_redirects'),routes);
+  let namedHostname;
+  try { namedHostname=JSON.parse(await fs.readFile(path.join(root,'runtime/service/config.json'),'utf8')).named_tunnel_hostname; }
+  catch(error) { if(error.code!=='ENOENT')throw error; }
+  await fs.writeFile(path.join(output,'_redirects'),validatedActiveRoutes(routes,namedHostname));
 } catch(error) {if(error.code!=='ENOENT')throw error;}
 let copied=7+fontAssets.length;
 for(const name of new Set([...catalog.courses,...catalog.library_sources].map(c=>c.source_pdf).filter(Boolean))) {

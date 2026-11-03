@@ -11,7 +11,7 @@
   "public_release_verified": false,
   "tests": {
     "python": 378,
-    "node_passed": 165,
+    "node_passed": 168,
     "node_optional_skips": 4,
     "chrome_passed": 89,
     "pdf_import_verified": 448
@@ -27,7 +27,8 @@
     "One source row versus two atomic target rows calculates 50 percent",
     "Concurrent identical files in different roles get distinct request identifiers",
     "No repository search in direct-upload mode; repository search resumes when switched",
-    "Uploaded reports have neutral institutional headings and private PDF links"
+    "Uploaded reports have neutral institutional headings and private PDF links",
+    "Rebuild preserves only the configured named upstream and exact four protected routes"
   ],
   "local_only": true,
   "public_followup": "queued after deployment, no public fixture or model calls in unit tests"
