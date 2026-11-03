@@ -8,7 +8,7 @@
   "policy_changed": false,
   "catalog_or_reference_pdf_modified": false,
   "target_denominator": "immutable effective topics of the server-owned target artifact",
-  "public_release_verified": false,
+  "public_release_verified": true,
   "tests": {
     "python": 378,
     "node_passed": 168,
@@ -30,6 +30,117 @@
     "Uploaded reports have neutral institutional headings and private PDF links",
     "Rebuild preserves only the configured named upstream and exact four protected routes"
   ],
-  "local_only": true,
-  "public_followup": "queued after deployment, no public fixture or model calls in unit tests"
+  "local_only": false,
+  "public_followup": "Completed real public workflow, exports, repository return, session isolation, and all-page visual inspection.",
+  "release": {
+    "interface_commit": "db88dbeb6df45b7242aa86d0022567e0032b100e",
+    "backend_feature_commit": "64030ed2f96bfb465e340bf5f4985d5cd6a29ff7",
+    "deploy_id": "6aea0e81fc8f0ae9a882b70d",
+    "deploy_state": "ready",
+    "deploy_error": null,
+    "public_asset_bytes_verified": [
+      "index.html",
+      "app.js",
+      "style.css",
+      "build-info.json"
+    ],
+    "public_capabilities": {
+      "uploaded_target": true,
+      "worker_online": true,
+      "request_recovery": true
+    },
+    "private_worker_public_status": 404,
+    "components_restarted": [
+      "api",
+      "worker",
+      "interactive"
+    ],
+    "models_and_named_tunnel_processes_preserved": true,
+    "github_actions": [
+      {
+        "commit": "64030ed2f96bfb465e340bf5f4985d5cd6a29ff7",
+        "run_id": 41676420622,
+        "conclusion": "success"
+      },
+      {
+        "commit": "db88dbeb6df45b7242aa86d0022567e0032b100e",
+        "run_id": 41676574982,
+        "conclusion": "success"
+      }
+    ]
+  },
+  "public_workflow": {
+    "test_kind": "same_original_PDF_workflow_control_not_generative_accuracy_benchmark",
+    "status": "passed",
+    "chrome_viewport_width": 390,
+    "fresh_owner_session": true,
+    "uploads": {
+      "count": 2,
+      "distinct_artifact_ids": true,
+      "roles": [
+        "source",
+        "target"
+      ],
+      "topics_each": [
+        13,
+        13
+      ],
+      "uploaded_original_sha_matches": true
+    },
+    "pair_search_requests": 0,
+    "comparison_posts": 1,
+    "comparison": {
+      "target_mode": "uploaded",
+      "neutral_uploaded_target_header": true,
+      "no_catalog_target_or_context_in_request": true,
+      "no_client_topic_edits": true,
+      "automatic_review": true,
+      "human_reviewed": false,
+      "reviewed_by": "automated_pipeline",
+      "decision": "equivalent",
+      "strict_count": 13,
+      "lenient_count": 13,
+      "denominator": 13,
+      "provider": "exact_text"
+    },
+    "review_checkbox_used": false,
+    "owner_pdf_access": [
+      200,
+      200
+    ],
+    "foreign_pdf_access": [
+      404,
+      404
+    ],
+    "foreign_report_access": 404,
+    "foreign_comparison_rejection": 404,
+    "foreign_request_no_task": 404,
+    "ownership_probe_limit": "Both supplied IDs were foreign; target-only isolation is separately covered by API unit tests.",
+    "repository_return": {
+      "automatic_search_posts": 1,
+      "limit": 8,
+      "candidates": 8,
+      "no_additional_comparison": true
+    },
+    "exports": {
+      "json_equals_result": true,
+      "html_offline_with_embedded_fonts": true,
+      "print_button_beforeprint_event": 1,
+      "pdf_pages": 3,
+      "all_pdf_pages_actually_viewed": true,
+      "mobile_and_offline_HTML_actually_viewed": true
+    },
+    "transport": {
+      "http_errors": 0,
+      "javascript_errors": 0,
+      "request_failures": 0,
+      "automatic_POST_replay": false
+    },
+    "manual_model_calls": 0
+  },
+  "limits": [
+    "One exact-text same-PDF workflow control; not a new generative academic-accuracy benchmark.",
+    "One measured journey does not establish long-term availability.",
+    "PDF visual verification is best effort and bounded to at most three contiguous topic pages; verified byte-identical references may reuse vetted text."
+  ]
 }
