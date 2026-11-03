@@ -1,0 +1,110 @@
+{
+  "recorded_at": "2026-11-03T00:20:21.313428+00:00",
+  "tested_core_commit": "7758a0c759d80e3652c84eaa8e75807b9fb44015",
+  "catalog_id": "bdc07f5264f4a807c3c3da570daf4989107c7644edd5f1065b4f396422e29d73",
+  "public_site": "https://coursematch-6uk2.netlify.app/",
+  "policy": {
+    "coverage_threshold": 80,
+    "strict_topic_threshold": 80,
+    "lenient_topic_threshold": 60,
+    "weighting": "topic_count",
+    "direction": "uploaded_to_target"
+  },
+  "reference_pdf_count": 448,
+  "reference_readiness": {
+    "ready_visual": 304,
+    "needs_review": 81,
+    "ready_native": 57,
+    "no_fixed_topics": 6
+  },
+  "ready_pdf_count": 361,
+  "withheld_pdf_count": 87,
+  "automated_checks": {
+    "python": 284,
+    "javascript": 102,
+    "import_verified": true,
+    "private_files_published": false
+  },
+  "control_outcomes": {
+    "full": {
+      "decision": "equivalent",
+      "strict_count": 13,
+      "lenient_count": 13,
+      "total_topics": 13,
+      "strict_coverage": 100,
+      "lenient_coverage": 100
+    },
+    "below": {
+      "decision": "not_equivalent",
+      "strict_count": 3,
+      "lenient_count": 3,
+      "total_topics": 13,
+      "strict_coverage": 23.076923076923077,
+      "lenient_coverage": 23.076923076923077
+    },
+    "partial": {
+      "decision": "lenient",
+      "strict_count": 3,
+      "lenient_count": 13,
+      "total_topics": 13,
+      "strict_coverage": 23.076923076923077,
+      "lenient_coverage": 100
+    }
+  },
+  "control_evaluation_kind": {
+    "full": "synthetic_control",
+    "below": "postfix_regression_not_new_heldout",
+    "partial": "postfix_regression_not_new_heldout"
+  },
+  "grounding_version": "blinded-facet-review-v3-explicit-range-facts",
+  "academic_inputs_unchanged": true,
+  "generator_grades_and_cache_bytes_unchanged": true,
+  "independent_matching_audit": "passed",
+  "original_v7_rejection_control": "execution_error_preserved_not_a_correct_rejection",
+  "original_v7_full_and_partial": "passed",
+  "pdf_checks": {
+    "full_pages": 3,
+    "regression_below_pages": 4,
+    "regression_partial_pages": 4,
+    "all_pages_visually_reviewed": true,
+    "mobile_width": 390,
+    "mobile_page_overflow": false,
+    "offline_html_fonts": true,
+    "approved_seal_only_for_complete_reports": true,
+    "beneficiary_persistence_baseline_and_regression_below": true,
+    "partial_regression_reload": "transport_timeout_preserved"
+  },
+  "real_pdf_upload_trials": {
+    "universities": [
+      "أم القرى",
+      "الملك سعود",
+      "نجران"
+    ],
+    "topic_counts": [
+      15,
+      12,
+      15
+    ],
+    "automatic_candidate_counts": [
+      8,
+      8,
+      8
+    ],
+    "source_owner_http_status": 200,
+    "other_session_http_status": 401,
+    "comparison_jobs_created": 0
+  },
+  "hosting": {
+    "protocol": "http2",
+    "deploy_uploads": "bounded_buffer_content_length",
+    "cli_version": "27.16.1",
+    "temporary_tunnel_removed": true,
+    "public_worker_endpoint_status": 404
+  },
+  "known_limitations": [
+    "المعايرة المحدودة ليست تقديرًا عامًا للدقة الأكاديمية.",
+    "ظهرت أخطاء نقل502/530 واستجابةJSONغيرمكتملة؛ تُحفظ آثارها ويعادGETبحدود،ولا يعادPOSTتلقائيًا.",
+    "فحصإعادةفتحpartialبالمتصفحانتهىبمهلةنقل؛طُبعالتقريرالصحيحمنJSONالعامالفعليدونإعادةالمقارنة."
+  ],
+  "artifact_policy": "private_sessions_reports_and_model_traces_remain_outside_git"
+}

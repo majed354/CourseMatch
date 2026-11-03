@@ -541,6 +541,36 @@ test('a brief lost connection resumes GET polling and never resubmits a POST',as
   context.calls=0;await assert.rejects(vm.runInContext('api("/api/sources",{name:"مقرر"})',context),/connection lost/);assert.equal(context.calls,1);
 });
 
+test('a successful GET with truncated JSON is read again within the retry budget',async()=>{
+  const {context}=ui();context.setTimeout=callback=>{callback();return 0;};context.calls=0;
+  vm.runInContext('fetch=async()=>{const attempt=++calls;return {ok:true,status:200,json:async()=>{if(attempt===1)throw new SyntaxError("Unexpected end of JSON");return {status:"done"};}};};',context);
+  assert.equal((await vm.runInContext('api("/api/jobs/abc")',context)).status,'done');
+  assert.equal(context.calls,2);
+});
+
+test('a successful POST with truncated JSON fails clearly without resubmission',async()=>{
+  const {context}=ui();context.setTimeout=callback=>{callback();return 0;};context.calls=0;
+  vm.runInContext('fetch=async()=>{calls++;return {ok:true,status:200,json:async()=>{throw new SyntaxError("Unexpected end of JSON");}};};',context);
+  await assert.rejects(vm.runInContext('api("/api/jobs",{source_id:"s",target_id:"t"})',context),/استجابة غير مكتملة/);
+  assert.equal(context.calls,1);
+});
+
+test('a permanently truncated successful GET stops after seven total calls',async()=>{
+  const {context}=ui();context.setTimeout=callback=>{callback();return 0;};context.calls=0;
+  vm.runInContext('fetch=async()=>{calls++;return {ok:true,status:200,json:async()=>{throw new SyntaxError("Unexpected end of JSON");}};};',context);
+  await assert.rejects(vm.runInContext('api("/api/catalog")',context),/استجابة غير مكتملة/);
+  assert.equal(context.calls,7);
+});
+
+test('HTML access errors remain generic and are never retried',async()=>{
+  for(const status of [404,403]) {
+    const {context}=ui();context.setTimeout=callback=>{callback();return 0;};context.calls=0;context.errorStatus=status;
+    vm.runInContext('fetch=async()=>{calls++;return {ok:false,status:errorStatus,json:async()=>{throw new SyntaxError("HTML response");}};};',context);
+    await assert.rejects(vm.runInContext('api("/api/jobs/missing")',context),/تعذر تنفيذ الطلب/);
+    assert.equal(context.calls,1);
+  }
+});
+
 test('search scope is selectable before upload for one program or all programs',async()=>{
   const {context,element}=ui();
   assert.equal(element('searchScopeMode').value,'all');assert.equal(element('scopeProgramFields').hidden,true);

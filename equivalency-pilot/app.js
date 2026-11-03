@@ -26,7 +26,16 @@ async function api(route, body, attempt=0) {
     await new Promise(resolve=>setTimeout(resolve,delay));
     return api(route,undefined,attempt+1);
   }
-  const data=await r.json().catch(()=>({})); if(!r.ok) throw new Error(data.error || 'تعذر تنفيذ الطلب');
+  let data;
+  try { data=await r.json(); }
+  catch(error) {
+    if(!r.ok)throw new Error('تعذر تنفيذ الطلب');
+    if(body||attempt>=6)throw new Error('وصلت استجابة غير مكتملة من الخدمة؛ تعذر قراءة نتيجة الطلب.');
+    notice('وصلت استجابة غير مكتملة؛ سنواصل متابعة طلبك تلقائيًا.',false,true);
+    await new Promise(resolve=>setTimeout(resolve,Math.min(3000*2**attempt,30000)));
+    return api(route,undefined,attempt+1);
+  }
+  if(!r.ok) throw new Error(data.error || 'تعذر تنفيذ الطلب');
   if(r.status===202&&data.operation_id) {
     const started=Date.now();
     while(Date.now()-started<20*60*1000) {
