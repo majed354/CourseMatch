@@ -159,18 +159,23 @@ test('createApi source, search, comparison and beneficiary flow works over real 
   let cookie,csrf;
   const request=(path,body,worker=false)=>api(new Request('https://example.net'+path,{method:body===undefined?'GET':'POST',headers:{...(body===undefined?{}:{'Content-Type':'application/json'}),...(worker?{Authorization:'Bearer '+env.COURSEMATCH_WORKER_TOKEN}:{...(cookie?{Cookie:cookie}:{}),...(csrf?{'X-Equivalency-Token':csrf}:{}),...(body===undefined?{}:{Origin:'https://example.net'})})},...(body===undefined?{}:{body:JSON.stringify(body)})}));
   const boot=await request('/api/catalog');cookie=boot.headers.get('set-cookie').split(';')[0];const metadata=await boot.json();csrf=metadata.token;assert.equal(metadata.capabilities.reference_editable,false);
-  const submit=await request('/api/sources',{name:'مصدر',topics:course.topics});assert.equal(submit.status,202);const sourceId=(await submit.json()).operation_id;
+  const submit=await request('/api/sources',{request_id:id(100),name:'مصدر',topics:course.topics});assert.equal(submit.status,202);const sourceId=(await submit.json()).operation_id;
+  assert.equal((await(await request('/api/requests/'+id(100))).json()).operation_id,sourceId);
+  assert.equal((await(await request('/api/sources',{request_id:id(100)})).json()).operation_id,sourceId);
   let task=(await(await request('/api/worker/claim',{worker_id:'mac-test'},true)).json()).task;assert.equal(task.id,sourceId);assert.equal(typeof task.lease_expires_at,'string');
   assert.equal((await request('/api/worker/tasks/'+task.id+'/complete',{lease_token:task.lease_token,result:{name:'مصدر',topics:course.topics}},true)).status,200);
   const source=(await(await request('/api/operations/'+sourceId)).json()).result;assert.equal(source.id,sourceId);
-  assert.equal((await request('/api/search',{source_id:sourceId,all_contexts:true})).status,202);
+  const search=await request('/api/search',{request_id:id(101),source_id:sourceId,all_contexts:true});assert.equal(search.status,202);
+  const searchId=(await search.json()).operation_id;assert.equal((await(await request('/api/requests/'+id(101))).json()).operation_id,searchId);
   task=(await(await request('/api/worker/claim',{worker_id:'mac-test'},true)).json()).task;assert.equal(task.payload.source.id,sourceId);
   assert.equal((await request('/api/worker/tasks/'+task.id+'/complete',{lease_token:task.lease_token,result:{candidates:[course],method:'lexical'}},true)).status,200);
-  const compare=await request('/api/jobs',{source_id:sourceId,target_id:course.id,reviewed:true,beneficiary:{name:'مستفيد',number:'٠٠١23'}});assert.equal(compare.status,202);const reportId=(await compare.json()).id;
+  const compare=await request('/api/jobs',{request_id:id(102),source_id:sourceId,target_id:course.id,reviewed:true,beneficiary:{name:'مستفيد',number:'٠٠١23'}});assert.equal(compare.status,202);const reportId=(await compare.json()).id;
   task=(await(await request('/api/worker/claim',{worker_id:'mac-test'},true)).json()).task;assert.deepEqual(task.payload.target_topics,course.topics);
   const report={source,target:course,catalog_id:catalog.catalog_id,evidence:{pairs:[]},calculation:{decision:'equivalent',strict_coverage:100,lenient_coverage:100}};
   assert.equal((await request('/api/worker/tasks/'+task.id+'/complete',{lease_token:task.lease_token,result:report},true)).status,200);
   r.close();api=build(open());
+  assert.deepEqual(await(await request('/api/requests/'+id(102))).json(),{id:reportId,status:'done',kind:'compare'});
+  assert.equal((await(await request('/api/jobs',{request_id:id(102)})).json()).id,reportId);
   const restored=(await(await request('/api/jobs/'+reportId)).json()).result;assert.equal(restored.beneficiary.number,'٠٠١23');assert.equal(restored.id,reportId);
   assert.equal((await request('/api/reports/'+reportId+'/beneficiary',{beneficiary:{name:'تحديث',number:'000123'}})).status,200);
   const updated=(await(await request('/api/jobs/'+reportId)).json()).result;assert.equal(updated.beneficiary.number,'000123');assert.equal(updated.calculation.strict_coverage,100);
@@ -207,4 +212,23 @@ test('SQLite lane kinds are validated before SQL and legacy claims still include
     await assert.rejects(r.claim('production','invalid',NOW,kinds),e=>e.status===400);
   }
   assert.equal((await r.claim('production','legacy',NOW)).kind,'compare');
+});
+
+test('SQLite request lookup persists, selects latest, and fences owner, scope and expiry without migration',async t=>{
+  const {repository:r,open}=await fixture(t),request_id=id(99);
+  await r.ensureSession('preview',{id:sid(1),expires:(NOW+7*DAY)/1000},NOW);
+  await r.enqueue('production',sid(1),'source',{request_id},null,id(1),NOW);
+  await r.enqueue('production',sid(1),'search',{request_id},null,id(2),NOW+1);
+  await r.enqueue('production',sid(1),'search',{request_id},null,id(3),NOW+1);
+  await r.enqueue('preview',sid(1),'source',{request_id},null,id(4),NOW+2);
+  await r.enqueue('production',sid(1),'source',{},null,id(5),NOW+3);
+  r.close();const restored=open();
+  assert.equal(restored.db.prepare('PRAGMA user_version').get().user_version,1);
+  assert.equal((await restored.findTaskByRequestId('production',request_id,sid(1),NOW+4)).id,id(3));
+  assert.equal((await restored.findTaskByRequestId('preview',request_id,sid(1),NOW+4)).id,id(4));
+  assert.equal(await restored.findTaskByRequestId('production',request_id,sid(2),NOW+4),null);
+  assert.equal(await restored.findTaskByRequestId('unrelated',request_id,sid(1),NOW+4),null);
+  assert.equal(await restored.findTaskByRequestId('production',id(98),sid(1),NOW+4),null);
+  assert.equal(await restored.findTaskByRequestId('production',request_id,sid(1),NOW+DAY+1),null);
+  assert.equal((await restored.getTask('production',id(1),sid(1),NOW+4)).payload.request_id,request_id);
 });

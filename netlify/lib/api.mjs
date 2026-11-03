@@ -178,12 +178,18 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
         if (!session) { session = codec.create(now); cookie = codec.cookie(session); }
         await repository.ensureSession(scope,session,now);
         const online = await repository.workerOnline(scope,now);
-        return respond({catalog_url:'/catalog.json',token:codec.csrf(session),capabilities:{queued:true,max_upload_mb:4,image_upload:true,pdf_visual_verification:true,worker_online:online,reference_editable:false}},200,cookie ? {'Set-Cookie':cookie} : {});
+        return respond({catalog_url:'/catalog.json',token:codec.csrf(session),capabilities:{queued:true,request_recovery:true,max_upload_mb:4,image_upload:true,pdf_visual_verification:true,worker_online:online,reference_editable:false}},200,cookie ? {'Set-Cookie':cookie} : {});
       }
       if (!session) throw new HttpError(401,'افتح المنصة لبدء جلسة صالحة');
       if (request.method === 'POST') {
         requireOrigin(request);
         if (!equal(request.headers.get('x-equivalency-token'),codec.csrf(session))) throw new HttpError(403,'رمز الطلب غير صالح');
+      }
+      const recoveryPath = pathname.match(/^\/api\/requests\/([a-f0-9]{32})$/);
+      if (request.method === 'GET' && recoveryPath) {
+        const row = await repository.findTaskByRequestId(scope,recoveryPath[1],session.id,now);
+        if (!row) throw new HttpError(404,'الطلب غير موجود أو انتهت صلاحيته');
+        return respond({id:row.id,status:row.status,kind:row.kind,...(row.kind === 'compare' ? {} : {operation_id:row.id})});
       }
       const operationPath = pathname.match(/^\/api\/(operations|jobs)\/([a-f0-9]{32})$/);
       if (request.method === 'GET' && operationPath) {
@@ -203,9 +209,20 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
       const beneficiaryPath = pathname.match(/^\/api\/reports\/([a-f0-9]{32})\/beneficiary$/);
       if (beneficiaryPath) return respond(publicValue(await repository.updateBeneficiary(scope,beneficiaryPath[1],session.id,beneficiary(data.beneficiary),now)));
       if (!['/api/sources','/api/search','/api/jobs'].includes(pathname)) throw new HttpError(404,'المسار غير موجود');
-      const id = newId(); let kind, payload, pdfKey = null, pdf;
+      const kind = {'/api/sources':'source','/api/search':'search','/api/jobs':'compare'}[pathname];
+      const requestId = data.request_id;
+      if (Object.hasOwn(data,'request_id') && !isId(requestId)) throw new HttpError(400,'معرّف استرداد الطلب غير صالح');
+      if (requestId !== undefined) {
+        // Recovery is best effort, not an atomic exactly-once insertion guarantee.
+        // Keep server-generated IDs so concurrent uploads never share a file key.
+        const existing = await repository.findTaskByRequestId(scope,requestId,session.id,now);
+        if (existing) {
+          if (existing.kind !== kind) throw new HttpError(409,'معرّف الاسترداد مستخدم لنوع طلب آخر');
+          return respond(kind === 'compare' ? {id:existing.id,status:existing.status,message:existing.error || messages[existing.status]} : {operation_id:existing.id,status:existing.status},202);
+        }
+      }
+      const id = newId(); let payload, pdfKey = null, pdf;
       if (pathname === '/api/sources') {
-        kind = 'source';
         const modes = Number(data.catalog_id !== undefined) + Number(data.pdf_base64 !== undefined) + Number(data.topics !== undefined);
         if (modes !== 1) throw new HttpError(400,'اختر مصدرًا واحدًا للمقرر');
         if (data.input_kind !== undefined && (data.input_kind !== 'image' || data.pdf_base64 === undefined)) throw new HttpError(400,'نوع الملف المرفوع غير صالح');
@@ -226,11 +243,9 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
       } else {
         const source = await ownedSource(data.source_id,session.id,now);
         if (pathname === '/api/search') {
-          kind = 'search';
           payload = {source_id:source.id,...searchOptions(data)};
           const edited = topics(data.topics,true); if (edited !== undefined) payload.topics = edited;
         } else {
-          kind = 'compare';
           if (typeof data.target_id !== 'string' || !targets.has(data.target_id)) throw new HttpError(400,'المقرر الهدف غير موجود في الخطة');
           if (data.review_mode !== undefined && data.review_mode !== 'automatic') throw new HttpError(400,'نمط التحقق غير صالح');
           if (data.review_mode !== 'automatic' && data.reviewed !== true) throw new HttpError(400,'أكد مراجعة مفردات المقررين قبل المقارنة');
@@ -239,6 +254,7 @@ export function createApi({repository, pdfs, catalog, env = {}, clock = () => Da
           const editedSource = topics(data.source_topics,true); if (editedSource !== undefined) payload.source_topics = editedSource;
         }
       }
+      if (requestId !== undefined) payload.request_id = requestId;
       payload.catalog_version = catalog.catalog_id;
       if (pdf) {
         await repository.reservePdf(scope,pdfKey,now);

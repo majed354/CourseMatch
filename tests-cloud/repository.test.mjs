@@ -44,3 +44,12 @@ test('artifact and completion writes share a transaction and roll back together'
   const r=new PostgresRepository(p);await assert.rejects(r.complete('production','id','token',{},'',1000,()=>({topics:[]})),/simulated/);
   assert.ok(p.calls.find(c=>/INSERT INTO cm_artifacts/.test(c.text)));assert.equal(p.calls.at(-1).text,'ROLLBACK');assert.equal(p.releases,1);
 });
+
+test('Postgres request lookup parameterizes request ID, session, scope and expiry with stable latest ordering',async()=>{
+  const p=pool(()=>({rows:[{id:'server-id'}]})),r=new PostgresRepository(p);
+  assert.equal((await r.findTaskByRequestId('preview','client-request','owner',1000)).id,'server-id');
+  const {text,values}=p.calls[0];
+  assert.match(text,/scope=\$1 AND session_id=\$2 AND expires_at>\$3/);
+  assert.match(text,/payload->>'request_id'=\$4/);assert.match(text,/ORDER BY created_at DESC,id DESC LIMIT 1/);
+  assert.deepEqual(values,['preview','owner',new Date(1000),'client-request']);
+});

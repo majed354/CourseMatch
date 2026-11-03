@@ -4,13 +4,13 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 const textOf = t => t.corrected_text || t.text;
 const pageOf = t => t.page ? String(t.page)+(t.end_page&&t.end_page!==t.page?'–'+t.end_page:'') : '—';
 let catalog, token, source, target, currentReport;
-let searchSequence=0, targetContextConfirmed=false;
+let searchSequence=0, targetContextConfirmed=false, requestRecovery=false;
 let sourceInputSequence=0, maxUploadBytes=12*1024*1024, referenceEditable=true;
 const candidateVariants=new Map();
 const groupKey = c => c.program+' | '+c.degree;
 const selectedContext = () => catalog.contexts.find(c=>c.id===$('version').value);
 function notice(message, error=false, busy=false) { $('notice').className='status'+(error?' error':'')+(busy?' busy':''); $('notice').textContent=message; }
-async function api(route, body, attempt=0) {
+async function sendApi(route, body, attempt=0) {
   let r;
   try { r=await fetch(route, body ? {method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Equivalency-Token':token},body:JSON.stringify(body)} : {credentials:'same-origin'}); }
   catch(error) {
@@ -29,25 +29,74 @@ async function api(route, body, attempt=0) {
   let data;
   try { data=await r.json(); }
   catch(error) {
-    if(!r.ok)throw new Error('تعذر تنفيذ الطلب');
+    if(!r.ok)throw Object.assign(new Error('تعذر تنفيذ الطلب'),{status:r.status});
     if(body||attempt>=6)throw new Error('وصلت استجابة غير مكتملة من الخدمة؛ تعذر قراءة نتيجة الطلب.');
     notice('وصلت استجابة غير مكتملة؛ سنواصل متابعة طلبك تلقائيًا.',false,true);
     await new Promise(resolve=>setTimeout(resolve,Math.min(3000*2**attempt,30000)));
     return api(route,undefined,attempt+1);
   }
-  if(!r.ok) throw new Error(data.error || 'تعذر تنفيذ الطلب');
-  if(r.status===202&&data.operation_id) {
-    const started=Date.now();
-    while(Date.now()-started<20*60*1000) {
-      await new Promise(resolve=>setTimeout(resolve,1500));
-      const status=await api('/api/operations/'+encodeURIComponent(data.operation_id));
-      if(status.status==='done')return status.result;
-      if(status.status==='error')throw new Error(status.error||status.message||'تعذر إكمال الطلب');
-      notice(status.message||'الطلب قيد المعالجة…',false,true);
-    }
-    throw new Error('استغرق الطلب وقتًا طويلًا. أعد المحاولة بعد قليل.');
-  }
+  if(!r.ok) throw Object.assign(new Error(data.error || 'تعذر تنفيذ الطلب'),{status:r.status});
+  if(r.status===202&&data.operation_id)return waitForOperation(data.operation_id);
   return data;
+}
+const pendingQueueRequests=new Map();
+try {
+  const saved=JSON.parse(sessionStorage.getItem('coursematch.pendingRequests')||'[]');
+  for(const [key,value] of saved)if(/^[a-f0-9]{64}$/.test(key)&&/^[a-f0-9]{32}$/.test(value.id)&&['/api/sources','/api/search','/api/jobs'].includes(value.route)&&Number.isFinite(value.at)&&Date.now()-value.at<86400000)pendingQueueRequests.set(key,value);
+}catch{}
+function persistQueueRequests(){try{sessionStorage.setItem('coursematch.pendingRequests',JSON.stringify([...pendingQueueRequests]));}catch{}}
+function finishQueueRequest(record){if(record){pendingQueueRequests.delete(record.key);persistQueueRequests();}}
+async function queueRequestRecord(route,body){
+  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(route+'\n'+JSON.stringify(body)));
+  const key=Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
+  const saved=pendingQueueRequests.get(key);
+  if(saved)return {...saved,key,existing:true};
+  const value={id:crypto.randomUUID().replaceAll('-',''),route,at:Date.now()};
+  pendingQueueRequests.set(key,value);persistQueueRequests();return {...value,key,existing:false};
+}
+async function recoverQueueRequest(record){
+  let missing=0,last;
+  for(let attempt=0;attempt<7;attempt++){
+    try{
+      const value=await api('/api/requests/'+record.id);
+      const expected=record.route==='/api/jobs'?'compare':record.route==='/api/search'?'search':'source';
+      if(!/^[a-f0-9]{32}$/.test(value.id)||value.kind!==expected||(expected!=='compare'&&value.operation_id!==value.id))throw Object.assign(new Error('تعذر التحقق من هوية الطلب المستعاد.'),{status:400});
+      return value;
+    }catch(error){
+      last=error;
+      if(error.status===404){if(++missing>=3){finishQueueRequest(record);throw new Error('لم يثبت استلام الخادم للطلب؛ لم نكرر إرساله تلقائيًا.');}}
+      else if(error.status&&error.status<500&&error.status!==429)throw error;
+    }
+    notice('انقطع استلام النتيجة مؤقتًا؛ نستعيد طلبك القائم تلقائيًا.',false,true);
+    await new Promise(resolve=>setTimeout(resolve,3000));
+  }
+  throw last||new Error('تعذر استعادة الطلب مؤقتًا؛ حُفظ معرّفه دون تكرار إرساله.');
+}
+async function waitForOperation(id){
+  const started=Date.now();
+  while(Date.now()-started<20*60*1000){
+    await new Promise(resolve=>setTimeout(resolve,1500));
+    const status=await api('/api/operations/'+encodeURIComponent(id));
+    if(status.status==='done')return status.result;
+    if(status.status==='error')throw Object.assign(new Error(status.error||status.message||'تعذر إكمال الطلب'),{taskFailed:true});
+    notice(status.message||'الطلب قيد المعالجة…',false,true);
+  }
+  throw new Error('استغرق الطلب وقتًا طويلًا؛ حُفظ معرّفه لمتابعته دون إعادة الإرسال.');
+}
+async function api(route,body,attempt=0){
+  if(!body||!requestRecovery||!['/api/sources','/api/search','/api/jobs'].includes(route))return sendApi(route,body,attempt);
+  const record=await queueRequestRecord(route,body);
+  if(!record.existing){
+    try{const value=await sendApi(route,{...body,request_id:record.id},attempt);finishQueueRequest(record);return value;}
+    catch(error){
+      if(error.taskFailed||(error.status&&error.status<500)){finishQueueRequest(record);throw error;}
+    }
+  }
+  const accepted=await recoverQueueRequest(record);
+  try{
+    const value=route==='/api/jobs'?accepted:await waitForOperation(accepted.operation_id);
+    finishQueueRequest(record);return value;
+  }catch(error){if(error.taskFailed)finishQueueRequest(record);throw error;}
 }
 async function action(button, task) { button.disabled=true; try { await task(); } catch(e) { notice(e.message,true); } finally { button.disabled=false; } }
 function clearReportReference() {
@@ -338,12 +387,18 @@ $('htmlButton').onclick=e=>action(e.target,async()=>{
     const response=await api('/api/catalog');token=response.token;
     catalog=response.catalog||(await(await fetch(response.catalog_url,{credentials:'same-origin'})).json());
     referenceEditable=response.capabilities?.reference_editable!==false;
+    requestRecovery=response.capabilities?.request_recovery===true;
     if(response.capabilities?.max_upload_mb){
       maxUploadBytes=response.capabilities.max_upload_mb*1024*1024;
       if($('uploadLimitHint'))$('uploadLimitHint').textContent='PDF حتى '+response.capabilities.max_upload_mb+' ميغابايت · صورة حتى 12 ميغابايت';
     }
     initContexts();const available=catalog.courses.filter(c=>c.topics.length).length;
     $('inventory').textContent=`الفهرس: ${catalog.courses.length} ظهورًا في ${catalog.contexts.length} سياقًا دراسيًا، ${available} بمفردات مستخرجة.`;
-    targetOptions();if(id)await waitForReport(id);
+    targetOptions();
+    if(id)await waitForReport(id);
+    else if(requestRecovery){
+      const saved=[...pendingQueueRequests].filter(([,v])=>v.route==='/api/jobs').sort((a,b)=>b[1].at-a[1].at)[0];
+      if(saved){const record={key:saved[0],...saved[1]},accepted=await recoverQueueRequest(record);finishQueueRequest(record);await waitForReport(accepted.id);}
+    }
   }catch(error){notice(error.message,true);}
 })();

@@ -16,6 +16,10 @@ export class MemoryRepository {
   async getTask(scope,id,session,now) {
     const t = this.tasks.get(this.key(scope,id)); return t?.session_id === session && t.expires_at > now ? t : null;
   }
+  async findTaskByRequestId(scope,requestId,session,now) {
+    return [...this.tasks.values()].filter(t => t.scope === scope && t.session_id === session && t.expires_at > now && t.payload.request_id === requestId)
+      .sort((a,b) => b.created_at - a.created_at || b.id.localeCompare(a.id))[0] || null;
+  }
   async getArtifact(scope,id,session,now,kind) {
     const a = this.artifacts.get(this.key(scope,id)); return a?.session_id === session && a.kind === kind && a.expires_at > now ? a : null;
   }

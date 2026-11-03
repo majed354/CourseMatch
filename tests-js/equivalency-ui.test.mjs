@@ -53,11 +53,11 @@ function parseHTML(root,html) {
     if(!voids.has(node.tagName)&&!token.endsWith('/>'))stack.push(node);
   }
 }
-function ui() {
+function ui({sessionStorage}={}) {
   const documentRoot=new Element('document');parseHTML(documentRoot,fs.readFileSync(new URL('../equivalency-pilot/index.html',import.meta.url),'utf8'));
   const element=id=>documentRoot.querySelector('#'+id);
   const document={getElementById:element,querySelectorAll:selector=>documentRoot.querySelectorAll(selector),createElement:tag=>new Element(tag)};
-  const context=vm.createContext({document,console,setTimeout,clearTimeout,URL,Uint8Array,Blob,btoa:globalThis.btoa,crypto:globalThis.crypto,
+  const context=vm.createContext({document,console,setTimeout,clearTimeout,URL,URLSearchParams,Uint8Array,Blob,TextEncoder,sessionStorage,btoa:globalThis.btoa,crypto:globalThis.crypto,
     history:{replaceState(){}},location:{origin:'http://localhost:8798',search:''},window:{print(){}}});
   vm.runInContext(fs.readFileSync(new URL('../equivalency-pilot/image-upload.js',import.meta.url),'utf8'),context);
   const source=fs.readFileSync(new URL('../equivalency-pilot/app.js',import.meta.url),'utf8');
@@ -655,4 +655,84 @@ test('pending report states the data limitation formally without assigning the b
 
 test('markup loads the local converter before the app and exposes only supported upload families',()=>{
  const html=fs.readFileSync(new URL('../equivalency-pilot/index.html',import.meta.url),'utf8');assert.ok(html.indexOf('src="/image-upload.js"')<html.indexOf('src="/app.js"'));assert.match(html,/accept="application\/pdf,\.pdf,image\/jpeg,\.jpg,\.jpeg,image\/png,\.png,image\/webp,\.webp"/);assert.ok(!html.includes('راجعت مفردات'));assert.ok(!html.includes('مراجعة مفردات'));
+});
+
+test('an ambiguous queued POST recovers its accepted search through GET without another POST',async()=>{
+  const {context}=ui();context.setTimeout=callback=>{callback();return 0;};context.calls=[];
+  vm.runInContext(`requestRecovery=true;fetch=async(route,options)=>{
+    calls.push({route,options});
+    if(options?.method==='POST')return {ok:false,status:502,json:async()=>{throw SyntaxError('upstream HTML');}};
+    if(route.startsWith('/api/requests/'))return {ok:true,status:200,json:async()=>({id:'a'.repeat(32),operation_id:'a'.repeat(32),kind:'search',status:'done'})};
+    return {ok:true,status:200,json:async()=>({status:'done',result:{candidates:[{id:'real-candidate'}]}})};
+  };`,context);
+  const result=await vm.runInContext('api("/api/search",{source_id:"source",limit:8})',context);
+  assert.equal(result.candidates[0].id,'real-candidate');assert.equal(context.calls.filter(c=>c.options?.method==='POST').length,1);
+  const submitted=JSON.parse(context.calls[0].options.body);assert.match(submitted.request_id,/^[a-f0-9]{32}$/);
+  assert.equal(context.calls[1].route,'/api/requests/'+submitted.request_id);assert.equal(vm.runInContext('pendingQueueRequests.size',context),0);
+});
+
+test('a lost comparison acknowledgement resumes the existing job without submitting it twice',async()=>{
+  const {context}=ui();context.setTimeout=callback=>{callback();return 0;};context.calls=[];
+  vm.runInContext(`requestRecovery=true;fetch=async(route,options)=>{calls.push({route,options});if(options?.method==='POST')throw TypeError('lost response');return {ok:true,status:200,json:async()=>({id:'b'.repeat(32),kind:'compare',status:'running'})};};`,context);
+  assert.equal((await vm.runInContext('api("/api/jobs",{source_id:"source",target_id:"target",review_mode:"automatic"})',context)).id,'b'.repeat(32));
+  assert.equal(context.calls.length,2);assert.equal(context.calls.filter(c=>c.options?.method==='POST').length,1);
+});
+
+test('a truncated successful POST acknowledgement is recovered by its client request identifier',async()=>{
+  const {context}=ui();context.setTimeout=callback=>{callback();return 0;};context.calls=[];
+  vm.runInContext(`requestRecovery=true;fetch=async(route,options)=>{calls.push({route,options});if(options?.method==='POST')return {ok:true,status:202,json:async()=>{throw SyntaxError('truncated');}};return {ok:true,status:200,json:async()=>({id:'c'.repeat(32),kind:'compare',status:'queued'})};};`,context);
+  assert.equal((await vm.runInContext('api("/api/jobs",{source_id:"source",target_id:"target"})',context)).status,'queued');
+  assert.equal(context.calls.filter(c=>c.options?.method==='POST').length,1);
+});
+
+test('a definitive validation rejection never starts recovery or keeps a pending request',async()=>{
+  const {context}=ui();context.calls=[];
+  vm.runInContext('requestRecovery=true;fetch=async(route,options)=>{calls.push({route,options});return {ok:false,status:400,json:async()=>({error:"invalid source"})};};',context);
+  await assert.rejects(vm.runInContext('api("/api/sources",{topics:[]})',context),/invalid source/);
+  assert.equal(context.calls.length,1);assert.equal(vm.runInContext('pendingQueueRequests.size',context),0);
+});
+
+test('an unconfirmed request remains resumable with only identifiers and hashes stored in the browser',async()=>{
+  const {context}=ui();context.setTimeout=callback=>{callback();return 0;};context.calls=[];context.storage=new Map();
+  vm.runInContext(`sessionStorage={getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)};requestRecovery=true;fetch=async(route,options)=>{calls.push({route,options});if(options?.method==='POST')throw TypeError('lost response');return {ok:false,status:503,json:async()=>({error:'transport unavailable'})};};`,context);
+  await assert.rejects(vm.runInContext('api("/api/sources",{name:"PRIVATE SOURCE",pdf_base64:"PRIVATE DOCUMENT BYTES"})',context),/transport unavailable/);
+  assert.equal(context.calls.filter(c=>c.options?.method==='POST').length,1);assert.equal(vm.runInContext('pendingQueueRequests.size',context),1);
+  const saved=context.storage.get('coursematch.pendingRequests');assert.ok(!saved.includes('PRIVATE'));assert.ok(!saved.includes('pdf_base64'));
+  context.calls=[];
+  vm.runInContext(`fetch=async(route,options)=>{calls.push({route,options});return {ok:true,status:200,json:async()=>route.startsWith('/api/requests/')?{id:'d'.repeat(32),operation_id:'d'.repeat(32),kind:'source',status:'done'}:{status:'done',result:{id:'completed-source',topics:[]}}};};`,context);
+  assert.equal((await vm.runInContext('api("/api/sources",{name:"PRIVATE SOURCE",pdf_base64:"PRIVATE DOCUMENT BYTES"})',context)).id,'completed-source');
+  assert.equal(context.calls.filter(c=>c.options?.method==='POST').length,0);
+});
+
+
+test('bootstrap resumes an accepted comparison from stored identifiers after reload without any POST',async()=>{
+  const nonce='f'.repeat(32),job='a'.repeat(32),saved=new Map([['coursematch.pendingRequests',JSON.stringify([['b'.repeat(64),{id:nonce,route:'/api/jobs',at:Date.now()}]])]]);
+  const {context,element}=ui({sessionStorage:{getItem:key=>saved.get(key)||null,setItem:(key,value)=>saved.set(key,value)}});
+  context.calls=[];context.reportInput={...reportFixture(),id:job};
+  vm.runInContext(`fetch=async(route,options)=>{calls.push({route,options});return {ok:true,status:200,json:async()=>route==='/api/catalog'?{catalog:inputCatalog,token:'test',capabilities:{request_recovery:true}}:route.startsWith('/api/requests/')?{id:'${job}',kind:'compare',status:'done'}:{status:'done',result:reportInput}};};`,context);
+  const text=fs.readFileSync(new URL('../equivalency-pilot/app.js',import.meta.url),'utf8');
+  await vm.runInContext(text.slice(text.lastIndexOf('(async()=>{')),context);
+  assert.equal(context.calls.filter(c=>c.options?.method==='POST').length,0);
+  assert.equal(context.calls.filter(c=>c.route==='/api/requests/'+nonce).length,1);
+  assert.equal(vm.runInContext('currentReport.id',context),job);assert.ok(element('report').innerHTML.includes('تقرير معادلة المقررات'));
+  assert.equal(saved.get('coursematch.pendingRequests'),'[]');
+});
+
+
+test('a definitive POST 429 clears the pending nonce and permits a later explicit attempt',async()=>{
+  const {context}=ui();context.setTimeout=callback=>{callback();return 0;};context.calls=[];
+  vm.runInContext(`requestRecovery=true;fetch=async(route,options)=>{calls.push({route,options});return calls.length===1?{ok:false,status:429,json:async()=>({error:'queue full'})}:{ok:true,status:202,json:async()=>({id:'a'.repeat(32),status:'queued'})};};`,context);
+  await assert.rejects(vm.runInContext('api("/api/jobs",{source_id:"source",target_id:"target"})',context),/queue full/);
+  assert.equal(context.calls.length,1);assert.equal(vm.runInContext('pendingQueueRequests.size',context),0);
+  assert.equal((await vm.runInContext('api("/api/jobs",{source_id:"source",target_id:"target"})',context)).id,'a'.repeat(32));
+  assert.equal(context.calls.length,2);assert.ok(context.calls.every(c=>c.options?.method==='POST'));
+  assert.notEqual(JSON.parse(context.calls[0].options.body).request_id,JSON.parse(context.calls[1].options.body).request_id);
+});
+
+test('three authenticated missing-request responses stop recovery without automatically posting again',async()=>{
+  const {context}=ui();context.setTimeout=callback=>{callback();return 0;};context.calls=[];
+  vm.runInContext(`requestRecovery=true;fetch=async(route,options)=>{calls.push({route,options});if(options?.method==='POST')throw TypeError('lost acknowledgement');return {ok:false,status:404,json:async()=>({error:'not accepted'})};};`,context);
+  await assert.rejects(vm.runInContext('api("/api/search",{source_id:"source",limit:8})',context),/لم يثبت استلام/);
+  assert.equal(context.calls.length,4);assert.equal(context.calls.filter(c=>c.options?.method==='POST').length,1);
+  assert.equal(vm.runInContext('pendingQueueRequests.size',context),0);
 });

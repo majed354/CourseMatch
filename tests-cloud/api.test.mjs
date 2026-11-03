@@ -281,3 +281,69 @@ test('protected claim lanes filter source/search and comparison while default al
   for(const lane of ['source','COMPARE','',[],{}])assert.equal((await s.worker('claim',{worker_id:'bad',lane})).status,400);
   assert.equal((await s.request('/api/worker/claim',{method:'POST',data:{worker_id:'browser',lane:'interactive'},cookie:session.cookie,token:session.token})).status,403);
 });
+
+test('lost source acknowledgment is recoverable by GET without a second upload or enqueue',async()=>{
+  const s=setup(),a=await s.bootstrap(),request_id='e'.repeat(32);
+  assert.equal(a.capabilities.request_recovery,true);
+  let puts=0;const put=s.pdfs.put.bind(s.pdfs);s.pdfs.put=async(...args)=>{puts++;return put(...args);};
+  // Discard the acknowledgment as if its response was lost after acceptance.
+  assert.equal((await s.post('/api/sources',{request_id,pdf_base64:Buffer.from('%PDF-1.7\noriginal bytes').toString('base64')},a)).status,202);
+  const recovered=await s.request('/api/requests/'+request_id,{cookie:a.cookie});assert.equal(recovered.status,200);
+  const body=await recovered.json(),task=[...s.repository.tasks.values()][0];
+  assert.deepEqual(body,{id:task.id,status:'queued',kind:'source',operation_id:task.id});assert.notEqual(task.id,request_id);
+  assert.equal(task.payload.request_id,request_id);assert.ok(task.pdf_key.includes(task.id));
+  const repeated=await s.post('/api/sources',{request_id,pdf_base64:Buffer.from('%PDF-1.7\nreplacement bytes').toString('base64')},a);
+  assert.equal(repeated.status,202);assert.equal((await repeated.json()).operation_id,task.id);
+  assert.equal(puts,1);assert.equal(s.repository.tasks.size,1);assert.equal(s.pdfs.deleted.length,0);
+  assert.equal((await s.pdfs.get(task.pdf_key)).toString(),'%PDF-1.7\noriginal bytes');
+  const lease=(await(await s.worker('claim',{worker_id:'recovery-test'})).json()).task;
+  assert.equal((await s.worker('tasks/'+task.id+'/complete',{lease_token:lease.lease_token,result:{name:'مصدر',topics:course.topics}})).status,200);
+  assert.equal((await(await s.request('/api/requests/'+request_id,{cookie:a.cookie})).json()).status,'done');
+  assert.equal((await(await s.request('/api/operations/'+body.operation_id,{cookie:a.cookie})).json()).result.id,task.id);
+});
+
+test('search and comparison acknowledgments recover with their existing response IDs',async()=>{
+  const s=setup(),a=await s.bootstrap(),src=await s.source(a);
+  for(const [route,kind,request_id,extra] of [['search','search','1'.repeat(32),{all_contexts:true}],['jobs','compare','2'.repeat(32),{target_id:course.id,reviewed:true}]]) {
+    const data={request_id,source_id:src.id,...extra};
+    const first=await s.post('/api/'+route,data,a);assert.equal(first.status,202);const created=await first.json();
+    const id=created.id || created.operation_id,before=s.repository.tasks.size;
+    const recovered=await(await s.request('/api/requests/'+request_id,{cookie:a.cookie})).json();
+    assert.deepEqual(recovered,{id,status:'queued',kind,...(kind==='compare'?{}:{operation_id:id})});
+    assert.equal((await s.post('/api/'+route,data,a)).status,202);assert.equal(s.repository.tasks.size,before);
+    assert.equal([...s.repository.tasks.values()].find(t=>t.id===id).payload.request_id,request_id);
+  }
+});
+
+test('invalid recovery IDs and cross-kind reuse reject before writes',async()=>{
+  const s=setup(),a=await s.bootstrap();
+  for(const route of ['sources','search','jobs']) for(const request_id of [null,42,{},[],true,'','f'.repeat(31),'F'.repeat(32),'g'.repeat(32)]) {
+    assert.equal((await s.post('/api/'+route,{request_id,pdf_base64:Buffer.from('%PDF-1.7\nnever written').toString('base64')},a)).status,400);
+  }
+  assert.equal(s.repository.tasks.size,0);assert.equal(s.repository.garbage.size,0);assert.equal(s.pdfs.values.size,0);
+  const request_id='3'.repeat(32);assert.equal((await s.post('/api/sources',{request_id,topics:course.topics},a)).status,202);
+  for(const route of ['search','jobs'])assert.equal((await s.post('/api/'+route,{request_id},a)).status,409);
+  assert.equal(s.repository.tasks.size,1);assert.equal(s.pdfs.values.size,0);
+});
+
+test('request recovery protects session, deployment scope and task expiry without leaking payloads',async()=>{
+  const s=setup(),a=await s.bootstrap(),b=await s.bootstrap(),request_id='4'.repeat(32);
+  await s.post('/api/sources',{request_id,topics:course.topics},a);
+  assert.equal((await s.request('/api/requests/'+request_id,{cookie:b.cookie})).status,404);
+  assert.equal((await s.request('/api/requests/'+'5'.repeat(32),{cookie:a.cookie})).status,404);
+  const preview=setup({repository:s.repository,env:{CONTEXT:'deploy-preview',DEPLOY_ID:'another-deployment'}}),p=await preview.bootstrap();
+  assert.equal((await preview.request('/api/requests/'+request_id,{cookie:p.cookie})).status,404);
+  assert.equal((await s.request('/api/requests/'+request_id)).status,401);
+  assert.equal((await s.request('/api/requests/'+'Z'.repeat(32),{cookie:a.cookie})).status,404);
+  const recovered=await(await s.request('/api/requests/'+request_id,{cookie:a.cookie})).json();
+  assert.deepEqual(Object.keys(recovered).sort(),['id','kind','operation_id','status']);
+  s.advance(86_400_000);assert.equal((await s.request('/api/requests/'+request_id,{cookie:a.cookie})).status,404);
+});
+
+test('legacy requests retain independent random IDs and no recovery payload field',async()=>{
+  const s=setup(),a=await s.bootstrap();
+  const first=await(await s.post('/api/sources',{topics:course.topics},a)).json();
+  const second=await(await s.post('/api/sources',{topics:course.topics},a)).json();
+  assert.notEqual(first.operation_id,second.operation_id);assert.equal(s.repository.tasks.size,2);
+  for(const task of s.repository.tasks.values())assert.equal(Object.hasOwn(task.payload,'request_id'),false);
+});

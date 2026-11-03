@@ -35,6 +35,9 @@ export class PostgresRepository {
   async getTask(scope, id, session, now) {
     return one(await this.pool.query('SELECT * FROM cm_tasks WHERE scope=$1 AND id=$2 AND session_id=$3 AND expires_at>$4', [scope,id,session,new Date(now)]));
   }
+  async findTaskByRequestId(scope, requestId, session, now) {
+    return one(await this.pool.query("SELECT * FROM cm_tasks WHERE scope=$1 AND session_id=$2 AND expires_at>$3 AND payload->>'request_id'=$4 ORDER BY created_at DESC,id DESC LIMIT 1", [scope,session,new Date(now),requestId]));
+  }
   async getArtifact(scope, id, session, now, kind) {
     return one(await this.pool.query('SELECT * FROM cm_artifacts WHERE scope=$1 AND id=$2 AND session_id=$3 AND expires_at>$4 AND kind=$5', [scope,id,session,new Date(now),kind]));
   }

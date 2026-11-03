@@ -107,6 +107,10 @@ export class SQLiteRepository {
   async getTask(scope, id, session, now) {
     return this.row(this.db.prepare('SELECT * FROM cm_tasks WHERE scope=? AND id=? AND session_id=? AND expires_at>?').get(scope,id,session,now));
   }
+  async findTaskByRequestId(scope, requestId, session, now) {
+    return this.row(this.db.prepare("SELECT * FROM cm_tasks WHERE scope=? AND session_id=? AND expires_at>? AND json_extract(payload,'$.request_id')=? ORDER BY created_at DESC,id DESC LIMIT 1")
+      .get(scope,session,now,requestId));
+  }
   async getArtifact(scope, id, session, now, kind) {
     return this.row(this.db.prepare('SELECT * FROM cm_artifacts WHERE scope=? AND id=? AND session_id=? AND expires_at>? AND kind=?').get(scope,id,session,now,kind));
   }

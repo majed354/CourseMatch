@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-03",
+  "scope": "accepted-request recovery after ambiguous POST acknowledgements",
+  "tests": {
+    "python": 349,
+    "node_passed": 143,
+    "node_optional_skips": 3,
+    "chrome_passed": 76,
+    "import_verified": true
+  },
+  "request_ids": "optional 32 lowercase hex, per-session lookup, internal task IDs remain server-generated",
+  "browser_storage": "only identifiers, route, timestamp and SHA-256 body fingerprint; no uploaded PDF or topic body",
+  "automatic_post_replays": false,
+  "verified_cases": [
+    "Accepted search with lost 502 HTML acknowledgement recovered via GET",
+    "Accepted comparison acknowledgement lost in transit recovered via GET",
+    "Truncated successful acknowledgement recovered via GET",
+    "Stored pending comparison resumes at bootstrap",
+    "Cross-session/scope/expired lookup rejected",
+    "Explicit POST429 does not trap future attempts",
+    "Three authenticated404 lookups stop recovery without POST replay"
+  ],
+  "insertion_guarantee": "best-effort lookup, not atomic exactly-once across concurrent explicit POSTs",
+  "public_before_fix": {
+    "code_commit": "d532b88536ae584dd1c5ce9e0112d7e9c30f37cf",
+    "deploy_id": "6ae93b2687b7d5926f90eba2",
+    "image_source_topics": 13,
+    "unresolved_image_topics": 1,
+    "lost_search_acknowledgement": 502,
+    "pdf_attempt_enqueued": false,
+    "report_issued_yet": false
+  },
+  "transport": {
+    "observed_errors": [
+      502,
+      530
+    ],
+    "cloudflare_code": 1033,
+    "direct_tunnel_healthy_during_some_netlify_failures": true,
+    "later_successive_public_checks": 3,
+    "tunnel_restarted_to_hide_error": false,
+    "exact_regional_cause_proven": false
+  },
+  "public_after_fix_verification": "pending"
+}

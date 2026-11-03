@@ -58,31 +58,34 @@ test('real local Chrome re-encodes PNG/WebP, removes EXIF and honors its orienta
  }finally{await browser.close();}
 });
 
-test('local Chrome image flow uses the real converter and issues automatically without a review checkbox', {skip:process.env.COURSEMATCH_CHROME_QA!=='1'},async()=>{
+test('local Chrome image flow recovers a lost search acknowledgement and issues automatically without resubmission', {skip:process.env.COURSEMATCH_CHROME_QA!=='1'},async()=>{
  const {chromium}=await import('/Users/majd/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs');const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
  try{
   const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage(),requests=[],errors=[],unexpected=[];
   const scope={id:'scope-fixture',program:'برنامج اختبار الواجهة',degree:'بكالوريوس',plan_type:'جديدة',version:'اختبار'},topic={id:'t1',text:'مفردة اختبار واجهة فقط'},course={id:'course-fixture',code:'TEST-1',name:'مقرر اختبار الواجهة',context_id:scope.id,context:scope,hours:2,topics:[topic]},source={id:'image-source-fixture',name:'صورة اختبار الواجهة',topics:[topic],upload_pdf:true,input_kind:'image'},catalog={catalog_id:'ui-fixture',contexts:[scope],courses:[course],library_sources:[]};
   const report={id:'1234567890abcdef1234567890abcdef',source,target:course,beneficiary:{name:'مستفيد اختبار الواجهة',number:'DEMO-IMAGE'},created_at:'2026-11-03T00:00:00Z',reviewed_by:'automatic_pipeline',human_reviewed:false,evidence:{provider:'exact_text',rubric:'ui-test-fixture-not-model-evaluation',pairs:[{source_id:'t1',target_id:'t1',score:100,reason:'تطابق في موضوع الاختبار.'}]},calculation:{decision:'equivalent',label:'يمكن معادلته',total_topics:1,strict_count:1,lenient_count:1,strict_coverage:100,lenient_coverage:100,strict_matches:{t1:'t1'},lenient_matches:{t1:'t1'}}};
+  let searchRequestId,recoveredSearchRequests=0;
   page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/*',async route=>{
    const url=new URL(route.request().url()),pathname=url.pathname;
    if(route.request().method()==='POST')requests.push({path:pathname,body:route.request().postDataJSON()});
    const json=value=>route.fulfill({contentType:'application/json',body:JSON.stringify(value)});
-   if(pathname==='/api/catalog')return json({catalog_url:'/catalog.json',token:'local-test-only',capabilities:{queued:false,max_upload_mb:4,reference_editable:false}});
+   if(pathname==='/api/catalog')return json({catalog_url:'/catalog.json',token:'local-test-only',capabilities:{queued:false,max_upload_mb:4,reference_editable:false,request_recovery:true}});
    if(pathname==='/catalog.json')return json(catalog);
    if(pathname==='/api/sources')return json(source);
-   if(pathname==='/api/search')return json({candidates:[course],scope_count:1});
+   if(pathname==='/api/search'){searchRequestId=route.request().postDataJSON().request_id;return route.fulfill({status:502,contentType:'text/html',body:'<h1>Lost accepted search response</h1>'});}
+   if(pathname.startsWith('/api/requests/')){assert.equal(pathname,'/api/requests/'+searchRequestId);recoveredSearchRequests++;return json({id:'e'.repeat(32),operation_id:'e'.repeat(32),kind:'search',status:'done'});}
+   if(pathname==='/api/operations/'+'e'.repeat(32))return json({status:'done',result:{candidates:[course],scope_count:1}});
    if(pathname==='/api/jobs'&&route.request().method()==='POST')return json({id:report.id});
    if(pathname==='/api/jobs/'+report.id)return json({id:report.id,status:'done',result:report});
    const assets={'/':'index.html','/app.js':'app.js','/image-upload.js':'image-upload.js','/style.css':'style.css','/fonts/IBMPlexSansArabic-Regular.ttf':'fonts/IBMPlexSansArabic-Regular.ttf','/fonts/IBMPlexSansArabic-SemiBold.ttf':'fonts/IBMPlexSansArabic-SemiBold.ttf'};
    if(assets[pathname])return route.fulfill({contentType:pathname.endsWith('.js')?'text/javascript':pathname.endsWith('.css')?'text/css':pathname.endsWith('.ttf')?'font/ttf':'text/html',body:fs.readFileSync(new URL('../equivalency-pilot/'+assets[pathname],import.meta.url))});
    unexpected.push(pathname);await route.abort();
   });
-  await page.goto('http://coursematch.test/');await page.waitForFunction(()=>document.querySelector('#sourceCourse').options.length>0);
+  await page.goto('https://coursematch.test/');await page.waitForFunction(()=>document.querySelector('#sourceCourse').options.length>0);
   const png=await page.evaluate(async()=>{const c=document.createElement('canvas');c.width=600;c.height=900;const x=c.getContext('2d');x.fillStyle='white';x.fillRect(0,0,600,900);x.fillStyle='black';for(let i=0;i<8;i++)x.fillRect(30,40+i*90,540,3);const b=await new Promise(resolve=>c.toBlob(resolve,'image/png'));return [...new Uint8Array(await b.arrayBuffer())];});
   await page.locator('#pdfFile').setInputFiles({name:'جدول-اختبار.png',mimeType:'image/png',buffer:Buffer.from(png)});await page.locator('#beneficiaryName').fill(report.beneficiary.name);await page.locator('#beneficiaryNumber').fill(report.beneficiary.number);await page.locator('#extractButton').click();await page.locator('#candidates .candidate').waitFor();
-  assert.equal(requests.filter(r=>r.path==='/api/sources').length,1);assert.equal(requests.filter(r=>r.path==='/api/search').length,1);assert.equal(requests.filter(r=>r.path==='/api/jobs').length,0);
+  assert.equal(requests.filter(r=>r.path==='/api/sources').length,1);assert.equal(requests.filter(r=>r.path==='/api/search').length,1);assert.equal(requests.filter(r=>r.path==='/api/jobs').length,0);assert.equal(recoveredSearchRequests,1);assert.match(searchRequestId,/^[a-f0-9]{32}$/);
   const payload=requests.find(r=>r.path==='/api/sources').body,pdf=Buffer.from(payload.pdf_base64,'base64');assert.equal(payload.input_kind,'image');assert.equal(payload.original_filename,'جدول-اختبار.png');assert.ok(pdf.subarray(0,8).equals(Buffer.from('%PDF-1.4')));assert.ok(pdf.length<=4*1024*1024);const raw=pdf.toString('latin1'),xref=Number(raw.match(/startxref\n(\d+)/)[1]);assert.equal(raw.slice(xref,xref+4),'xref');
   assert.equal(await page.locator('#sourceReview').evaluate(e=>e.open),false);assert.equal(await page.locator('#reviewed').isVisible(),false);assert.equal(await page.locator('#sourceTopics textarea').getAttribute('readonly'),'');await page.locator('#compareButton').click();await page.locator('.equivalency-report').waitFor();
   const body=requests.find(r=>r.path==='/api/jobs').body;assert.equal(body.review_mode,'automatic');assert.equal(body.reviewed,undefined);assert.equal(body.target_topics,undefined);assert.equal(await page.locator('.report-stamp.approved').count(),1);assert.ok(!(await page.locator('#report').innerText()).includes('مراجعة بشرية'));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);
