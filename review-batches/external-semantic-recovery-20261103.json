@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-03",
+  "status": "in_progress",
+  "policy_changed": false,
+  "diagnosed_release": "72d805b",
+  "cases": [
+    {
+      "university": "KSU",
+      "source": "دلالات الألفاظ",
+      "failure": "required reviewer-discovered pair omitted in both proposal repairs",
+      "completed_model_calls": 5,
+      "elapsed_seconds": 774.886,
+      "report_issued": false
+    },
+    {
+      "university": "Najran",
+      "source": "أصول الفقه 1",
+      "failure": "review verdict contradicted facet support in both review attempts",
+      "completed_model_calls": 3,
+      "elapsed_seconds": 485.351,
+      "report_issued": false,
+      "secondary_issue": "native extraction corrupted; visual verification unavailable"
+    }
+  ],
+  "repair_strategy": "retain validated rows and alternatives verbatim; request missing or invalid pairs only; retain all raw model output; strict final revalidation",
+  "public_rerun_verified": false,
+  "local_verification": {
+    "python_tests": 386,
+    "node_passed": 168,
+    "node_optional_skips": 4,
+    "focused_tests_after_trace_changes": 92,
+    "verified_pdf_sources": 448,
+    "initial_generator_instructions_unchanged": true,
+    "review_version": "blinded-facet-review-v4-targeted-evidence-repair",
+    "native_visual_timeouts_seconds": [
+      60,
+      300
+    ]
+  }
+}

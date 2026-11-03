@@ -356,13 +356,14 @@ class ImageInputTests(unittest.TestCase):
         caller=VisionCaller([answer(primary),answer([primary[1]])]);result=image.verify_pdf_topics(path,source,self.cache,caller=caller)
         self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(result['topics'][1]['text'],'Broken extracted letters 2');self.assertEqual(result['topics'][1]['corrected_text'],'Topic 2 and details')
         self.assertEqual(len(caller.chats),2);self.assertEqual(len(caller.chats[1][1]['messages'][1]['images']),1)
+        self.assertEqual([c[2] for c in caller.chats],[60,300])
         self.assertIn('t2',caller.chats[1][1]['messages'][1]['content']);self.assertNotIn('t1',caller.chats[1][1]['messages'][1]['content'])
 
     def test_native_failure_is_best_effort_without_erasing_rows(self):
         source=self.extracted();path=self.native();before=copy.deepcopy(source);caller=VisionCaller([TimeoutError(),TimeoutError()])
         result=image.verify_pdf_topics(path,source,self.cache,caller=caller)
         self.assertEqual(result['topics'],before['topics']);self.assertEqual(result['visual_verification_status'],'unavailable');self.assertEqual(source,before);self.assertEqual(len(caller.chats),2)
-        self.assertEqual([c[2] for c in caller.chats],[60,60])
+        self.assertEqual([c[2] for c in caller.chats],[60,300])
         self.assertTrue(result['visual_verification_proof']['source_sha256'])
 
     def test_native_disagreement_preserves_raw_and_marks_unclear_corrected_text(self):

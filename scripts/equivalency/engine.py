@@ -36,10 +36,19 @@ PAIR_SCHEMA = {"type": "object", "properties": {"pairs": {"type": "array", "item
     "target_id": {"type": "string"}, "source_id": {"type": "string"}, "score": {"type": "integer", "minimum": 0, "maximum": 100},
     "reason": {"type": "string"}, "target_quote": {"type": "string"}, "source_quote": {"type": "string"}},
     "required": ["target_id", "source_id", "score", "reason", "target_quote", "source_quote"], "additionalProperties": False}}}, "required": ["pairs"], "additionalProperties": False}
+REPAIR_SYSTEM = '''required_review_pairs قائمة أزواج إلزامية يجب تقييم كل زوج منها بمعرفيه كما هما، حتى لو فضلت مفردة مصدر أخرى للهدف نفسه. لا تستبدل زوجًا مطلوبًا بزوج قريب. عند repair_only=true أعد هذه الأزواج فقط؛ المقابلات في retained_pairs محفوظة خارج ردك ولا تعاد درجاتها. بيانات الإصلاح لا تفرض درجة أو قبولًا.'''
 
 
 def topic_text(topic):
     return topic.get("corrected_text") or topic["text"]
+
+
+class MissingReviewPairs(ValueError):
+    def __init__(self, checked, missing):
+        self.checked=checked
+        self.missing=missing
+        super().__init__('لم تقيّم بدائل مراجعة الأجزاء المطلوبة منفصلة: '+json.dumps(
+            [{'target_id':t,'source_id':s} for t,s in sorted(missing)],ensure_ascii=False))
 
 
 def unresolved_topics(topics):
@@ -260,13 +269,17 @@ def _propose_pairs(target, source, *, model="qwen3.8:27b-q8_0", cache_dir=None, 
         payload['deterministic_scope_pairs']=[{'target_id':t,'source_id':s} for t,s in sorted(fixed_scope)]
     if review_feedback is not None:
         payload['facet_review_feedback'] = review_feedback
+        payload['required_review_pairs']=[{'target_id':t,'source_id':s} for t,s in sorted(
+            {(r['target_id'],r['source_id']) for r in review_feedback})]
+    proposal_system=SYSTEM+('\n'+REPAIR_SYSTEM if review_feedback is not None else '')
     # The graph is range-bound, not a general N*M semantic comparison. Allow
     # larger output only when its mandatory graph actually exceeds 30 edges;
     # truncated output is still rejected by the existing strict validator.
-    minimum_pairs=len(required_scopes)+len({t['id'] for t in targets}-{p['target_id'] for p in required_scopes})
+    mandatory={(r['target_id'],r['source_id']) for r in required_scopes+payload.get('required_review_pairs',[])}
+    minimum_pairs=len(mandatory)+len({t['id'] for t in targets}-{t for t,_ in mandatory})
     predict_tokens=max(7000,min(24000,minimum_pairs*240)) if minimum_pairs>30 else 7000
     context_tokens=32768 if minimum_pairs>30 else 16384
-    key = hashlib.sha256(json.dumps([RUBRIC_VERSION, SYSTEM, PAIR_SCHEMA, model_digest, payload], ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+    key = hashlib.sha256(json.dumps([RUBRIC_VERSION, proposal_system, PAIR_SCHEMA, model_digest, payload], ensure_ascii=False, sort_keys=True).encode()).hexdigest()
     cache = Path(cache_dir or ROOT / "runtime/equivalency/comparisons") / (key + ".json")
     trace=cache.parent/'traces'/(key+'.json')
     def check_proposal(pairs):
@@ -276,8 +289,9 @@ def _propose_pairs(target, source, *, model="qwen3.8:27b-q8_0", cache_dir=None, 
         combined.extend(fixed_scope.values())
         checked=validate_pairs(combined,targets,sources)
         requested={(r['target_id'],r['source_id']) for r in (review_feedback or [])}
-        if not requested<={(p['target_id'],p['source_id']) for p in checked}:
-            raise ValueError('لم تقيّم بدائل مراجعة الأجزاء المطلوبة منفصلة')
+        missing=requested-{(p['target_id'],p['source_id']) for p in checked}
+        if missing:
+            raise MissingReviewPairs(checked,missing)
         return checked
     cached_rejection=None
     if cache.exists():
@@ -297,17 +311,25 @@ def _propose_pairs(target, source, *, model="qwen3.8:27b-q8_0", cache_dir=None, 
             trace.parent.mkdir(parents=True,exist_ok=True)
             trace.write_text(json.dumps({'cache_key':key,'model':model,'model_digest':model_digest,'payload':payload,'rejected_cache':cached_rejection,'attempts':[]},ensure_ascii=False,indent=2))
     start = time.monotonic()
-    messages=[{"role":"system","content":SYSTEM}, {"role":"user","content":json.dumps(payload,ensure_ascii=False)}]
+    messages=[{"role":"system","content":proposal_system}, {"role":"user","content":json.dumps(payload,ensure_ascii=False)}]
     attempts=[]
+    repair_base=None
     for attempt in range(2):
         response = post_ollama("chat", {"model": model, "stream": False, "think": False, "format": PAIR_SCHEMA,
             "messages": messages, "options": {"temperature": 0, "seed": 42, "num_ctx": context_tokens, "num_predict": predict_tokens}})
-        record={"attempt":attempt+1,"response":response}
+        record={"attempt":attempt+1,"response":response,
+                'request_payload':json.loads(messages[1]['content'])}
         try:
             if response.get("done_reason") == "length":
                 raise ValueError("بلغ النموذج حد الإخراج؛ لم يصدر حكم من مقارنة مبتورة")
             raw=json.loads(response['message']['content'])
-            pairs=check_proposal(raw['pairs'])
+            proposed=raw['pairs']
+            if not isinstance(proposed,list) or any(not isinstance(p,dict) for p in proposed):
+                raise ValueError('مقابلات المفردات ليست قائمة كائنات')
+            if repair_base is not None:
+                retained_ids={(p['target_id'],p['source_id']) for p in repair_base}
+                proposed=repair_base+[p for p in proposed if (p.get('target_id'),p.get('source_id')) not in retained_ids]
+            pairs=check_proposal(proposed)
         except (ValueError,KeyError,TypeError) as error:
             record['validation_error']=str(error)
             attempts.append(record)
@@ -315,10 +337,19 @@ def _propose_pairs(target, source, *, model="qwen3.8:27b-q8_0", cache_dir=None, 
             trace.write_text(json.dumps({'cache_key':key,'model':model,'model_digest':model_digest,'payload':payload,'rejected_cache':cached_rejection,'attempts':attempts},ensure_ascii=False,indent=2))
             if attempt or response.get('done_reason')=='length':
                 raise ValueError('لم تجتز المقارنة التحقق من الأدلة؛ لم يصدر حكم. '+str(error)) from error
-            messages += [
-                {"role":"assistant","content":str(response.get('message',{}).get('content',''))},
-                {"role":"user","content":"أُوقف الرد السابق لأن التحقق الحتمي رفضه: "+str(error)+
-                 ". أعد JSON كاملًا مصححًا. اختر الاقتباس حرفيًا من نص المفردة ذات المعرف نفسه؛ يمكنك نسخ النص كاملًا كما ورد. لا تستخدم مرادفات داخل الاقتباسات ولا تخترع معرفًا. احتفظ بالتقدير الأكاديمي والأسباب ما لم تكتشف خطأ موضوعيًا؛ لا تحاول بلوغ نسبة قبول معينة."}]
+            if isinstance(error,MissingReviewPairs):
+                repair_base=error.checked
+                repair_payload={**payload,'repair_only':True,
+                    'required_review_pairs':[{'target_id':t,'source_id':s} for t,s in sorted(error.missing)],
+                    'retained_pairs':[{'target_id':p['target_id'],'source_id':p['source_id']} for p in repair_base],
+                    'facet_review_feedback':[r for r in (review_feedback or []) if (r['target_id'],r['source_id']) in error.missing],
+                    'repair_instruction':str(error)+'. أعد تقدير كل بديل مطلوب مستقلاً من نص مفردتيه؛ لا درجة مفروضة ولا نسبة قبول مطلوبة.'}
+                messages=[{'role':'system','content':proposal_system},{'role':'user','content':json.dumps(repair_payload,ensure_ascii=False)}]
+            else:
+                messages += [
+                    {"role":"assistant","content":str(response.get('message',{}).get('content',''))},
+                    {"role":"user","content":"أُوقف الرد السابق لأن التحقق الحتمي رفضه: "+str(error)+
+                     ". أعد JSON كاملًا مصححًا. اختر الاقتباس حرفيًا من نص المفردة ذات المعرف نفسه؛ يمكنك نسخ النص كاملًا كما ورد. لا تستخدم مرادفات داخل الاقتباسات ولا تخترع معرفًا. احتفظ بالتقدير الأكاديمي والأسباب ما لم تكتشف خطأ موضوعيًا؛ لا تحاول بلوغ نسبة قبول معينة."}]
             continue
         attempts.append(record)
         trace.parent.mkdir(parents=True,exist_ok=True)

@@ -42,7 +42,7 @@ class GroundingRangeFactsTests(unittest.TestCase):
     review_pairs([self.target],[self.source],[{'target_id':'t','source_id':'s','score':score,'reason':'PRIVATE_GENERATOR_'+str(score)}],model='test',model_digest='digest',cache_dir=folder,caller=caller)
   self.assertEqual(captured[0],captured[1])
   body=json.loads(captured[0]['messages'][1]['content']);self.assertEqual(body['scope_facts'][0]['covered_percent'],40.0)
-  self.assertNotIn('PRIVATE_GENERATOR',json.dumps(captured));self.assertEqual(VERSION,'blinded-facet-review-v3-explicit-range-facts')
+  self.assertNotIn('PRIVATE_GENERATOR',json.dumps(captured));self.assertEqual(VERSION,'blinded-facet-review-v4-targeted-evidence-repair')
  def test_range_error_feedback_contains_pair_and_computed_facts_then_repair(self):
   bad=row(self.target,self.source,'lenient','related',['lenient']);good=row(self.target,self.source,'weak','limited',[]);calls=[]
   def caller(endpoint,payload):calls.append(copy.deepcopy(payload));return answer([bad if len(calls)==1 else good])

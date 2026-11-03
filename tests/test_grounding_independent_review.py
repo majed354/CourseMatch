@@ -271,7 +271,9 @@ class IndependentGroundingReviewTests(unittest.TestCase):
         repaired = [proposal(targets[0], sources[0], 80), proposal(targets[1], sources[1], 65)]
         responses = [answer({'pairs': initial}), answer({'reviews': initial_reviews}),
                      answer({'pairs': dropped_positive}), answer({'pairs': repaired}),
-                     answer({'reviews': initial_reviews})]
+                     # The targeted repair retains the unrelated weak edge
+                     # instead of silently deleting an already valid proposal.
+                     answer({'reviews': initial_reviews+[review(targets[0],sources[2],'weak','absent')]})]
         with tempfile.TemporaryDirectory() as folder, \
                 patch('scripts.equivalency.engine.local_model', return_value='mock-digest'), \
                 patch('scripts.equivalency.engine.post_ollama', side_effect=responses) as call:
