@@ -1,5 +1,5 @@
 {
-  "status": "v12_and_literal_discovery_ready_to_release_C02R3_done_rejection_with_rationale_limits",
+  "status": "scope_narrowed_positive_support_grammar_fix_pending_activation_and_C10_existing_source_retry",
   "baseline_commit": "6f4025e",
   "policy": {
     "course_coverage": 80,
@@ -45,7 +45,7 @@
     "grade_inferred_from_facet_count": false
   },
   "verification_so_far": {
-    "python_last_full": 602,
+    "python_last_full": 670,
     "node_chrome_last_full": 202,
     "final_full_checks_pending": false
   },
@@ -638,7 +638,7 @@
     "diagnostic_visual_reading_correction_preserved": true
   },
   "v12_release": {
-    "status": "frozen_local_not_yet_activated",
+    "status": "live_ready",
     "native_protocol": "native-cell-v12-geometry-bound-list-segments",
     "font_recovery": "embedded-font-topic-recovery-v2-layout-binding",
     "image_code_sha256": "21f7d6584f580f1e1f93ed2798a0cb83317a542ba8a2ac0f50685e8f2add6bc5",
@@ -656,7 +656,17 @@
     "not_academic_accuracy_proof": true,
     "node_GET_520_recovery_tested": true,
     "actual_report_print_density_5_to_4_local": true,
-    "all_report_text_and_fonts_unchanged": true
+    "all_report_text_and_fonts_unchanged": true,
+    "commit": "3543c3cd85d046204094e1334ef7fb8303851cc0",
+    "deploy_id": "6aeab24e9153ade8882fa123",
+    "deploy_state": "ready",
+    "error_message": null,
+    "public_four_files_byte_identical": true,
+    "healthz_public_tunnel_loopback": 200,
+    "CI_run": 41772228591,
+    "CI": "success",
+    "only_own_two_workers_restarted": true,
+    "other_service_PIDs_and_env_preserved": true
   },
   "C02R3_existing_source_comparison": {
     "job_id": "42d32ba1fe1929fb57298a28bbd89924",
@@ -703,5 +713,36 @@
     "identity_plan_sha256": "dc725a53df65d1a4d37fdcc2b7391460caf657f499f6ee8702f0ca5361b0ae19",
     "observations_sha256": "dcdca39bac63cb1586ad103bc1af518ea0575c05de951b568f3bf1843d5efc66",
     "no_expected_grade_or_source_edits": true
+  },
+  "C10R2_actual_v12": {
+    "status": "actual_source_verified_comparison_audit_incomplete",
+    "source_id": "a07446dc3e6aea45bfb05b272fe99073",
+    "source_SHA256_unchanged": true,
+    "source_or_grade_edits": false,
+    "new_source_POSTs": 1,
+    "searches": 1,
+    "comparisons": 1,
+    "not_private_replay_promotion": true,
+    "source_UNKNOWNs": 0,
+    "comparison_job": "8b08022519673ef62454d91c3847cbff",
+    "report_decision": "insufficient",
+    "strict_coverage": null,
+    "lenient_coverage": null,
+    "source_audit_sha256": "59542da1db5d45321d3025e033a68fe9dfbd2a6bc589ca5ca56c97d6707774cf",
+    "failure": "review_t13_p4_limited_without_source_quote_both_attempts",
+    "old_raw_and_report_preserved": true
+  },
+  "positive_support_grammar_fix": {
+    "version": "curriculum-bundle-grammar-v2-positive-support-quotes",
+    "scope": "generation_schema_matches_existing_domain_rule",
+    "python_tests": 670,
+    "focused_tests": 83,
+    "independent_CPU_checks": 42,
+    "grades_or_sources_changed": false,
+    "new_validated_trio_complete": false,
+    "next_only": "C10 existing verified source retry after deployment",
+    "other_cases": "HOLD",
+    "node_chrome_tests": 202,
+    "node_chrome_skips": 0
   }
 }

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import copy
 
+GRAMMAR_VERSION = 'curriculum-bundle-grammar-v2-positive-support-quotes'
 _SUPPORTS = ('aligned', 'related', 'limited', 'absent', 'unknown')
 _COMMON = ('target_id', 'facets', 'reason')
 _ORDERS = {'proposal': _COMMON + ('band', 'possible_tiers', 'uncertainty'),
@@ -52,7 +53,20 @@ def model_schema(stage, base_schema):
         order=('part_id','source_quotes','reason','support')
         item['properties']={name:item['properties'][name] for name in order}
         item['required']=list(order)
-        item['properties']['support']['enum'] = [s for s in _SUPPORTS if s in supports]
+        variants=[]
+        for choices,quoted in ((('aligned','related','limited'),True),(('absent','unknown'),False)):
+            allowed=[s for s in choices if s in supports]
+            if not allowed:continue
+            branch=copy.deepcopy(item)
+            branch['properties']['support']['enum']=allowed
+            # Exactly the independent domain rule: positive/limited support
+            # needs a literal witness; absent/unknown may retain empty or
+            # nonempty evidence. No support label or quotation is supplied here.
+            if quoted:
+                quotes=branch['properties']['source_quotes']
+                quotes['minItems']=max(quotes.get('minItems',0),1)
+            variants.append(branch)
+        value['items']={'anyOf':variants}
         return value
 
     branches = []

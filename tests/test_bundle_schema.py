@@ -37,7 +37,7 @@ class BundleSchemaTests(unittest.TestCase):
         for stage,base,key in [('proposal',PROPOSAL_SCHEMA,'evaluations'),('review',REVIEW_SCHEMA,'reviews')]:
             before=copy.deepcopy(base);schema=model_schema(stage,base)
             Draft202012Validator.check_schema(schema)
-            schema['properties'][key]['items']['anyOf'][0]['properties']['facets']['items']['properties']['support']['enum'].append('MUTATED_COPY')
+            schema['properties'][key]['items']['anyOf'][0]['properties']['facets']['items']['anyOf'][0]['properties']['support']['enum'].append('MUTATED_COPY')
             self.assertEqual(base,before)
 
     def test_both_strict_readers_require_complete_or_disclosed_nondecisive_core_scope(self):
@@ -161,6 +161,44 @@ class BundleSchemaTests(unittest.TestCase):
                     for v in value:visit(v)
             visit(previous);self.assertGreater(len(seen),0)
             self.assertEqual(normalized(schema),normalized(previous))
+
+    def test_actual_t13_p4_limited_without_quote_is_rejected_before_model_validation(self):
+        # The real failure shape, isolated from any desired course verdict:
+        # fourthfacet limited+[] was grammatical but rejected by the domain.
+        for stage in self.schemas:
+            row=reading(stage,'weak',('absent','absent','absent','limited'))
+            row['target_id']='t13';row['facets'][3]['source_quotes']=[]
+            before=copy.deepcopy(row)
+            self.assertFalse(self.valid(stage,row));self.assertEqual(row,before)
+            row['facets'][3]['source_quotes']=[{'source_id':'s1','quote':'تعريف العلم'}]
+            self.assertTrue(self.valid(stage,row))
+
+    def test_every_categorical_branch_requires_quotes_only_for_existing_positive_supports(self):
+        for stage,schema in self.schemas.items():
+            key='evaluations'if stage=='proposal'else'reviews'
+            branches=schema['properties'][key]['items']['anyOf'];self.assertEqual(len(branches),7)
+            def item_schemas(array):
+                if 'anyOf'in array:return [item for child in array['anyOf']for item in item_schemas(child)]
+                return array['items']['anyOf']
+            for index,branch in enumerate(branches):
+                for item in item_schemas(branch['properties']['facets']):
+                    self.assertEqual(list(item['properties']),['part_id','source_quotes','reason','support'])
+                    self.assertEqual(item['required'],['part_id','source_quotes','reason','support'])
+                    validator=Draft202012Validator(item)
+                    for support in item['properties']['support']['enum']:
+                        for quotes in ([],[{'source_id':'s1','quote':'تعريف العلم'}]):
+                            with self.subTest(stage=stage,branch=index,support=support,quoted=bool(quotes)):
+                                value=facet(support);value['source_quotes']=quotes
+                                self.assertEqual(validator.is_valid(value),bool(quotes)or support in ('absent','unknown'))
+
+    def test_absent_and_unknown_evidence_remain_optional_without_automatic_labels(self):
+        for stage in self.schemas:
+            self.assertTrue(self.valid(stage,reading(stage,'weak',('absent',))))
+            row=reading(stage,'uncertain',('unknown',),'decisive');self.assertTrue(self.valid(stage,row))
+            row['facets'][0]['source_quotes']=[{'source_id':'s1','quote':'تعريف العلم'}]
+            self.assertTrue(self.valid(stage,row));self.assertEqual(row['facets'][0]['support'],'unknown')
+            mixed=reading(stage,'strict',('aligned','related'),'non_decisive')
+            self.assertTrue(self.valid(stage,mixed));self.assertEqual(mixed['band'if stage=='proposal'else'verdict'],'strict')
 
 
 if __name__=='__main__':

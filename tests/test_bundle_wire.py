@@ -84,9 +84,10 @@ class BundleWireTests(unittest.TestCase):
         for stage,base,key in [('proposal',PROPOSAL_SCHEMA,'evaluations'),('review',REVIEW_SCHEMA,'reviews')]:
             schema=build_schema(stage,base,SOURCES);Draft202012Validator.check_schema(schema)
             strict=schema['properties'][key]['items']['anyOf'][0]
-            enum=strict['properties']['facets']['items']['properties']['source_quotes']['items']['enum']
+            facet=strict['properties']['facets']['items']['anyOf'][0]
+            enum=facet['properties']['source_quotes']['items']['enum']
             self.assertEqual(set(enum),set(refs))
-            self.assertEqual(strict['properties']['facets']['items']['properties']['support']['enum'],['aligned'])
+            self.assertEqual(facet['properties']['support']['enum'],['aligned'])
         schema=build_schema('proposal',PROPOSAL_SCHEMA,SOURCES);validator=Draft202012Validator(schema)
         for ref in refs:self.assertTrue(validator.is_valid({'evaluations':[row([ref])]}))
         self.assertFalse(validator.is_valid({'evaluations':[row(['foreign:whole'])]}))
@@ -101,6 +102,26 @@ class BundleWireTests(unittest.TestCase):
         self.assertEqual(decoded[0]['band'],'strict');self.assertEqual(decoded[0]['facets'][0]['support'],'related')
         with self.assertRaisesRegex(ValueError,'strict_without_supported_whole_scope'):
             validate_proposals(decoded,[{'id':'t1','text':'تعريف العلم'}],SOURCES)
+
+    def test_both_wire_grammars_reject_actual_limited_empty_shape_and_keep_literal_ref_enums(self):
+        refs={a['ref']for s in source_view(SOURCES)for a in s['anchors']}|{s['whole_ref']for s in source_view(SOURCES)}
+        for stage,base,key in [('proposal',PROPOSAL_SCHEMA,'evaluations'),('review',REVIEW_SCHEMA,'reviews')]:
+            schema=build_schema(stage,base,SOURCES);validator=Draft202012Validator(schema)
+            bad=row([],band='weak');bad['target_id']='t13';bad['facets']=[{'part_id':f'p{i}','source_quotes':[],
+                'reason':'دليل الجزء كما ورد.','support':'absent'if i<4 else'limited'}for i in range(1,5)]
+            if stage=='review':bad['verdict']=bad.pop('band')
+            before=copy.deepcopy(bad);self.assertFalse(validator.is_valid({key:[bad]}));self.assertEqual(bad,before)
+            bad['facets'][3]['source_quotes']=['s1:p1'];self.assertTrue(validator.is_valid({key:[bad]}))
+            bad['facets'][3]['source_quotes']=['FOREIGN:p1'];self.assertFalse(validator.is_valid({key:[bad]}))
+            def visit(value):
+                if isinstance(value,dict):
+                    if value.get('type')=='object'and set(value.get('properties',{}))=={'part_id','source_quotes','reason','support'}:
+                        self.assertEqual(set(value['properties']['source_quotes']['items']['enum']),refs)
+                        self.assertEqual(list(value['properties']),['part_id','source_quotes','reason','support'])
+                    for child in value.values():visit(child)
+                elif isinstance(value,list):
+                    for child in value:visit(child)
+            visit(schema)
 
     def test_unknown_without_source_evidence_is_preserved_instead_of_inventing_absence(self):
         wire=row([],band='uncertain');wire['facets'][0]['support']='unknown'
