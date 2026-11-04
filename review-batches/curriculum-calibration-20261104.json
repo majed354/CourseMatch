@@ -1,5 +1,5 @@
 {
-  "status": "strong_vision_v9_frozen_602_python_202_node_public_activation_pending",
+  "status": "v11_and_lossless_capacity_frozen_locally_awaiting_release_and_real_judgments",
   "baseline_commit": "6f4025e",
   "policy": {
     "course_coverage": 80,
@@ -25,7 +25,8 @@
     "review_parts": 118,
     "topic_pages_visually_read": 26,
     "labels_given_to_model": false,
-    "new_case_comparisons_started": 2
+    "new_case_comparisons_started": 2,
+    "new_case_source_journeys_started": 3
   },
   "prototype": {
     "kind": "development_on_known_KSU_case_pre_current_contract",
@@ -83,7 +84,7 @@
     ],
     "whole_course_verdict_issued": false
   },
-  "new_cases_started": 2,
+  "new_cases_started": 3,
   "release": {
     "commit": "b7a7621be3519ed748110294d0985f3552a120ee",
     "deploy_id": "6aea58b2b650860330ae18d8",
@@ -211,7 +212,55 @@
       },
       "accepted_as_accuracy_demonstration": false
     },
-    "C03_through_C09_POSTs": 0
+    "C03_through_C09_POSTs": 0,
+    "C02R2": {
+      "status": "completed_source_verified_semantic_output_budget_hold",
+      "original_PDF": true,
+      "source_POSTs": 1,
+      "comparison_POSTs": 1,
+      "source_topics_injected": false,
+      "university_hours_visible_fields": false,
+      "university_hours_patched_into_request": false,
+      "old_C02_evidence_unchanged": true,
+      "search_POSTs": 1,
+      "source_visual_status": "completed",
+      "source_rows": 12,
+      "source_images": 13,
+      "new_visual_raw_responses": 15,
+      "zero_UNKNOWN": true,
+      "source_content_independently_audited": true,
+      "source_audit_sha256": "d05a63f569618c30f126392a2c2153e634ab759f423b2f4867835f61b8de034f",
+      "private_execution_gate_released": true,
+      "decision": "insufficient",
+      "provider": "audit_incomplete",
+      "strict_coverage": null,
+      "lenient_coverage": null,
+      "semantic_valid_batches": 0,
+      "academic_judgments_issued": 0,
+      "PDF_pages": 3,
+      "PDF_all_pages_viewed": true,
+      "mobile_internal_table_overflow": false,
+      "comparison_failure": "output_budget_exhaustion_before_complete_JSON",
+      "first_requested_target_ids": [
+        "t1",
+        "t2"
+      ],
+      "first_batch_facets": 39,
+      "num_predict": 2630,
+      "prompt_eval_count": 9694,
+      "eval_count": 2630,
+      "done_reason": "length",
+      "comparison_audit_sha256": "a6b427f1a7e85ab2cdb4effec913f14a5dff00e65707883271cd923e52515b74",
+      "source_job_seconds": 287.61,
+      "search_job_seconds": 6.12
+    },
+    "C03": {
+      "status": "first_source_running_on_86a45b8",
+      "original_PDF": true,
+      "source_POSTs": 1,
+      "source_topics_injected": false
+    },
+    "C04_through_C10_POSTs": 0
   },
   "independent_CPU_audit": {
     "valid_boundary_cases": 25,
@@ -499,6 +548,72 @@
     "actual_helper_reuses_prior_blind_reading_only_for_private_diagnostic": true,
     "fresh_whole_source_verified": false,
     "new_public_verdict_issued": false,
-    "public_activation_pending": true
+    "public_activation_pending": false
+  },
+  "strong_vision_release": {
+    "commit": "86a45b820315a5383fe3d3335a3d941caa5b6b13",
+    "deploy_id": "6aea80e3f3ff9109aaab1461",
+    "state": "ready",
+    "error_message": null,
+    "public_bytes_match": true,
+    "healthz_status": 200,
+    "CI_run": 41749526694,
+    "CI": "success",
+    "vision_model": "gemma4:31b",
+    "review_model": "gemma4:31b",
+    "proposal_discovery_model": "qwen3.8:27b-q8_0",
+    "worker_and_interactive_restarted": true,
+    "API_models_tunnel_awake_PIDs_preserved": true
+  },
+  "additional_C10": {
+    "status": "baseline_frozen_operational_page_cap_blocker_not_run",
+    "source": "KSU150Salm_Taharah_and_prayer_conditions",
+    "target_id": "09e281074fd4dc062c42",
+    "target_context": "الشريعة / بكالوريوس / جديدة47",
+    "source_topics": 12,
+    "target_topics": 14,
+    "source_table_pages": [
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "source_original_PDF_pages": 9,
+    "target_original_PDF_pages": 7,
+    "source_and_target_all_pages_visually_read": true,
+    "baseline_sha256": "9be5954721eebc96840ade246418d6fa685fbb344234a4abc8cda47768099f0f",
+    "plan_sha256": "7e11fc7467f6d2a798c7caf760619b72527b38082b45f0628e7f5fd4ab97c2db",
+    "credit_hours_source": 2,
+    "credit_hours_target": 4,
+    "source_previously_technically_exposed": true,
+    "prior_model_judgments_read": false,
+    "no_acceptance_required": true,
+    "current_total_native_pages_cap": 3,
+    "per_cell_page_limit_to_preserve": 3,
+    "separate_total_table_cap_fix_deferred_until_current_batch_done": true,
+    "source_or_catalog_modified": false
+  },
+  "v11_capacity_release": {
+    "status": "local_checks_passed_not_yet_activated",
+    "native_protocol": "native-cell-v11-font-grounded-native-corroboration",
+    "model_input_version": "curriculum-model-input-v2-lossless-anchors",
+    "embedded_font_recovery": "embedded-font-topic-recovery-v1",
+    "python_tests": 641,
+    "node_chrome_tests": 202,
+    "skipped": 0,
+    "verified_PDFs": 448,
+    "font_private_CPU_replay": {
+      "original_cells_reconstructed": 12,
+      "corrected_rows": 9,
+      "glyph_changes": 21,
+      "bounded_agreement_rows": 11,
+      "total_rows": 12,
+      "not_new_model_run_or_source_approval": true
+    },
+    "table_page_cap": 12,
+    "per_cell_page_cap": 3,
+    "source_PDF_or_catalog_modified": false,
+    "new_acceptance_tolerance_rejection_trio_complete": false
   }
 }

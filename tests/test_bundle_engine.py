@@ -8,6 +8,7 @@ from unittest.mock import patch
 import urllib.error
 
 from scripts.equivalency.bundle_engine import compare_curriculum, validate_curriculum_evidence
+from scripts.equivalency import bundle_engine as budget_engine
 from scripts.equivalency.bundle_evidence import partition_parts, calculate
 from scripts.equivalency.bundle_wire import source_view
 from scripts.equivalency.engine import EvidenceValidationError
@@ -67,7 +68,7 @@ class BundleEngineTests(unittest.TestCase):
             self.assertEqual(calculate(self.targets['topics'],self.sources['topics'],result['pairs'])['decision'],'equivalent')
             self.assertEqual(len(calls),2)
             blind=json.loads(calls[1]['messages'][1]['content'])
-            self.assertEqual(blind['source'],source_view(self.sources['topics']));self.assertNotIn('preferred_sources',blind)
+            self.assertEqual(blind['source'],budget_engine._model_source_view(self.sources['topics']));self.assertNotIn('preferred_sources',blind)
             self.assertNotIn('score',json.dumps(blind));self.assertNotIn('evaluations',blind)
             self.assertNotIn('facets',blind)
             with patch('scripts.equivalency.engine.post_ollama',side_effect=AssertionError('no hidden inference')):
@@ -154,7 +155,7 @@ class BundleEngineTests(unittest.TestCase):
                         band=completed_band if guided else initial_review if review else 'lenient'
                         row=evaluation(self.t,self.s,verdict=band,review=review,
                                        support='aligned' if band=='strict' else 'related')
-                        self.assertEqual(request['source'],source_view(sources))
+                        self.assertEqual(request['source'],budget_engine._model_source_view(sources))
                         if guided:
                             self.assertEqual(request['requested_target_ids'],['t'])
                             self.assertNotIn('band',json.dumps(request['retrieved_evidence']))
@@ -249,7 +250,7 @@ class BundleEngineTests(unittest.TestCase):
                 self.assertEqual(facts,[{'source_id':own['id'],'source_quote':own['text'],'target_quote':target['text']}])
                 for fact in facts:self.assertEqual(set(fact),{'source_id','source_quote','target_quote'})
                 self.assertNotIn(source_a['text']if review else source_b['text'],json.dumps(facts,ensure_ascii=False))
-            self.assertEqual(request['source'],source_view(sources))
+            self.assertEqual(request['source'],budget_engine._model_source_view(sources))
             return answer('reviews'if review else'evaluations',[evaluation(target,own,review=review,verdict='lenient',support='related')],sources)
         discovery={'scan':[{'target_id':'t','sources':[{'source_id':s['id'],'status':'unrelated'}for s in sources]}],'groups':[],'cache_key':'synthetic'}
         with tempfile.TemporaryDirectory()as directory,patch('scripts.equivalency.candidates.discover_candidates',return_value=discovery):
@@ -383,6 +384,179 @@ class BundleEngineTests(unittest.TestCase):
         from scripts.equivalency.bundle_engine import COMMON
         self.assertIn('إثبات محور مستقل لا يثبت محورًا آخر',COMMON)
         self.assertIn('إن لم تسند أثر النقص فلا تحسم strict',COMMON)
+
+    def test_model_projection_reconstructs_exact_original_text_and_all_wire_refs(self):
+        sources=[{'id':'unit-z','text':'obsolete','corrected_text':'  أول؛ أول.\nالنفي: لا يُشترط (١٢–١٦)، وغيرُه!  '},
+                 {'id':'unit-a','text':'تفسير سورة البقرة الآيات 6–16؛ شروطه واستثناءاته.'}]
+        targets=[{'id':'target-z','text':'التعريف؛ الأركان.\nالشرط، والاستثناء! '},
+                 {'id':'target-a','text':'النص السابق','corrected_text':'الحد: (٢)؛ دون الزيادة.'}]
+        before=copy.deepcopy((targets,sources));wire=source_view(sources)
+        projected=budget_engine._model_source_view(sources)
+        self.assertEqual([r['source_id']for r in projected],['unit-z','unit-a'])
+        for original,full,compact in zip(sources,wire,projected):
+            self.assertEqual(set(compact),{'source_id','whole_ref','anchors'})
+            self.assertEqual(compact['whole_ref'],full['whole_ref'])
+            self.assertEqual([a['ref']for a in compact['anchors']],[a['ref']for a in full['anchors']])
+            self.assertEqual(''.join(a['quote']for a in compact['anchors']),original.get('corrected_text')or original['text'])
+            self.assertEqual([a['quote']for a in compact['anchors']],[a['quote']for a in full['anchors']])
+            self.assertTrue(all(set(a)=={'ref','quote'}for a in compact['anchors']))
+        projected_targets=budget_engine._model_target_view(targets,['target-a','target-z'])
+        self.assertEqual([r['id']for r in projected_targets],['target-z','target-a'])
+        for original,compact in zip(targets,projected_targets):
+            text=original.get('corrected_text')or original['text'];parts=partition_parts(text)
+            self.assertEqual(compact['text'],text)
+            self.assertEqual(''.join(p['quote']for p in compact['parts']),text)
+            self.assertEqual(compact['parts'],[{'part_id':p['part_id'],'quote':p['quote']}for p in parts])
+        self.assertLess(len(json.dumps(projected,ensure_ascii=False).encode()),len(json.dumps(wire,ensure_ascii=False).encode()))
+        self.assertEqual((targets,sources),before)
+
+    def test_model_projection_uses_validated_source_view_without_repairing_bad_inputs(self):
+        for sources in [[{'id':'s','text':''}], [{'id':'s','text':'أول'},{'id':'s','text':'ثان'}]]:
+            with self.assertRaises(ValueError):budget_engine._model_source_view(sources)
+        with patch('scripts.equivalency.bundle_wire.source_view',side_effect=ValueError('invalid_anchor_coverage')):
+            with self.assertRaisesRegex(ValueError,'invalid_anchor_coverage'):
+                budget_engine._model_source_view([self.s])
+
+    def test_lossless_projection_does_not_read_legacy_cache_or_change_original_wire_contract(self):
+        from scripts.equivalency.bundle_wire import build_schema
+        from scripts.equivalency.bundle_evidence import PROPOSAL_SCHEMA,REVIEW_SCHEMA
+        targets=[self.t];sources=[self.s];calls=[]
+        def caller(_,request):
+            calls.append(copy.deepcopy(request));review='reviews'in request['format']['properties']
+            return answer('reviews'if review else'evaluations',[evaluation(self.t,self.s,review=review)],sources)
+        with tempfile.TemporaryDirectory()as directory:
+            directory=Path(directory);legacy={}
+            for stage,model,digest,system,base in [('proposal','primary:local','P',budget_engine.PROPOSAL_SYSTEM,PROPOSAL_SCHEMA),
+                                                   ('review','independent:local','G',budget_engine.REVIEW_SYSTEM,REVIEW_SCHEMA)]:
+                old={'target':[{'id':self.t['id'],'text':self.t['text'],'parts':partition_parts(self.t['text'])}],
+                     'source':source_view(sources),'requested_target_ids':['t'],
+                     'scope_context':budget_engine.scope_context(targets,sources)}
+                if stage=='proposal':old['preferred_sources']=[{'target_id':'t','source_ids':['s']}]
+                options=budget_engine._options(stage,system,old);schema=build_schema(stage,base,sources)
+                request=budget_engine._generation_request(model,system,schema,options,json.dumps(old,ensure_ascii=False))
+                identity=[budget_engine.VERSION,budget_engine.evaluation_contract(),stage,system,digest,options,
+                          budget_engine.input_binding(targets,sources),budget_engine._request_identity(request)]
+                key=hashlib.sha256(budget_engine._encoded(identity).encode()).hexdigest()
+                path=directory/stage/(key+'.json');path.parent.mkdir(parents=True)
+                path.write_text(json.dumps({'cache_key':key,'version':budget_engine.VERSION,
+                    'contract':budget_engine.evaluation_contract(),'model':model,'model_digest':digest,
+                    'rows':[evaluation(self.t,self.s,review=stage=='review')]}))
+                legacy[path]=hashlib.sha256(path.read_bytes()).hexdigest()
+                rows,metadata=budget_engine._stage(stage,targets,sources,['t'],model=model,digest=digest,caller=caller,directory=directory)
+                self.assertFalse(metadata['cache_hit']);self.assertNotEqual(metadata['cache_key'],key)
+                self.assertEqual(rows,[evaluation(self.t,self.s,review=stage=='review')])
+                self.assertEqual(calls[-1]['format'],schema)
+                trace=json.loads((directory/stage/'traces'/(metadata['cache_key']+'.json')).read_text())
+                self.assertEqual(trace['model_input_version'],budget_engine.MODEL_INPUT_VERSION)
+                self.assertEqual(trace['model'],model);self.assertEqual(trace['model_digest'],digest)
+                _,warm=budget_engine._stage(stage,targets,sources,['t'],model=model,digest=digest,
+                    caller=lambda *_:self.fail('new projection cache must be reusable'),directory=directory)
+                self.assertTrue(warm['cache_hit'])
+            self.assertEqual(len(calls),2)
+            self.assertTrue(all(hashlib.sha256(p.read_bytes()).hexdigest()==h for p,h in legacy.items()))
+
+
+
+
+    def _budget_payload(self,stage,targets,sources,wanted):
+        from scripts.equivalency.engine import topic_text
+        from scripts.equivalency.candidates import plan_candidate_pairs
+        payload={'target':budget_engine._model_target_view(targets,wanted),
+                 'source':budget_engine._model_source_view(sources),'requested_target_ids':sorted(wanted),'scope_context':budget_engine.scope_context(targets,sources)}
+        if stage=='proposal':
+            ranked=plan_candidate_pairs(targets,sources)
+            payload['preferred_sources']=[{'target_id':tid,'source_ids':[p['source_id']for p in ranked if p['target_id']==tid]}for tid in wanted]
+        return payload
+
+    def _budget_split_fixture(self):
+        targets=[{'id':'alpha','text':'; '.join(['نطاق أكاديمي موثق']*20)},
+                 {'id':'beta','text':'; '.join(['نطاق أكاديمي موثق']*20)}]
+        # Find a byte-sized full curriculum where the pair fits the old2048
+        # reserve but must split for39+ required facet records. All sources stay.
+        for length in range(100,1800,10):
+            sources=[{'id':f's{i}','text':'نطاق أكاديمي موثق '+('x'*length)}for i in range(12)]
+            fits=[]
+            for stage,system in [('proposal',budget_engine.PROPOSAL_SYSTEM),('review',budget_engine.REVIEW_SYSTEM)]:
+                pair=self._budget_payload(stage,targets,sources,['alpha','beta'])
+                available=32768-len(system.encode())-len(json.dumps(pair,ensure_ascii=False).encode())-1024
+                try:
+                    budget_engine._options(stage,system,pair);rejected=False
+                except RuntimeError:rejected=True
+                single=True
+                for target in targets:
+                    try:budget_engine._options(stage,system,self._budget_payload(stage,targets,sources,[target['id']]))
+                    except RuntimeError:single=False
+                fits.append(available>=2048 and rejected and single)
+            if all(fits):return targets,sources
+        self.fail('no independent budget split fixture found')
+
+    def test_output_budget_recursive_whole_target_split_preserves_sources_ids_and_reader_identity(self):
+        targets,sources=self._budget_split_fixture();before=copy.deepcopy((targets,sources));calls=[];rows_by_stage={};active=0;max_active=0
+        with tempfile.TemporaryDirectory()as directory:
+            for stage,model,digest in [('proposal','primary:local','P'),('review','independent:local','G')]:
+                def caller(endpoint,payload):
+                    nonlocal active,max_active
+                    active+=1;max_active=max(max_active,active)
+                    request=json.loads(payload['messages'][1]['content']);calls.append((stage,copy.deepcopy(payload),request))
+                    self.assertEqual(request['source'],budget_engine._model_source_view(sources));self.assertEqual(request['scope_context'],budget_engine.scope_context(targets,sources))
+                    self.assertEqual(len(request['target']),1);self.assertEqual(payload['model'],model);self.assertIs(payload['think'],False)
+                    tid=request['requested_target_ids'][0];target=next(t for t in targets if t['id']==tid)
+                    self.assertEqual(request['target'],budget_engine._model_target_view([target],[target['id']]))
+                    self.assertGreaterEqual(payload['options']['num_predict'],128*20+256)
+                    row=evaluation(target,sources[0],review=stage=='review');active-=1
+                    return answer('reviews'if stage=='review'else'evaluations',[row],sources)
+                rows,metadata=budget_engine._stage(stage,targets,sources,['alpha','beta'],model=model,digest=digest,caller=caller,directory=Path(directory))
+                rows_by_stage[stage]=rows
+                self.assertEqual([r['target_id']for r in rows],['alpha','beta']);self.assertEqual(len(metadata['split_batches']),2)
+                traces=[json.loads(p.read_text())for p in (Path(directory)/stage/'traces').glob('*.json')]
+                self.assertEqual(len(traces),2);self.assertTrue(all(t['model']==model and t['model_digest']==digest for t in traces))
+            self.assertEqual(len(calls),4);self.assertEqual(max_active,1);self.assertEqual((targets,sources),before)
+            for stage in ('proposal','review'):
+                ids=[tid for s,_,request in calls if s==stage for tid in request['requested_target_ids']]
+                self.assertEqual(ids,['alpha','beta'])
+                if stage=='review':
+                    for s,payload,request in calls:
+                        if s=='review':
+                            self.assertNotIn('preferred_sources',request);self.assertNotIn('facets',json.dumps(request));self.assertNotIn('band',json.dumps(request))
+        self.preflight_evidence={'mock_calls':len(calls),'readers':['primary:local','independent:local'],'digests':['P','G'],'all_ids_once_per_reader':True,'full_source_retained':True,'max_concurrent_mock_calls':max_active,'original_target_denominator':len(targets)}
+
+    def test_output_budget_single_unsplittable_target_fails_before_any_model(self):
+        target={'id':'large','text':'; '.join(['مطلب أصلي محفوظ']*150)};source={'id':'source','text':'نطاق أكاديمي موثق'}
+        before=copy.deepcopy((target,source));calls=[]
+        with tempfile.TemporaryDirectory()as directory:
+            with self.assertRaises(RuntimeError):budget_engine._stage('proposal',[target],[source],['large'],model='primary:local',digest='P',caller=lambda *args:calls.append(args),directory=Path(directory))
+            self.assertEqual(list(Path(directory).rglob('*.json')),[])
+        self.assertEqual(calls,[]);self.assertEqual((target,source),before)
+        self.preflight_evidence={'facets':150,'minimum_output_required':19456,'output_cap':16000,'mock_calls':0,'safe_failure':True}
+
+    def test_output_budget_still_rejects_length_even_with_parseable_complete_json(self):
+        target={'id':'t','text':'نطاق أكاديمي موثق'};source={'id':'s','text':'نطاق أكاديمي موثق تفصيلي'}
+        raw=answer('evaluations',[evaluation(target,source)],[source]);raw['done_reason']='length';before=copy.deepcopy(raw);calls=[]
+        with tempfile.TemporaryDirectory()as directory:
+            def caller(*args):calls.append(args);return raw
+            with self.assertRaises(EvidenceValidationError):budget_engine._stage('proposal',[target],[source],['t'],model='primary:local',digest='P',caller=caller,directory=Path(directory))
+            traces=list((Path(directory)/'proposal'/'traces').glob('*.json'));self.assertEqual(len(traces),1)
+            saved=json.loads(traces[0].read_text());self.assertEqual(saved['attempts'][0]['response'],before)
+            self.assertEqual(list((Path(directory)/'proposal').glob('*.json')),[])
+        self.assertEqual(len(calls),1);self.assertEqual(raw,before)
+        self.preflight_evidence={'parseable_json':True,'done_reason':'length','accepted':False,'raw_preserved':True,'mock_calls':1}
+
+    def test_output_budget_repair_keeps_whole_pending_targets_and_all_sources(self):
+        targets=[{'id':key,'text':'; '.join(['نطاق أكاديمي موثق']*12)}for key in ['left','right']]
+        sources=[{'id':'s','text':'نطاق أكاديمي موثق مع تفاصيل أصلية'}];calls=[]
+        good=evaluation(targets[0],sources[0]);bad=evaluation(targets[1],sources[0]);bad['facets'][0]['source_quotes']=[{'source_id':'s','quote':'not literal'}]
+        def caller(_,payload):
+            request=json.loads(payload['messages'][1]['content']);calls.append(copy.deepcopy(request))
+            self.assertEqual(request['source'],budget_engine._model_source_view(sources))
+            if len(calls)==1:return answer('evaluations',[good,bad],sources)
+            self.assertEqual(request['requested_target_ids'],['right']);self.assertEqual(request['retained_target_ids'],['left'])
+            self.assertEqual(request['target'],budget_engine._model_target_view([targets[1]],['right']))
+            self.assertGreaterEqual(payload['options']['num_predict'],128*12+256)
+            return answer('evaluations',[evaluation(targets[1],sources[0])],sources)
+        with tempfile.TemporaryDirectory()as directory:
+            rows,_=budget_engine._stage('proposal',targets,sources,['left','right'],model='primary:local',digest='P',caller=caller,directory=Path(directory))
+        self.assertEqual([r['target_id']for r in rows],['left','right']);self.assertEqual(rows[0],good);self.assertEqual(len(calls),2)
+        self.preflight_evidence={'mock_calls':2,'retained_ids':['left'],'repaired_ids':['right'],'original_targets_atomic':True,'full_source_retained':True}
 
 
 if __name__=='__main__':unittest.main()

@@ -129,6 +129,7 @@ textarea[readonly]{background:#f5f8fa;border-color:#dce6eb;cursor:default}.refer
  @bottom-left{content:"CourseMatch · منصة المعادلات";font-family:"IBM Plex Sans Arabic",Tahoma,Arial,sans-serif;font-size:7px;color:#617484;text-align:left;direction:ltr}
 }
 @media print{.equivalency-report .report-end{display:none}}
+@media print{.equivalency-report[data-decision="insufficient"] .details-table:not(.curriculum-details-table) td{padding:6px 7px}}
 /* End reserved print footer. */
 
 /* Whole-curriculum evidence: each original target appears once, with its source witnesses. */

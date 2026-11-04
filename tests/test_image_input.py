@@ -20,6 +20,10 @@ def answer(rows,reason='stop'):
     return {'done':True,'done_reason':reason,'message':{'content':json.dumps({'rows':rows},ensure_ascii=False)}}
 
 
+def native_anchors(prompt):
+    return json.JSONDecoder().raw_decode(prompt.split('المعرفات ومواضعها:\n',1)[1])[0]
+
+
 class VisionCaller:
     def __init__(self,replies,capabilities=None):
         self.replies=list(replies);self.calls=[];self.capabilities=capabilities or {}
@@ -386,8 +390,8 @@ class ImageInputTests(unittest.TestCase):
         self.assertEqual(result['topics'],source['topics']);self.assertEqual(result['visual_verification_status'],'unavailable');self.assertEqual(len(list(self.cache.rglob('raw-response-*.json'))),2)
 
     def test_native_page_cap_and_gap_return_original_without_any_model_call(self):
-        path=self.native(pages=4)
-        for source in [self.extracted(4),{'topics':[{'id':'a','text':'Topic','page':1},{'id':'b','text':'Topic','page':3}]}]:
+        path=self.native(pages=13)
+        for source in [self.extracted(13),{'topics':[{'id':'a','text':'Topic','page':1},{'id':'b','text':'Topic','page':3}]}]:
             caller=VisionCaller([]);result=image.verify_pdf_topics(path,source,self.cache,caller=caller)
             self.assertEqual(result['topics'],source['topics']);self.assertEqual(result['visual_verification_status'],'unavailable');self.assertEqual(caller.calls,[])
 
@@ -434,7 +438,7 @@ class ImageInputTests(unittest.TestCase):
             prompt=payload['messages'][1]['content']
             self.assertNotIn('المصال',prompt)
             self.assertNotIn('المصالح',prompt)
-            anchors=json.loads(prompt.split('\n')[-1])
+            anchors=native_anchors(prompt)
             self.assertEqual(anchors,[{'id':'t1','pages':[1],'regions':[
                 {'page':1,'bbox':[21,83,872,500]},
                 {'page':1,'bbox':[128,500,979,917]}]}])
@@ -449,7 +453,7 @@ class ImageInputTests(unittest.TestCase):
         caller=VisionCaller([answer({'t1':source['topics'][0]['text']})])
         result=image.verify_pdf_topics(self.native(pages=2),source,self.cache,caller=caller)
         prompt=caller.chats[0][1]['messages'][1]['content']
-        anchor=json.loads(prompt.split('\n')[-1])[0]
+        anchor=native_anchors(prompt)[0]
         self.assertEqual(anchor['pages'],[1,2])
         self.assertEqual({r['page'] for r in anchor['regions']},{1})
         self.assertEqual(anchor['unlocated_pages'],[2])
@@ -588,10 +592,10 @@ class ImageInputTests(unittest.TestCase):
         self.assertIn(image.UNKNOWN,result['topics'][0]['corrected_text'])
         self.assertEqual(result['visual_verification_proof']['numeric_disagreements'],[])
 
-    def test_native_current_cache_is_separate_from_v7_and_preserves_prior_raw(self):
+    def test_native_current_cache_is_separate_from_v9_and_preserves_prior_raw(self):
         path=self.native();source=self.extracted();source['topics'][0]['text']='حكم نكاح الكتابية'
         reply=answer({'t1':source['topics'][0]['text']})
-        with patch.object(image,'NATIVE_PROTOCOL_VERSION','native-cell-v7-unlocated-native-binding'):
+        with patch.object(image,'NATIVE_PROTOCOL_VERSION','native-cell-v9-independent-boundary-witness'):
             previous=image.verify_pdf_topics(path,source,self.cache,caller=VisionCaller([reply]))
         old={p:p.read_bytes()for p in self.cache.rglob('*')if p.is_file()}
         current=VisionCaller([reply]);fresh=image.verify_pdf_topics(path,source,self.cache,caller=current)
@@ -821,7 +825,7 @@ class ImageInputTests(unittest.TestCase):
         self.assertEqual(result['topics'][0]['corrected_text'],source['topics'][0]['text']+' '+image.UNKNOWN)
         for _,payload,_ in caller.chats:
             content=payload['messages'][1]['content'];self.assertNotIn('نص سري',content)
-            anchor=json.loads(content.split('\n')[-1])[0]
+            anchor=native_anchors(content)[0]
             self.assertEqual(anchor['pages'],[1,2,3]);self.assertEqual(anchor['unlocated_pages'],[3])
             self.assertEqual(len(payload['messages'][1]['images']),3)
         self.assertFalse(result['visual_verification_proof']['pages'][2]['cropped_from_topic_bboxes'])
@@ -897,7 +901,7 @@ class ImageInputTests(unittest.TestCase):
         self.assertEqual(result['visual_verification_status'],'uncertain')
         self.assertEqual(result['topics'][0]['corrected_text'],'أحكام البيع وشروطه '+image.UNKNOWN)
         self.assertEqual(source,before);self.assertEqual(len(caller.chats),2)
-        self.assertEqual(json.loads(caller.chats[0][1]['messages'][1]['content'].split('\n')[-1])[0]['unlocated_pages'],[1])
+        self.assertEqual(native_anchors(caller.chats[0][1]['messages'][1]['content'])[0]['unlocated_pages'],[1])
         self.assertTrue(all(json.loads(p.read_text())==wrong for p in self.cache.rglob('raw-response-*.json')))
 
     def test_native_unlocated_fallback_only_requires_complete_native_agreement(self):
@@ -941,3 +945,299 @@ class ImageInputTests(unittest.TestCase):
         self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(len(caller.chats),2)
         self.assertEqual(result['topics'][0]['corrected_text'],'حجية الاجماع .')
         self.assertCountEqual([json.loads(p.read_text())for p in self.cache.rglob('raw-response-*.json')],[primary,fallback])
+
+
+    def _table_cap_pdf(self,name,pages,texts=None):
+        # Real synthetic PDF table cells; source metadata uses these exact texts.
+        doc=pymupdf.open()
+        for i in range(pages):
+            page=doc.new_page();page.draw_rect(pymupdf.Rect(10,20,300,100))
+            page.insert_text((30,60),texts[i]if texts else f'Topic {i+1} and details')
+        path=self.root/name;doc.save(path);doc.close();return path
+
+
+    def _table_cap_source(self,pages):
+        ids=['unit-z','unit-b','unit-y','unit-a','unit-k']
+        return {'topics':[{'id':ids[i]if i<len(ids)else f'unit-extra-{i}',
+                           'text':f'Topic {p} and details','page':p,'bbox':[10,20,300,100]}
+                          for i,p in enumerate(pages)],'warnings':[],'reviewed':False}
+
+    def test_native_table_cap_five_page_table_accepts_original_cells_and_order(self):
+        source=self._table_cap_source([1,2,3,4,5]);before=copy.deepcopy(source)
+        caller=VisionCaller([answer({t['id']:t['text']})for t in source['topics']])
+        result=image.verify_pdf_topics(self._table_cap_pdf('five-page-table.pdf',pages=5),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'completed')
+        self.assertEqual(result['topics'],[{**t,'corrected_text':t['text'],'visual_transcription_origin':'local_vision_transcription'}for t in source['topics']])
+        self.assertEqual(source,before);self.assertEqual(len(caller.chats),5)
+        self.assertTrue(all(len(c[1]['messages'][1]['images'])==1 for c in caller.chats))
+        self.assertEqual([t['id']for t in result['topics']],[t['id']for t in source['topics']])
+        self.preflight_evidence={'status':result['visual_verification_status'],'table_pages':5,'cells':5,'original_ids':[t['id']for t in source['topics']],'mock_chats':len(caller.chats),'denominator_unchanged':True}
+
+    def test_native_table_cap_original_cell_four_page_span_is_rejected(self):
+        source=self._table_cap_source([1]);source['topics'][0]['end_page']=4;before=copy.deepcopy(source)
+        caller=VisionCaller([]);result=image.verify_pdf_topics(self._table_cap_pdf('cell-four-pages.pdf',pages=4),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'unavailable');self.assertEqual(result['topics'],before['topics']);self.assertEqual(caller.calls,[])
+        self.preflight_evidence={'status':result['visual_verification_status'],'cell_span':4,'mock_chats':0,'denominator_unchanged':True}
+
+    def test_native_table_cap_fragments_cannot_add_fourth_cell_page(self):
+        source=self._table_cap_source([1]);source['topics'][0]['end_page']=3
+        source['topics'][0]['fragments']=[{'page':4,'bbox':[10,20,300,100]}];before=copy.deepcopy(source)
+        path=self._table_cap_pdf('cell-fragment-fourth.pdf',pages=4)
+        caller=VisionCaller([]);result=image.verify_pdf_topics(path,source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'unavailable');self.assertEqual(result['topics'],before['topics']);self.assertEqual(caller.calls,[])
+        # A first-page cell plus page4 fragment is a four-page span even when
+        # other cells fill table pages2–3 and only two cell images are listed.
+        sparse=self._table_cap_source([1,2,3]);sparse['topics'][0]['fragments']=[{'page':4,'bbox':[10,20,300,100]}]
+        caller=VisionCaller([]);again=image.verify_pdf_topics(path,sparse,self.cache/'sparse',caller=caller)
+        self.assertEqual(again['visual_verification_status'],'unavailable');self.assertEqual(again['topics'],sparse['topics']);self.assertEqual(caller.calls,[])
+        self.preflight_evidence={'status':result['visual_verification_status'],'original_cell_pages':3,'fragment_page':4,'sparse_four_page_span_also_rejected':True,'mock_chats':0,'denominator_unchanged':True}
+
+    def test_native_table_cap_thirteen_total_pages_are_rejected(self):
+        source=self._table_cap_source(list(range(1,14)));before=copy.deepcopy(source)
+        caller=VisionCaller([]);result=image.verify_pdf_topics(self._table_cap_pdf('table-thirteen-pages.pdf',pages=13),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'unavailable');self.assertEqual(result['topics'],before['topics']);self.assertEqual(caller.calls,[])
+        self.preflight_evidence={'status':result['visual_verification_status'],'table_pages':13,'mock_chats':0,'denominator_unchanged':True}
+
+    def test_native_table_cap_discontiguous_table_pages_are_rejected(self):
+        source=self._table_cap_source([1,3]);before=copy.deepcopy(source)
+        caller=VisionCaller([]);result=image.verify_pdf_topics(self._table_cap_pdf('table-gapped-pages.pdf',pages=3),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'unavailable');self.assertEqual(result['topics'],before['topics']);self.assertEqual(caller.calls,[])
+        self.preflight_evidence={'status':result['visual_verification_status'],'table_pages':[1,3],'mock_chats':0,'denominator_unchanged':True}
+
+    def test_native_table_cap_twelve_table_pages_and_three_cell_pages_remain_valid(self):
+        source=self._table_cap_source(list(range(1,13)));caller=VisionCaller([answer({t['id']:t['text']})for t in source['topics']])
+        result=image.verify_pdf_topics(self._table_cap_pdf('table-twelve-pages.pdf',pages=12),source,self.cache/'table',caller=caller)
+        self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(len(result['topics']),12)
+        source=self._table_cap_source([1]);source['topics'][0]['end_page']=3;source['topics'][0]['text']=' '.join(f'Topic {p} and details'for p in range(1,4))
+        source['topics'][0]['fragments']=[{'page':p,'bbox':[10,20,300,100]}for p in [2,3]]
+        caller=VisionCaller([answer({source['topics'][0]['id']:source['topics'][0]['text']})])
+        result=image.verify_pdf_topics(self._table_cap_pdf('cell-three-pages.pdf',pages=3),source,self.cache/'cell',caller=caller)
+        self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(len(result['topics']),1)
+        self.assertEqual(len(caller.chats[0][1]['messages'][1]['images']),3)
+        self.preflight_evidence={'status':result['visual_verification_status'],'maximum_table_pages':12,'maximum_cell_pages':3,'denominator_unchanged':True}
+
+    def test_native_table_cap_five_pages_preserves_numeric_disagreement_hold(self):
+        source=self._table_cap_source([1,2,3,4,5]);source['topics'][0]['text']='Range 1-3'
+        first=source['topics'][0]['id'];replies=[answer({first:'Range 13'}),answer({first:'Range 13'})]
+        replies.extend(answer({t['id']:t['text']})for t in source['topics'][1:])
+        caller=VisionCaller(replies);result=image.verify_pdf_topics(self._table_cap_pdf('five-page-numeric-hold.pdf',pages=5,texts=['Range 1-3']+[f'Topic {p} and details'for p in range(2,6)]),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'uncertain');self.assertEqual(len(result['topics']),5)
+        self.assertEqual(result['topics'][0]['text'],source['topics'][0]['text']);self.assertIn(image.UNKNOWN,result['topics'][0]['corrected_text'])
+        self.assertEqual(len(result['visual_verification_proof']['numeric_disagreements']),1)
+        self.preflight_evidence={'status':result['visual_verification_status'],'table_pages':5,'numeric_hold_retained':True,'denominator_unchanged':True}
+
+    def test_native_title_instruction_and_actual_C03_list_layout_select_original_verbatim(self):
+        # Actual development readings; this is immutable raw replay, not a new
+        # OCR measurement or a rewrite of the preserved public C03 source.
+        native1='الوحدة الأولى: المدخل إلى فقه المعاملات. -1 المال: تعريفه، وأقسامه، وما يجوز تملكه منه وما لا يجوز. -2 أقسام المعاملات المالية إجمالا، والقواعد العامة لكل قسم. -3 الملكية: المراد بها، وأقسامها، وأسبابها، وضوابطها الشرعية العامة. -4 العقد في المعاملات: المراد به، وأنواعه، وأركانه.'
+        primary1='الوحدة الأولى: المدخل إلى فقه المعاملات.\n١- المال: تعريفه، وأقسامه، وما يجوز تملكه منه وما لا يجوز.\n٢- أقسام المعاملات المالية إجمالاً، والقواعد العامة لكل قسم.\n٣- الملكية: المراد بها، وأقسامها، وأسبابها، وضوابطها الشرعية العامة.\n٤- العقد في المعاملات: المراد به، وأنواعه، وأركانه.'
+        native2='الوحدة الثانية: حقيقة عقد البيع وشروطه. -1 تعريف عقد البيع، وصيغه، وأركانه. -2 شروط صحة البيع والمسائل المتفرعة عن كل شرط. -3 التطبيقات المعاصرة المتعلقة بأركان البيع وشروطه. -4 القبض حقيقته، وصوره.'
+        primary2='الوحدة الثانية: حقيقة عقد البيع وشروطه.\n١- تعريف عقد البيع، وصيغه، وأركانه.\n٢- شروط صحة البيع والمسائل المتفرعة عن كل شرط.\n٣- التطبيقات المعاصرة المتعلقة بأركان البيع وشروطه.\n٤- القبض حقيقته، وصوره .'
+        source={'topics':[{'id':tid,'text':text,'page':1,'bbox':[10,20+i*60,300,70+i*60]}for i,(tid,text)in enumerate([('t1',native1),('t2',native2)])],'warnings':[],'reviewed':False}
+        before=copy.deepcopy(source);replies=[answer({'t1':primary1}),answer({'t2':primary2})];raw=copy.deepcopy(replies)
+        caller=VisionCaller(replies);path=self.native();result=image.verify_pdf_topics(path,source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(len(caller.chats),2)
+        self.assertEqual([t['corrected_text']for t in result['topics']],[native1,native2])
+        self.assertTrue(all(t['visual_transcription_origin']=='native_text_with_visual_list_corroboration'for t in result['topics']))
+        self.assertEqual(source,before);self.assertEqual(replies,raw);self.assertEqual(result['visual_verification_proof']['numeric_disagreements'],[])
+        for _,payload,timeout in caller.chats:
+            self.assertEqual(timeout,60);self.assertIn('انقل أول سطر ظاهر من عنوان الوحدة أو الموضوع صراحةً',payload['messages'][1]['content'])
+            self.assertNotIn('البيع',payload['messages'][1]['content']);self.assertNotIn('المال',payload['messages'][1]['content'])
+            self.assertEqual(set(native_anchors(payload['messages'][1]['content'])[0]),{'id','pages','regions'})
+        folder=self.cache/image.VERSION/result['visual_verification_cache_key']
+        for cell in result['visual_verification_proof']['cells']:
+            proof=cell['native_list_corroborations'][0]
+            self.assertEqual(proof['selection'],'original_native_text');self.assertEqual(proof['layout']['values'],[1,2,3,4])
+            self.assertEqual(proof['native_text'],next(t['text']for t in source['topics']if t['id']==cell['topic_id']))
+            for record in proof['inputs']+[proof['response']]:self.assertEqual(image._sha((folder/record['file']).read_bytes()),record['sha256'])
+        self.assertCountEqual([json.loads(p.read_text())for p in self.cache.rglob('raw-response-*.json')],raw)
+        warm=VisionCaller([]);again=image.verify_pdf_topics(path,source,self.cache,caller=warm)
+        self.assertEqual(warm.chats,[]);self.assertEqual(again['topics'],result['topics'])
+
+    def test_native_list_mask_is_positional_and_rejects_every_non_list_numeric_or_text_change(self):
+        original='عنوان. -1 حكم موثق. -2 تفصيل محفوظ.'
+        primary='عنوان. ١- حكم موثق. ٢- تفصيل محفوظ.'
+        self.assertEqual(image._native_list_layout(original,primary)['values'],[1,2])
+        pairs=[(original,'عنوان. 2- حكم موثق. 1- تفصيل محفوظ.'),
+               (original,'عنوان. 1- حكم موثق. 2- تفصيل محفوظ. 3- زيادة.'),
+               (original,'عنوان. 1- حكم موثق.'),
+               (original,'عنوان. 1 حكم موثق. 2 تفصيل محفوظ.'),
+               (original,'عنوان حكم. 1- موثق. 2- تفصيل محفوظ.'),
+               (original,'عنوان. 1- حكم غير موثق. 2- تفصيل محفوظ.'),
+               (original,'عنوان. 1- حكم موثق 7. 2- تفصيل محفوظ.'),
+               ('عنوان. -1 إنما الحكم. -2 بيان موثق.','عنوان. 1- إن ما الحكم. 2- بيان موثق.'),
+               ('عنوان. -1 المُكرِه حاضر. -2 بيان موثق.','عنوان. 1- المُكرَه حاضر. 2- بيان موثق.'),
+               ('عنوان. -1 المكره حاضر. -2 بيان موثق.','عنوان. 1- المُكرِه حاضر. 2- بيان موثق.'),
+               ('عنوان. -1 أحكام الأيمان. -2 بيان موثق.','عنوان. 1- أحكام الإيمان. 2- بيان موثق.'),
+               ('عنوان. -1 لا يجب الحكم. -2 بيان موثق.','عنوان. 1- يجب الحكم. 2- بيان موثق.'),
+               ('تفسير الآيات1-3. وآيات2-4.','تفسير الآيات1،3. وآيات2،4.'),
+               ('1-3 تفسير موثق. 2-4 تفسير موثق.','1،3 تفسير موثق. 2،4 تفسير موثق.'),
+               ('القيمة -1 درهم. والكمية -2 درهم.','القيمة 1- درهم. والكمية 2- درهم.'),
+               ('القيمة: -1 درهم. الكمية: -2 درهم.','القيمة: 1- درهم. الكمية: 2- درهم.'),
+               ('عنوان. -1.5 مقدار. -2.5 مقدار.','عنوان. 1.5- مقدار. 2.5- مقدار.'),
+               ('عنوان. -01 حكم. -02 بيان.','عنوان. 1- حكم. 2- بيان.'),
+               (original,primary+' '+image.UNKNOWN)]
+        for native,visual in pairs:
+            with self.subTest(native=native,visual=visual):self.assertIsNone(image._native_list_layout(native,visual))
+        # Layout corroboration never alters the existing direct numeric agreement.
+        self.assertFalse(image._native_complete_match(original,primary))
+        self.assertIn(image.UNKNOWN,image._merge_text(original,primary,native=True))
+
+    def test_native_list_negative_prefix_markers_are_retained_and_unlocated_does_not_qualify(self):
+        native='عنوان. -1 شاهد ثابت. -2 شاهد آخر.';primary='عنوان. 1- شاهد ثابت. 2- شاهد آخر.'
+        for located in [True,False]:
+            source=self.extracted();source['topics'][0]['text']=native
+            if not located:source['topics'][0].pop('bbox')
+            caller=VisionCaller([answer({'t1':primary})]if located else[answer({'t1':primary}),answer({'t1':primary})])
+            with self.subTest(located=located):
+                result=image.verify_pdf_topics(self.native(str(located)+'.pdf'),source,self.cache/str(located),caller=caller)
+                self.assertEqual(result['topics'][0]['text'],native)
+                if located:
+                    self.assertEqual(result['topics'][0]['corrected_text'],native);self.assertEqual(len(caller.chats),1)
+                    self.assertIn('-1',result['topics'][0]['corrected_text']);self.assertNotIn('1-',result['topics'][0]['corrected_text'])
+                else:
+                    self.assertEqual(result['visual_verification_status'],'uncertain');self.assertIn(image.UNKNOWN,result['topics'][0]['corrected_text'])
+                    self.assertEqual(len(caller.chats),2)
+
+    def test_native_list_cache_requires_proof_and_rechecks_actual_raw_selected_native_and_image(self):
+        directory=image._directory(self.cache/'list-cache');native='عنوان. -1 شاهد ثابت. -2 شاهد آخر.';primary='عنوان. 1- شاهد ثابت. 2- شاهد آخر.'
+        anchor={'id':'t1','text':native,'pages':[1],'regions':[{'page':1,'bbox':[0,0,1000,1000]}]}
+        raw=answer({'t1':primary});saved=image._transcribe(directory,'list-key',[b'image'],'native',[anchor],VisionCaller([raw]),'gemma4:e4b',60,page_numbers=[1])
+        self.assertEqual(saved['rows'],[{'id':'t1','text':native}]);self.assertEqual(saved['native_list_corroborations'][0]['primary_text'],primary)
+        def loaded():return image._cache_load(directory,'list-key','native',['t1'],VisionCaller([]),native_rows=[anchor],images=[b'image'])
+        self.assertIsNotNone(loaded())
+        rawfile=directory/saved['responses'][0]['file'];raw_original=rawfile.read_bytes()
+        imagefile=directory/saved['native_list_corroborations'][0]['inputs'][0]['file'];image_original=imagefile.read_bytes()
+        for corruption in ['missing','primary','native','output','raw','image','layout','response','image_path']:
+            with self.subTest(corruption=corruption):
+                value=copy.deepcopy(saved);proof=value['native_list_corroborations'][0]
+                if corruption=='missing':value.pop('native_list_corroborations')
+                elif corruption=='primary':proof['primary_text']='unrelated'
+                elif corruption=='native':proof['native_text']=primary
+                elif corruption=='output':value['rows'][0]['text']=primary;value['rows_sha256']=image._json_sha(value['rows']);proof['selected_sha256']=image._sha(primary.encode())
+                elif corruption=='raw':
+                    changed=answer({'t1':primary.replace('1-','7-')});image._save(rawfile,changed)
+                    value['responses'][0]['sha256']=image._sha(rawfile.read_bytes());proof['response']=copy.deepcopy(value['responses'][0])
+                elif corruption=='image':imagefile.write_bytes(b'other');proof['inputs'][0]['sha256']=image._sha(b'other')
+                elif corruption=='layout':proof['layout']['values']=[1,3]
+                elif corruption=='response':proof['response']['file']='other.json'
+                else:proof['inputs'][0]['file']='../outside.png'
+                image._save(directory/'cache.json',value);self.assertIsNone(loaded())
+                rawfile.write_bytes(raw_original);imagefile.write_bytes(image_original)
+
+    def test_native_list_guard_keeps_uncertain_fallback_only_cache_and_raster_unchanged(self):
+        native='عنوان. -1 شاهد ثابت. -2 شاهد آخر.';visual='عنوان. 1- شاهد ثابت. 2- شاهد آخر.'
+        source=self.extracted();source['topics'][0]['text']=native;source['topics'][0].pop('bbox')
+        caller=VisionCaller([TimeoutError(),answer({'t1':visual})]);path=self.native()
+        result=image.verify_pdf_topics(path,source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'uncertain');self.assertIn(image.UNKNOWN,result['topics'][0]['corrected_text'])
+        warm=VisionCaller([]);cached=image.verify_pdf_topics(path,source,self.cache,caller=warm)
+        self.assertEqual(warm.chats,[]);self.assertEqual(cached['topics'],result['topics'])
+        self.assertIn(image.UNKNOWN,image._merge_rows([{'number':1,'text':native}],[{'number':1,'text':visual}],'image')[0]['text'])
+
+    def test_native_cell_fragments_cannot_skip_page_filled_by_another_row(self):
+        source=self._table_cap_source([1,2]);source['topics'][0]['fragments']=[{'page':3,'bbox':[10,20,300,100]}]
+        before=copy.deepcopy(source);caller=VisionCaller([])
+        result=image.verify_pdf_topics(self._table_cap_pdf('cell-gap-filled-table.pdf',pages=3),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'unavailable');self.assertEqual(result['topics'],before['topics']);self.assertEqual(caller.calls,[])
+
+    def test_native_list_allows_only_matching_single_parenthesized_title_integer(self):
+        native='عنوان الوحدة (1). -1 حكم موثق. -2 تفصيل محفوظ.'
+        visual='عنوان الوحدة (١). ١- حكم موثق. ٢- تفصيل محفوظ.'
+        proof=image._native_list_layout(native,visual)
+        self.assertEqual(proof['title_integer']['native']['canonical_digits'],'1')
+        self.assertEqual(proof['title_integer']['primary']['canonical_digits'],'1')
+        for changed in [visual.replace('(١)','(٢)'),visual.replace(' (١)',''),
+                        visual.replace('(١)','١'),visual.replace('(١)','(١)(٢)'),
+                        visual.replace('(١)','(١-٣)'),visual.replace('(١)','(١.٥)'),
+                        visual.replace('(١)','[١]'),visual.replace('(١)','(٠١)'),
+                        visual.replace('حكم موثق','حكم (١) موثق'),
+                        visual.replace('عنوان الوحدة (١).','(١) عنوان الوحدة.')]:
+            with self.subTest(changed=changed):self.assertIsNone(image._native_list_layout(native,changed))
+        self.assertIsNone(image._native_list_layout('عنوان. -1 حكم (1). -2 بيان.', 'عنوان. 1- حكم (1). 2- بيان.'))
+        source=self.extracted();source['topics'][0]['text']=native
+        caller=VisionCaller([answer({'t1':visual})]);result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(result['topics'][0]['corrected_text'],native)
+        self.assertEqual(len(caller.chats),1)
+
+    def test_native_title_integer_is_revalidated_in_selected_native_cache_proof(self):
+        native='عنوان الوحدة (1). -1 حكم موثق. -2 بيان واضح.'
+        primary='عنوان الوحدة (١). ١- حكم موثق. ٢- بيان واضح.'
+        directory=image._directory(self.cache/'header-cache')
+        anchor={'id':'t1','text':native,'pages':[1],'regions':[{'page':1,'bbox':[0,0,1000,1000]}]}
+        saved=image._transcribe(directory,'header-key',[b'image'],'native',[anchor],VisionCaller([answer({'t1':primary})]),'gemma4:e4b',60,page_numbers=[1])
+        self.assertEqual(saved['rows'],[{'id':'t1','text':native}])
+        self.assertEqual(saved['native_list_corroborations'][0]['layout']['title_integer']['native']['digits'],'1')
+        self.assertIsNotNone(image._cache_load(directory,'header-key','native',['t1'],VisionCaller([]),native_rows=[anchor],images=[b'image']))
+        saved['native_list_corroborations'][0]['layout']['title_integer']['primary']['canonical_digits']='2'
+        image._save(directory/'cache.json',saved)
+        self.assertIsNone(image._cache_load(directory,'header-key','native',['t1'],VisionCaller([]),native_rows=[anchor],images=[b'image']))
+
+    def _font_recovery_fixture(self,raw,topics,*,font='fixture-font-A'):
+        # Adapter fixture only. The separate font module's tests establish
+        # actual PDF/gid/origin/cmap reconstruction; these test consumer binding.
+        recovered=copy.deepcopy(topics);changes=[];records=[]
+        for item in recovered:
+            before=item.get('corrected_text')or item['text'];after=before.replace('(6)','(3)')
+            if before!=after:item['corrected_text']=after
+            edits=[{'page':item['page'],'font_xref':7,'font_sha256':font,'gid':764,'origin':[30,40],'old':'6','new':'3','old_codepoints':[54],'new_codepoints':[51]}]if before!=after else[]
+            changes.extend(edits);records.append({'id':item['id'],'status':'recovered'if edits else'unchanged','before':before,'after':after,'changes':edits})
+        return recovered,{'version':'fixture-font-recovery-v1','source_sha256':image._sha(raw),'input_topics_sha256':image._json_sha(topics),
+                          'output_topics_sha256':image._json_sha(recovered),'fonts':[{'xref':7,'sha256':font}],'topics':records}
+
+    def test_native_font_recovery_precedes_blind_reading_preserves_raw_and_binds_proof(self):
+        source=self.extracted();original='عنوان الوحدة (6). -1 حكم موثق. -2 بيان واضح.';source['topics'][0]['text']=original
+        before=copy.deepcopy(source);path=self.native();visual='عنوان الوحدة (٣).\n١- حكم موثق.\n٢- بيان واضح.'
+        caller=VisionCaller([answer({'t1':visual})])
+        with patch('scripts.equivalency.pdf_font_recovery.recover_topic_texts',side_effect=self._font_recovery_fixture)as recovery:
+            result=image.verify_pdf_topics(path,source,self.cache,caller=caller)
+        self.assertIsInstance(recovery.call_args.args[0],bytes);self.assertEqual(recovery.call_args.args[0],path.read_bytes())
+        self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(len(caller.chats),1)
+        self.assertEqual(result['topics'][0]['text'],original)
+        self.assertEqual(result['topics'][0]['corrected_text'],original.replace('(6)','(3)'))
+        self.assertEqual(source,before)
+        prompt=caller.chats[0][1]['messages'][1]['content']
+        for private_text in ('عنوان الوحدة (6)','عنوان الوحدة (3)','حكم موثق','بيان واضح'):
+            self.assertNotIn(private_text,prompt)
+        proof=result['visual_verification_proof'];recovered,expected=self._font_recovery_fixture(path.read_bytes(),source['topics'])
+        self.assertEqual(proof['original_input_sha256'],image._json_sha(source['topics']))
+        self.assertEqual(proof['input_topics_sha256'],image._json_sha(recovered));self.assertEqual(proof['native_font_recovery'],expected)
+        self.assertEqual(proof['numeric_disagreements'],[])
+        self.assertEqual(proof['cells'][0]['native_list_corroborations'][0]['native_text'],recovered[0]['corrected_text'])
+
+    def test_native_font_binding_rejects_identity_text_count_or_hash_tamper_before_reader(self):
+        source=self.extracted();source['topics'][0]['text']='عنوان الوحدة (6). -1 حكم. -2 بيان.';before=copy.deepcopy(source);path=self.native()
+        for mutation in ('pdf','input','output','id','text','count'):
+            def recovery(raw,topics):
+                recovered,proof=self._font_recovery_fixture(raw,topics)
+                if mutation=='pdf':proof['source_sha256']='wrong'
+                elif mutation=='input':proof['input_topics_sha256']='wrong'
+                elif mutation=='output':proof['output_topics_sha256']='wrong'
+                elif mutation=='id':recovered[0]['id']='other'
+                elif mutation=='text':recovered[0]['text']='rewritten raw'
+                else:recovered=[]
+                return recovered,proof
+            with self.subTest(mutation=mutation),patch('scripts.equivalency.pdf_font_recovery.recover_topic_texts',side_effect=recovery):
+                caller=VisionCaller([]);result=image.verify_pdf_topics(path,source,self.cache/mutation,caller=caller)
+                self.assertEqual(result['visual_verification_status'],'unavailable');self.assertEqual(caller.calls,[])
+                self.assertEqual(result['topics'],before['topics'])
+        self.assertEqual(source,before)
+
+    def test_native_font_provenance_separates_cache_and_retains_recovery_on_visual_failure(self):
+        source=self.extracted();source['topics'][0]['text']='عنوان الوحدة (6). -1 حكم. -2 بيان.';path=self.native()
+        visual='عنوان الوحدة (3). 1- حكم. 2- بيان.'
+        with patch('scripts.equivalency.pdf_font_recovery.recover_topic_texts',side_effect=self._font_recovery_fixture):
+            first=image.verify_pdf_topics(path,source,self.cache,caller=VisionCaller([answer({'t1':visual})]))
+            stored={p:p.read_bytes()for p in self.cache.rglob('*')if p.is_file()}
+            warm=VisionCaller([]);again=image.verify_pdf_topics(path,source,self.cache,caller=warm)
+            self.assertEqual(warm.chats,[]);self.assertEqual(first['topics'],again['topics'])
+        with patch('scripts.equivalency.pdf_font_recovery.recover_topic_texts',side_effect=lambda raw,topics:self._font_recovery_fixture(raw,topics,font='fixture-font-B')):
+            caller=VisionCaller([answer({'t1':visual})]);changed=image.verify_pdf_topics(path,source,self.cache,caller=caller)
+        self.assertEqual(len(caller.chats),1);self.assertNotEqual(first['visual_verification_cache_key'],changed['visual_verification_cache_key'])
+        self.assertTrue(all(p.read_bytes()==raw for p,raw in stored.items()))
+        with patch('scripts.equivalency.pdf_font_recovery.recover_topic_texts',side_effect=self._font_recovery_fixture):
+            failed=image.verify_pdf_topics(path,source,self.cache/'failed',caller=VisionCaller([TimeoutError(),TimeoutError()]))
+        self.assertEqual(failed['visual_verification_status'],'unavailable');self.assertFalse(failed['reviewed'])
+        self.assertEqual(failed['topics'][0]['text'],source['topics'][0]['text'])
+        self.assertEqual(failed['topics'][0]['corrected_text'],source['topics'][0]['text'].replace('(6)','(3)'))
+        self.assertIn('native_font_recovery',failed['visual_verification_proof'])
