@@ -1,5 +1,5 @@
 {
-  "status": "scope_narrowed_positive_support_grammar_fix_pending_activation_and_C10_existing_source_retry",
+  "status": "positive_support_fix_live_C10R3_equivalent_verified_remaining_source_holds_and_trio_incomplete",
   "baseline_commit": "6f4025e",
   "policy": {
     "course_coverage": 80,
@@ -743,6 +743,45 @@
     "next_only": "C10 existing verified source retry after deployment",
     "other_cases": "HOLD",
     "node_chrome_tests": 202,
-    "node_chrome_skips": 0
+    "node_chrome_skips": 0,
+    "status": "live_real_regression_passed",
+    "commit": "afa596326510c24fd65485f9045fb37c8fc09a5d",
+    "deploy_id": "6aeac13e222ae336f4633668",
+    "CI_run": 41778857169,
+    "CI": "success"
+  },
+  "C10R3_existing_verified_source": {
+    "job_id": "095ff0ab08f45e8d8df0ecc2bdb31179",
+    "source_id": "a07446dc3e6aea45bfb05b272fe99073",
+    "source_owner_and_proof_preserved": true,
+    "target_id": "09e281074fd4dc062c42",
+    "context_id": "8ac71e3d33dc3143",
+    "source_POSTs": 0,
+    "search_POSTs": 0,
+    "compare_POSTs": 1,
+    "provider": "curriculum_evidence",
+    "decision": "equivalent",
+    "strict_count": 12,
+    "lenient_count": 12,
+    "target_original_topics": 14,
+    "strict_coverage": 85.71428571428571,
+    "lenient_coverage": 85.71428571428571,
+    "parts_academically_reviewed": 70,
+    "literal_quotes_verified": 110,
+    "fresh_model_requests": 8,
+    "attempts": 8,
+    "validation_errors": 0,
+    "engine_seconds": 1033.44,
+    "expanded_discovery": false,
+    "PDF_pages": 4,
+    "root_viewed_all_PDF_pages": true,
+    "report_sha256": "9aef61de4e777f76a7ac03e028ce526665f0c4b10942038694d142ec293a17f8",
+    "final_validation_sha256": "217795aaccfc6e0e9af0936cc9dcfb3215e0eadf5dcec805159f596d503f92e4",
+    "not_blind_or_general_accuracy_proof": true,
+    "minor_wording_limits_preserved": true,
+    "independent_visual_all_pages_mobile_offline_HTML": true,
+    "offline_mobile_table_client_width": 322,
+    "offline_mobile_table_scroll_width": 322,
+    "no_clipping_or_overlap": true
   }
 }
