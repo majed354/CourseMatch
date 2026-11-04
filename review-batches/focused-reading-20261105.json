@@ -1,5 +1,5 @@
 {
-  "status": "verified_local_pending_activation",
+  "status": "live_ready_bounded_two_file_trial_complete_both_sources_still_uncertain",
   "scope": "Only the previously stopped C06/C08 source PDFs; no academic comparisons or new cases",
   "native_protocol": "native-cell-v13-focused-disagreement-resolution",
   "resolution_protocol": "focused-reading-v1-independent-context-witnesses",
@@ -61,7 +61,53 @@
     },
     "source_PDF_IDs_order_raw_text_geometry_unchanged": true,
     "warm_additional_model_calls": 0,
-    "old_source_operations_and_reports_untouched": true
+    "old_source_operations_and_reports_untouched": true,
+    "full_source_CPU_replay_results": [
+      {
+        "case": "C06",
+        "source_sha256": "5f625e1c422509a10fd060918d764b86bbf12443af3608b0086a69d78886ad55",
+        "native_protocol": "native-cell-v13-focused-disagreement-resolution",
+        "source_original_bytes_unchanged": true,
+        "topics": 9,
+        "original_IDs_order_text_geometry_unchanged": true,
+        "status": "uncertain",
+        "remaining_unknown_rows": [
+          "t1"
+        ],
+        "resolved_rows": [
+          "t2",
+          "t3"
+        ],
+        "warm_result_exact": true,
+        "warm_inference_calls": 0,
+        "historical_baseline_replays": 18,
+        "fresh_focused_reading_replays": 3,
+        "new_model_calls": 0
+      },
+      {
+        "case": "C08",
+        "source_sha256": "6e3ac515ca1411a10972c230884d80cdfa112cad83114b5e53354892a57c8cb4",
+        "native_protocol": "native-cell-v13-focused-disagreement-resolution",
+        "source_original_bytes_unchanged": true,
+        "topics": 15,
+        "original_IDs_order_text_geometry_unchanged": true,
+        "status": "uncertain",
+        "remaining_unknown_rows": [
+          "t11",
+          "t12",
+          "t13",
+          "t15"
+        ],
+        "resolved_rows": [
+          "t14"
+        ],
+        "warm_result_exact": true,
+        "warm_inference_calls": 0,
+        "historical_baseline_replays": 24,
+        "fresh_focused_reading_replays": 5,
+        "new_model_calls": 0
+      }
+    ]
   },
   "independent_review": "Adversarial code review caught numeric symbols, proof stripping and displaced/negated OCR contexts; counterexamples now tested. All eight actual enlarged readings and nine source images independently inspected.",
   "limitations": [
@@ -88,5 +134,19 @@
         "status": "uncertain"
       }
     ]
+  },
+  "release": {
+    "commit": "fcc242a45c3663d4e22c7e5e40a4f66d363b585f",
+    "deploy_id": "6aebaa80eb09ba3667723012",
+    "state": "ready",
+    "error_message": null,
+    "public_four_files_byte_identical": true,
+    "healthz_public_tunnel_loopback": 200,
+    "CI_run": 41920958023,
+    "CI": "success",
+    "only_own_two_workers_restarted": true,
+    "API_models_tunnel_awake_and_env_preserved": true,
+    "new_uploads_use_improvement": true,
+    "old_source_operations_and_reports_unchanged": true
   }
 }
