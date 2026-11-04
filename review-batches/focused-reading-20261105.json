@@ -1,0 +1,92 @@
+{
+  "status": "verified_local_pending_activation",
+  "scope": "Only the previously stopped C06/C08 source PDFs; no academic comparisons or new cases",
+  "native_protocol": "native-cell-v13-focused-disagreement-resolution",
+  "resolution_protocol": "focused-reading-v1-independent-context-witnesses",
+  "steps": [
+    "Retain the original two readings and unresolved baseline",
+    "Reread only the affected located cell and all its continuation images, enlarged 2x",
+    "Show spatial IDs and images only; never the competing text",
+    "Require independent Tesseract literal witnesses with immediate matching neighbours and exact prefix/suffix boundaries",
+    "Revalidate source/model/image/raw hashes and recompute derivation on cache load"
+  ],
+  "bounds": {
+    "extra_local_model_reads_per_unresolved_cell": 1,
+    "local_model_timeout_seconds": 120,
+    "OCR_timeout_per_image_seconds": 15,
+    "numeric_or_symbolic_changes": "prohibited",
+    "unknown_or_unproved_text": "remains uncertain"
+  },
+  "validation": {
+    "python_tests": 678,
+    "node_chrome_tests": 202,
+    "node_chrome_skips": 0,
+    "import_PDFs": 448,
+    "import_appearances": 993,
+    "import_contexts": 21,
+    "final_gate_pending": false,
+    "python_skips": 0,
+    "independent_safety_checks": 16,
+    "independent_safety_audit_sha256": "cfba9af1fe051dd69253c15fc07ac8f5948319d731d991c5d2aa466b4b96ffbc"
+  },
+  "experiment": {
+    "files": 2,
+    "previously_uncertain_rows": 8,
+    "new_image_only_model_calls": 8,
+    "fresh_reading_seconds": 160.76,
+    "baseline_readings_replayed_with_original_hashes": 42,
+    "new_full_PDF_OCR_runs": 0,
+    "new_uploads": 0,
+    "new_searches": 0,
+    "new_comparisons": 0,
+    "resolved_rows": {
+      "C06": [
+        "t2",
+        "t3"
+      ],
+      "C08": [
+        "t14"
+      ]
+    },
+    "remaining_uncertain_rows": {
+      "C06": [
+        "t1"
+      ],
+      "C08": [
+        "t11",
+        "t12",
+        "t13",
+        "t15"
+      ]
+    },
+    "source_PDF_IDs_order_raw_text_geometry_unchanged": true,
+    "warm_additional_model_calls": 0,
+    "old_source_operations_and_reports_untouched": true
+  },
+  "independent_review": "Adversarial code review caught numeric symbols, proof stripping and displaced/negated OCR contexts; counterexamples now tested. All eight actual enlarged readings and nine source images independently inspected.",
+  "limitations": [
+    "Both files remain incomplete; no academic judgment was generated",
+    "Repeated readings by the same model are not counted as independent votes",
+    "OCR corruption, explicit vowel conflicts or insufficient local context remain unresolved",
+    "Local source replay combines frozen baseline reads with fresh image-only rereads; it is not a new public source operation"
+  ],
+  "private_evidence_root": "runtime/service/qa/focused-reading-20261105/",
+  "final_code_warm_proof": {
+    "module_sha256": "546f660dfb89b6d80180afa18f1a5044ceff0d981bbfaa4d8143d263b18886ed",
+    "image_input_sha256": "0fc2b66a973cce84c777d2ddc475ca5c818e1b5b896b669df41f468dc9989f43",
+    "results": [
+      {
+        "case": "C06",
+        "exact_source_output": true,
+        "additional_inference_calls": 0,
+        "status": "uncertain"
+      },
+      {
+        "case": "C08",
+        "exact_source_output": true,
+        "additional_inference_calls": 0,
+        "status": "uncertain"
+      }
+    ]
+  }
+}

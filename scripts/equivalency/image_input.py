@@ -4,7 +4,8 @@ Browser image PDFs are a single raster page. Native-PDF checking is best effort:
 keep original rows on failure. Every chat response is saved before validation.
 Image intake uses one layout call, one cropped-table reading, and one
 independent cropped reading for numeric/content checks. Native checks
-read each original cell independently, with at most one fallback per cell.
+read each original cell independently, with one fallback and at most one
+focused reread for unresolved, located, nonnumeric cells.
 """
 from __future__ import annotations
 
@@ -32,7 +33,7 @@ from .engine import local_model, post_ollama
 from .extract import norm
 
 VERSION = 'image-input-local-vision-v6-independent-reading'
-NATIVE_PROTOCOL_VERSION = 'native-cell-v12-geometry-bound-list-segments'
+NATIVE_PROTOCOL_VERSION = 'native-cell-v13-focused-disagreement-resolution'
 FALLBACK_MODEL = 'qwen3.8:27b-q8_0'
 MAX_PIXELS = 32_000_000
 MAX_DIMENSION = 12_000
@@ -765,8 +766,34 @@ def _cache_load(directory, key, mode, expected_ids, caller, *, native_rows=None,
         for proof in saved['responses']:
             if _sha((directory/proof['file']).read_bytes())!=proof['sha256']:raise ValueError('stale_raw_response')
         if mode=='native':
-            _validate_boundary_proofs(directory,saved,native_rows,images)
-            _validate_native_list_proofs(directory,saved,native_rows,images)
+            if 'focused_resolution' not in saved:raise ValueError('missing_focused_resolution_state')
+            if not 1<=len(saved['responses'])<=2:raise ValueError('invalid_native_reader_count')
+            focused=saved['focused_resolution'];baseline=copy.deepcopy(saved)
+            if focused:baseline['rows']=focused['baseline_rows']
+            _validate_boundary_proofs(directory,baseline,native_rows,images)
+            _validate_native_list_proofs(directory,baseline,native_rows,images)
+            if (len(native_rows or [])==1 and len(saved['responses'])==1 and
+                not baseline.get('boundary_corroborations') and not baseline.get('native_list_corroborations') and
+                all(UNKNOWN not in row['text'] for row in baseline['rows'])):
+                anchor=native_rows[0];actual,_=_raw_native_reading(directory,saved['responses'][0],anchor['id'])
+                if not _native_complete_match(anchor['text'],actual):raise ValueError('uncorroborated_single_reader_cache')
+            # Rebuild the ordinary two-reader result before trusting a focused
+            # proof. Removing its proof/response must never preserve its text.
+            if len(native_rows or [])==1 and len(saved['responses'])==2 and not baseline.get('native_list_corroborations'):
+                anchor=native_rows[0];tid=anchor['id']
+                first,_=_raw_native_reading(directory,saved['responses'][0],tid)
+                second,_=_raw_native_reading(directory,saved['responses'][1],tid)
+                if _native_list_frames(anchor['text'],_raw_native_reading(directory,saved['responses'][0],tid)[1],anchor.get('native_layout_text')):
+                    expected=anchor['text'] if UNKNOWN in anchor['text'] else anchor['text']+' '+UNKNOWN
+                else:expected=_native_three_way_text(anchor['text'],first,second) or _merge_text(first,second,native=True)
+                if _native_pdf_marks_conflict(anchor,expected):expected=anchor['text'] if UNKNOWN in anchor['text'] else anchor['text']+' '+UNKNOWN
+                if anchor.get('unlocated_pages'):
+                    expected=next((r for r in (first,second)if _native_complete_match(anchor['text'],r)),anchor['text'] if UNKNOWN in anchor['text'] else anchor['text']+' '+UNKNOWN)
+                if baseline['rows']!=[{'id':tid,'text':expected}]:raise ValueError('stale_native_baseline')
+            if focused:
+                if len(native_rows or [])!=1 or len(saved['responses'])!=2 or baseline.get('native_list_corroborations'):raise ValueError('invalid_focused_scope')
+                from .reading_resolution import validate
+                validate(directory,focused,images,native_rows[0],first,second,saved['rows'],caller)
             anchors={row['id']:row for row in native_rows or []}
             if any(_native_pdf_marks_conflict(anchors[row['id']],row['text']) for row in saved['rows']):raise ValueError('cached_pdf_explicit_mark_conflict')
         # Revalidate cached merged rows as strictly as fresh rows.
@@ -777,7 +804,7 @@ def _cache_load(directory, key, mode, expected_ids, caller, *, native_rows=None,
 
 def _transcribe(directory,key,images,mode,native_rows,caller,model,timeout,page_numbers=None,fallback_timeout=None):
     ids=[r['id'] for r in native_rows] if mode=='native' else None
-    protocol={'native_protocol_version':NATIVE_PROTOCOL_VERSION} if mode=='native' else {}
+    protocol={'native_protocol_version':NATIVE_PROTOCOL_VERSION,'focused_resolution':None} if mode=='native' else {}
     cached=_cache_load(directory,key,mode,ids,caller,native_rows=native_rows,images=images)
     if cached is not None:return cached
     identities=[];responses=[];first=None;failure=None;boundary_proofs={};list_proofs={};list_state={}
@@ -856,6 +883,14 @@ def _transcribe(directory,key,images,mode,native_rows,caller,model,timeout,page_
                 row['text']=matching if matching is not None else original if UNKNOWN in original else original+' '+UNKNOWN
         result={'version':VERSION,**protocol,'key':key,'rows':rows,'rows_sha256':_json_sha(rows),'identities':identities,'responses':responses}
         if composed_proof is not None:result['native_list_corroborations']=[composed_proof]
+        if (mode=='native' and len(native_rows)==1 and first is not None and
+            any(UNKNOWN in row['text'] for row in rows) and not list_state.get('frame_valid')):
+            from .reading_resolution import resolve
+            focused=resolve(directory,images,native_rows[0],first[0]['text'],second[0]['text'],rows,caller,model)
+            result['focused_resolution']=focused
+            if focused and focused['status']=='resolved':
+                result['rows']=[{'id':native_rows[0]['id'],'text':focused['candidate']}]
+                result['rows_sha256']=_json_sha(result['rows'])
         _save(directory/'cache.json',result);return result
     except Exception as error:
         # Retain a valid primary transcription with explicit uncertainty. Native
@@ -1200,6 +1235,15 @@ def verify_pdf_topics(path,extracted,cache_dir,model='gemma4:e4b',*,caller=None)
                     if identity not in reading['identities']:reading['identities'].append(identity)
                 for response in value['responses']:
                     reading['responses'].append({**response,'file':str((cell_directory/response['file']).relative_to(directory))})
+                focused=value.get('focused_resolution')
+                if focused:
+                    cell['focused_resolution']=copy.deepcopy(focused)
+                    for field in ('inputs','zooms','responses','ocr_raws'):
+                        for record in cell['focused_resolution'][field]:
+                            record['file']=str((cell_directory/record['file']).relative_to(directory))
+                    for identity in focused['identities']:
+                        if identity not in reading['identities']:reading['identities'].append(identity)
+                    reading['responses'].extend(copy.deepcopy(cell['focused_resolution']['responses']))
         previous_excluded=result.setdefault('excluded_rows',[]);checked=[];numeric_disagreements=[]
         for topic,row in zip(topics,reading['rows']):
             record=copy.deepcopy(topic);record['corrected_text']=row['text'];record['visual_transcription_origin']='local_vision_transcription'
