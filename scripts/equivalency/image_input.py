@@ -19,6 +19,8 @@ import math
 import os
 from pathlib import Path
 import re
+import shutil
+import subprocess
 import tempfile
 import time
 import unicodedata
@@ -30,7 +32,7 @@ from .engine import local_model, post_ollama
 from .extract import norm
 
 VERSION = 'image-input-local-vision-v6-independent-reading'
-NATIVE_PROTOCOL_VERSION = 'native-cell-v7-unlocated-native-binding'
+NATIVE_PROTOCOL_VERSION = 'native-cell-v9-independent-boundary-witness'
 FALLBACK_MODEL = 'qwen3.8:27b-q8_0'
 MAX_PIXELS = 32_000_000
 MAX_DIMENSION = 12_000
@@ -160,6 +162,21 @@ def _native_agreement_text(text, *, punctuation):
     return ' '.join(text.split())
 
 
+def _native_comparison_key(text, *, punctuation, spelling=True):
+    """Comparison only: keep raw readings and all other explicit marks intact.
+
+    Non-numeric native rows allow Persian kaf as a glyph variant of Arabic kaf,
+    and fathatan immediately beside an already-present word-final plain alef.
+    This neither supplies an alef nor removes other vowels or marked alefs.
+    """
+    text=_native_agreement_text(text,punctuation=punctuation)
+    if spelling and not any(c.isdigit() for c in text):
+        text=text.replace('\u06a9','\u0643')
+        text=re.sub(r'([\u0621-\u063a\u0641-\u064a][\u064c-\u065f]*)(?:ا\u064b|\u064bا)(?![\w\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed])',
+                    lambda match:match.group(1)+'ا',text)
+    return text
+
+
 def _native_explicit_marks_conflict(values):
     def marked(value):
         letters=[];marks={}
@@ -181,12 +198,13 @@ def _native_explicit_marks_conflict(values):
 
 
 def _native_readings_agree(first, second, *, punctuation):
-    a=_native_agreement_text(first,punctuation=punctuation)
-    b=_native_agreement_text(second,punctuation=punctuation)
+    spelling=not any(c.isdigit() for c in first+second)
+    a=_native_comparison_key(first,punctuation=punctuation,spelling=spelling)
+    b=_native_comparison_key(second,punctuation=punctuation,spelling=spelling)
     marked_alefs={'أ','إ','آ','ٱ'}
     # A bare alef may be an omitted mark in one reading. Two different explicit
     # marks are conflicting evidence (الأيمان / الإيمان), never canonical noise.
-    return not _native_explicit_marks_conflict([first,second]) and len(a)==len(b) and all(x==y or (x=='ا' and y in marked_alefs) or
+    return not _native_explicit_marks_conflict([a,b]) and len(a)==len(b) and all(x==y or (x=='ا' and y in marked_alefs) or
                                  (y=='ا' and x in marked_alefs) for x,y in zip(a,b))
 
 
@@ -198,7 +216,9 @@ def _merge_text(first, second, native=False):
         punctuation=not any(c.isdigit() for c in first+second)
         if _native_readings_agree(first,second,punctuation=punctuation):return first
     words=lambda s:re.findall(r'\[غير واضح\]|\S+',s)
-    a,b=words(first),words(second);ak,bk=[_native_agreement_text(x,punctuation=False) if native else norm(x) for x in a],[_native_agreement_text(x,punctuation=False) if native else norm(x) for x in b];result=[]
+    spelling=not any(c.isdigit() for c in first+second)
+    key=lambda text:_native_comparison_key(text,punctuation=False,spelling=spelling) if native else norm(text)
+    a,b=words(first),words(second);ak,bk=[key(x) for x in a],[key(x) for x in b];result=[]
     for op,i,j,k,l in SequenceMatcher(a=ak,b=bk,autojunk=False).get_opcodes():
         if op=='equal':result.extend(a[i:j])
         elif a[i:j] and all(x==UNKNOWN for x in a[i:j]) and b[k:l]:result.extend(b[k:l])
@@ -220,7 +240,7 @@ def _native_three_way_text(native,first,second):
     replacements=[]
     for items in zip(*words):
         values=[m.group() for m in items]
-        conflict=_native_explicit_marks_conflict(values)
+        conflict=_native_explicit_marks_conflict([_native_comparison_key(value,punctuation=False) for value in values])
         chosen=None
         if not conflict:
             for a,b in ((1,2),(1,0),(2,0)):
@@ -237,6 +257,114 @@ def _native_complete_match(original,reading):
     """An unlocated cell needs an actual reader corroborating its full native text."""
     if UNKNOWN in original or UNKNOWN in reading:return False
     return _native_readings_agree(original,reading,punctuation=not any(c.isdigit() for c in original+reading))
+
+
+def _boundary_phrases(original, primary):
+    """Locate spacing-only edits, without accepting them as text agreement."""
+    if UNKNOWN in original+primary or any(c.isdigit() or unicodedata.category(c).startswith('S') for c in original+primary):return None
+    a,b=(_native_comparison_key(text,punctuation=True) for text in (original,primary))
+    if a==b or a.replace(' ','')!=b.replace(' ',''):return None
+    words=b.split();tokens=list(re.finditer(r'[^\W\d_]+(?:[\u0300-\u036f\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed]+[^\W\d_]*)*',primary))
+    if [_native_comparison_key(t.group(),punctuation=True) for t in tokens]!=words:return None
+    def boundaries(text):
+        points=[];offset=0
+        for word in text.split()[:-1]:offset+=len(word);points.append(offset)
+        return set(points)
+    offsets=sorted(boundaries(a)^boundaries(b));spans=[];offset=0
+    for word in words:spans.append((offset,offset+len(word)));offset+=len(word)
+    phrases=[]
+    for point in offsets:
+        touched=[i for i,(start,end) in enumerate(spans) if start<=point<=end]
+        lo=max(0,min(touched)-1);hi=min(len(words),max(touched)+2)
+        while hi-lo<3 and (lo or hi<len(words)):
+            if hi<len(words):hi+=1
+            elif lo:lo-=1
+        if hi-lo<3:return None
+        quote=primary[tokens[lo].start():tokens[hi-1].end()]
+        phrases.append({'boundary_offset':point,'primary_start':tokens[lo].start(),'primary_end':tokens[hi-1].end(),
+                        'quote':quote,'comparison_key':' '.join(words[lo:hi])})
+    # One surviving OCR occurrence cannot corroborate two repeated primary
+    # contexts. Ambiguous context abstains rather than expanding or guessing.
+    if any(len(list(re.finditer(r'(?<!\S)'+re.escape(phrase['comparison_key'])+r'(?!\S)',b)))!=1 for phrase in phrases):return None
+    return phrases or None
+
+
+def _tesseract_identity():
+    executable=shutil.which('tesseract')
+    if not executable:
+        executable=next((p for p in ('/opt/homebrew/bin/tesseract','/usr/local/bin/tesseract') if os.path.isfile(p) and os.access(p,os.X_OK)),None)
+    if not executable:raise ValueError('independent_boundary_reader_unavailable')
+    env={**os.environ,'OMP_THREAD_LIMIT':'1','OMP_NUM_THREADS':'1'}
+    version=subprocess.run([executable,'--version'],capture_output=True,check=True,timeout=5,env=env).stdout.decode().splitlines()[0]
+    languages=subprocess.run([executable,'--list-langs'],capture_output=True,check=True,timeout=5,env=env).stdout.decode()
+    match=re.search(r'in "([^"\n]+)"',languages)
+    if not match or 'ara' not in languages.splitlines():raise ValueError('independent_boundary_language_unverified')
+    data=Path(match.group(1)).resolve();trained=data/'ara.traineddata'
+    identity={'reader':'tesseract','version':version,'executable_sha256':_sha(Path(executable).read_bytes()),
+              'ara_traineddata_sha256':_sha(trained.read_bytes()),'language':'ara','psm':6,'omp_threads':1}
+    return str(Path(executable).resolve()),str(data),identity
+
+
+def _boundary_witnesses(phrases, text):
+    key=_native_comparison_key(text,punctuation=True)
+    return all(len(list(re.finditer(r'(?<!\S)'+re.escape(phrase['comparison_key'])+r'(?!\S)',key)))==1 for phrase in phrases)
+
+
+def _boundary_corroboration(directory, images, anchor, primary):
+    if anchor.get('unlocated_pages') or not anchor.get('regions'):return None
+    phrases=_boundary_phrases(anchor['text'],primary)
+    if not phrases:return None
+    identity=None;inputs=[];raws=[]
+    def record(status):
+        proof={'topic_id':anchor['id'],'native_sha256':_sha(anchor['text'].encode()),'primary_sha256':_sha(primary.encode()),
+               'identity':identity,'inputs':inputs,'raws':raws,'phrases':phrases}
+        _save(directory/f'boundary-attempt-{time.time_ns()}.json',{**proof,'status':status})
+        return proof
+    try:
+        executable,data,identity=_tesseract_identity();texts=[]
+        for i,content in enumerate(images):
+            name=f'boundary-input-{i+1}.png';_save(directory/name,content,binary=True)
+            inputs.append({'file':name,'sha256':_sha(content)})
+            result=subprocess.run([executable,str(directory/name),'stdout','--tessdata-dir',data,'-l','ara','--psm','6'],
+                                  capture_output=True,check=False,timeout=15,env={**os.environ,'OMP_THREAD_LIMIT':'1','OMP_NUM_THREADS':'1'})
+            name_raw=f'boundary-raw-{time.time_ns()}.txt';_save(directory/name_raw,result.stdout,binary=True)
+            raws.append({'file':name_raw,'sha256':_sha(result.stdout)})
+            if result.returncode:raise ValueError('independent_boundary_reader_failed')
+            if len(result.stdout)>1024*1024:raise ValueError('independent_boundary_output_limit')
+            texts.append(result.stdout.decode('utf-8'))
+        supported=_boundary_witnesses(phrases,'\n'.join(texts))
+        proof=record('supported' if supported else 'not_supported')
+        return proof if supported else None
+    except (OSError,ValueError,subprocess.SubprocessError):
+        if identity is not None:
+            try:record('unavailable')
+            except OSError:pass
+        return None
+
+
+def _validate_boundary_proofs(directory, saved, native_rows, images):
+    proofs=saved.get('boundary_corroborations',[])
+    if not proofs:
+        if len(native_rows or [])==1 and len(saved['rows'])==1 and len(saved['responses'])==1 and _boundary_phrases(native_rows[0]['text'],saved['rows'][0]['text']):raise ValueError('missing_boundary_proof')
+        return
+    if len(proofs)!=1 or len(native_rows or [])!=1:raise ValueError('invalid_boundary_proofs')
+    proof=proofs[0];anchor=native_rows[0]
+    if anchor.get('unlocated_pages') or not anchor.get('regions'):raise ValueError('unlocated_boundary_proof')
+    primary=next(r['text'] for r in saved['rows'] if r['id']==anchor['id'])
+    phrases=_boundary_phrases(anchor['text'],primary)
+    if not phrases or proof['topic_id']!=anchor['id'] or proof['phrases']!=phrases or proof['native_sha256']!=_sha(anchor['text'].encode()) or proof['primary_sha256']!=_sha(primary.encode()):raise ValueError('stale_boundary_text')
+    if _tesseract_identity()[2]!=proof['identity']:raise ValueError('stale_boundary_reader')
+    if len(proof['inputs'])!=len(images or []) or len(proof['raws'])!=len(images or []):raise ValueError('stale_boundary_image_count')
+    def verified(record):
+        name=record['file']
+        if not isinstance(name,str) or Path(name).name!=name:raise ValueError('invalid_boundary_path')
+        content=(directory/name).read_bytes()
+        if _sha(content)!=record['sha256']:raise ValueError('stale_boundary_file')
+        return content
+    for record,content in zip(proof['inputs'],images):
+        if verified(record)!=content:raise ValueError('stale_boundary_image')
+    text='\n'.join(verified(record).decode('utf-8') for record in proof['raws'])
+    if not _boundary_witnesses(phrases,text):raise ValueError('stale_boundary_witness')
 
 
 def _merge_rows(first,second,mode):
@@ -298,7 +426,7 @@ def _image_container(path):
     return raw,content,proof,blank
 
 
-def _cache_load(directory, key, mode, expected_ids, caller):
+def _cache_load(directory, key, mode, expected_ids, caller, *, native_rows=None, images=None):
     path=directory/'cache.json'
     try:
         saved=json.loads(path.read_text())
@@ -308,18 +436,19 @@ def _cache_load(directory, key, mode, expected_ids, caller):
             if _identity(identity['model'],caller)!=identity:raise ValueError('stale_model')
         for proof in saved['responses']:
             if _sha((directory/proof['file']).read_bytes())!=proof['sha256']:raise ValueError('stale_raw_response')
+        if mode=='native':_validate_boundary_proofs(directory,saved,native_rows,images)
         # Revalidate cached merged rows as strictly as fresh rows.
         _rows({'done_reason':'stop','message':{'content':json.dumps({'rows':saved['rows']},ensure_ascii=False)}},mode,expected_ids)
         return saved
-    except (OSError,ValueError,KeyError,TypeError):return None
+    except (OSError,ValueError,KeyError,TypeError,StopIteration,subprocess.SubprocessError):return None
 
 
 def _transcribe(directory,key,images,mode,native_rows,caller,model,timeout,page_numbers=None,fallback_timeout=None):
     ids=[r['id'] for r in native_rows] if mode=='native' else None
     protocol={'native_protocol_version':NATIVE_PROTOCOL_VERSION} if mode=='native' else {}
-    cached=_cache_load(directory,key,mode,ids,caller)
+    cached=_cache_load(directory,key,mode,ids,caller,native_rows=native_rows,images=images)
     if cached is not None:return cached
-    identities=[];responses=[];first=None;failure=None
+    identities=[];responses=[];first=None;failure=None;boundary_proofs={}
     try:
         identity=_identity(model,caller);identities.append(identity)
         first,proof=_chat(caller,directory,identity,images,mode,native_rows,timeout,responses)
@@ -327,11 +456,17 @@ def _transcribe(directory,key,images,mode,native_rows,caller,model,timeout,page_
         def changed_row(r,n):
             text=n.get('text','')
             if not any(c.isdigit() for c in r['text']+text) and UNKNOWN not in r['text']+text:
-                return not _native_readings_agree(r['text'],text,punctuation=True)
+                if _native_readings_agree(r['text'],text,punctuation=True):return False
+                if len(native_rows)==1 and mode=='native':
+                    if n['id'] not in boundary_proofs:boundary_proofs[n['id']]=_boundary_corroboration(directory,images,n,r['text'])
+                    if boundary_proofs[n['id']] is not None:return False
+                return True
             return _native_agreement_text(r['text'],punctuation=False)!=_native_agreement_text(text,punctuation=False)
         changed=mode=='native' and any(changed_row(r,n) for r,n in zip(first,native_rows))
         if not uncertain and not changed:
-            result={'version':VERSION,**protocol,'key':key,'rows':first,'rows_sha256':_json_sha(first),'identities':identities,'responses':responses};_save(directory/'cache.json',result);return result
+            result={'version':VERSION,**protocol,'key':key,'rows':first,'rows_sha256':_json_sha(first),'identities':identities,'responses':responses}
+            if any(boundary_proofs.values()):result['boundary_corroborations']=[proof for proof in boundary_proofs.values() if proof is not None]
+            _save(directory/'cache.json',result);return result
     except Exception as error:failure=type(error).__name__
     # One fallback only. Keep every row on affected pages as a spatial anchor.
     # A row continuing onto another page brings that entire page into scope;
@@ -671,6 +806,11 @@ def verify_pdf_topics(path,extracted,cache_dir,model='gemma4:e4b',*,caller=None)
                     reading['responses'].extend({**response,'file':str((cell_directory/response['file']).relative_to(directory))} for response in failed['responses'])
                     raise
                 reading['rows'].extend(value['rows']);cell['status']='completed'
+                if value.get('boundary_corroborations'):
+                    cell['boundary_corroborations']=copy.deepcopy(value['boundary_corroborations'])
+                    for corroboration in cell['boundary_corroborations']:
+                        for entry in corroboration['inputs']+corroboration['raws']:
+                            entry['file']=str((cell_directory/entry['file']).relative_to(directory))
                 for identity in value['identities']:
                     if identity not in reading['identities']:reading['identities'].append(identity)
                 for response in value['responses']:

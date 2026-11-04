@@ -100,6 +100,18 @@ class TransportTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'requires_https'):
             worker.Config('http://public.example', TOKEN, 'mac', local_url=LOCAL_CONFIG.local_url)
 
+    def test_vision_model_defaults_to_existing_reader_and_is_private_local_config(self):
+        self.assertEqual(CONFIG.vision_model, 'gemma4:e4b')
+        for model in (None, False, '', ' ', ':cloud', 'remote:CLOUD'):
+            with self.subTest(model=model), self.assertRaisesRegex(ValueError, 'vision_model_must_be_local'):
+                worker.Config(CONFIG.cloud_url, TOKEN, 'mac', vision_model=model)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'worker.env'
+            path.write_text('COURSEMATCH_CLOUD_URL=' + CONFIG.cloud_url + '\nCOURSEMATCH_WORKER_TOKEN=' + TOKEN + '\nCOURSEMATCH_WORKER_ID=mac\nCOURSEMATCH_VISION_MODEL=gemma4:31b\n')
+            path.chmod(0o600)
+            self.assertEqual(worker.Config.from_file(path, environ={}).vision_model, 'gemma4:31b')
+            self.assertEqual(worker.Config.from_file(path, environ={'COURSEMATCH_VISION_MODEL': 'gemma4:e4b'}).vision_model, 'gemma4:e4b')
+
     def test_local_destination_is_read_literally_from_private_file_and_environment(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / '.env.worker'
@@ -203,6 +215,7 @@ class ProcessorTests(WorkerFixture):
              patch('scripts.equivalency.image_input.verify_pdf_topics') as native:
             value=self.processor.process(task(payload={'has_pdf':True,'input_kind':'image','original_filename':'المقرر.png'}),cloud)
         image.assert_called_once();native.assert_not_called()
+        self.assertEqual(image.call_args.kwargs['model'], 'gemma4:e4b')
         self.assertEqual(value['source_media_kind'],'image');self.assertEqual(value['original_filename'],'المقرر.png')
         self.assertFalse(value['reviewed']);self.assertEqual(value['transcription_models'],result['transcription_models'])
         self.assertEqual(value['visual_spatial_proof'],result['visual_spatial_proof'])
@@ -234,6 +247,33 @@ class ProcessorTests(WorkerFixture):
         with patch('scripts.cloud_worker.compare',return_value=self.exact_evidence())as comparison:
             self.processor.process(self.compare_task(),Mock())
         self.assertNotIn('review_model',comparison.call_args.kwargs)
+
+    def test_private_vision_model_reaches_pdf_and_image_without_student_override(self):
+        config = worker.Config(CONFIG.cloud_url, TOKEN, 'mac', vision_model='gemma4:31b')
+        configured = worker.Worker(config, self.root, cloud=Mock())
+        self.assertEqual(configured.processor.vision_model, 'gemma4:31b')
+        self.assertEqual(configured.processor.model, config.model)
+        self.assertEqual(configured.processor.review_model, None)
+        raw = pdf_bytes('non-catalogue uploaded source')
+        result = {'source_sha256': __import__('hashlib').sha256(raw).hexdigest(),
+                  'topics': [{'id': 't1', 'text': 'محتوى أصلي محفوظ'}], 'warnings': [], 'reviewed': False}
+        for kind in ('pdf', 'image'):
+            with self.subTest(kind=kind), \
+                 patch('scripts.cloud_worker.extract_cached', return_value=copy.deepcopy(result)) as extraction, \
+                 patch('scripts.equivalency.image_input.verify_pdf_topics', side_effect=lambda path, source, cache, **kwargs: source) as native, \
+                 patch('scripts.equivalency.image_input.extract_image_pdf', return_value=copy.deepcopy(result)) as image:
+                value = configured.processor.process(task(payload={'has_pdf': True, 'input_kind': kind,
+                                                                  'vision_model': 'attacker:cloud'}),
+                                                     Mock(input_pdf=Mock(return_value=raw)))
+                if kind == 'pdf':
+                    native.assert_called_once(); image.assert_not_called()
+                    self.assertEqual(native.call_args.kwargs, {'model': 'gemma4:31b'})
+                    self.assertEqual(extraction.call_args.kwargs, {'vision': True})
+                else:
+                    image.assert_called_once(); native.assert_not_called(); extraction.assert_not_called()
+                    self.assertEqual(image.call_args.kwargs, {'model': 'gemma4:31b'})
+                self.assertEqual(value['topics'], result['topics'])
+                self.assertEqual(value['source_sha256'], result['source_sha256'])
 
     def test_invalid_ids_ownership_and_input_paths_are_rejected_before_file_access(self):
         for key, replacement in (('id', '../outside'), ('session_id', '../outside'), ('lease_token', 'invalid')):
@@ -271,7 +311,7 @@ class ProcessorTests(WorkerFixture):
             return {'source_sha256': worker.digest(path), 'topics': [{'id': 't1', 'text': marker}], 'warnings': [], 'local_path': '/Users/private/never-expose'}
         tasks = [task(payload={'has_pdf': True, 'name': 'مقرر أ'}), task(payload={'has_pdf': True, 'name': 'مقرر ب'}, key='b' * 32, session='2' * 64)]
         with patch('scripts.cloud_worker.extract_cached', side_effect=extracted) as extraction, \
-             patch('scripts.equivalency.image_input.verify_pdf_topics', side_effect=lambda path,value,cache:value):
+             patch('scripts.equivalency.image_input.verify_pdf_topics', side_effect=lambda path,value,cache,**kwargs:value):
             first, second = [self.processor.process(item, cloud) for item in tasks]
         self.assertNotIn('المستفيد الأول', json.dumps(second, ensure_ascii=False))
         self.assertNotIn('المستفيد الثاني', json.dumps(first, ensure_ascii=False))

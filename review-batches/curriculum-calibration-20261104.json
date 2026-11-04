@@ -1,5 +1,5 @@
 {
-  "status": "semantic_evidence_and_independent_model_release_preparation",
+  "status": "strong_vision_v9_frozen_602_python_202_node_public_activation_pending",
   "baseline_commit": "6f4025e",
   "policy": {
     "course_coverage": 80,
@@ -25,7 +25,7 @@
     "review_parts": 118,
     "topic_pages_visually_read": 26,
     "labels_given_to_model": false,
-    "new_case_comparisons_started": 1
+    "new_case_comparisons_started": 2
   },
   "prototype": {
     "kind": "development_on_known_KSU_case_pre_current_contract",
@@ -44,7 +44,7 @@
     "grade_inferred_from_facet_count": false
   },
   "verification_so_far": {
-    "python_last_full": 590,
+    "python_last_full": 602,
     "node_chrome_last_full": 202,
     "final_full_checks_pending": false
   },
@@ -83,7 +83,7 @@
     ],
     "whole_course_verdict_issued": false
   },
-  "new_cases_started": 1,
+  "new_cases_started": 2,
   "release": {
     "commit": "b7a7621be3519ed748110294d0985f3552a120ee",
     "deploy_id": "6aea58b2b650860330ae18d8",
@@ -151,7 +151,7 @@
       "PDF_pages": 3,
       "PDF_all_pages_viewed": true
     },
-    "new_cases_C02_through_C08_started": 0,
+    "new_cases_C02_through_C08_started": 1,
     "C01_cell_regression": {
       "status": "completed_diagnostic_academic_limits_preserved",
       "original_PDF": true,
@@ -185,7 +185,33 @@
         "old_valid_witnesses_lost_in_completion",
         "history_used_for_derivation_in_final_t3"
       ]
-    }
+    },
+    "C02_initial": {
+      "status": "insufficient_source_quality",
+      "source_topics": 12,
+      "target_topics": 10,
+      "source_visual_status": "uncertain",
+      "unknown_rows": 6,
+      "unknown_markers": 47,
+      "both_visual_readers_shared_lexical_error": true,
+      "native_and_original_correct_for_shared_error": true,
+      "images_reproduced_and_sha_matched": 13,
+      "source_PDF_unchanged": true,
+      "semantic_evidence_provider": "reference_pending",
+      "semantic_model_calls": 0,
+      "decision": "insufficient",
+      "strict_coverage": null,
+      "lenient_coverage": null,
+      "PDF_pages": 3,
+      "independent_orthogonal_reader_private_probe": {
+        "known_cells": 1,
+        "seconds": 0.264,
+        "read_shared_error_correctly": true,
+        "course_judgment_issued": false
+      },
+      "accepted_as_accuracy_demonstration": false
+    },
+    "C03_through_C09_POSTs": 0
   },
   "independent_CPU_audit": {
     "valid_boundary_cases": 25,
@@ -359,7 +385,7 @@
     "academic_terms_clarified_without_external_syllabus_injection": true,
     "independent_review_model_optional": true,
     "full_checks_pending": false,
-    "public_activation_pending": true,
+    "public_activation_pending": false,
     "python": 590,
     "node_chrome": 202,
     "skipped": 0,
@@ -374,5 +400,105 @@
     "new_model_calls": 0,
     "target_context": "القرآن وعلومه / بكالوريوس / قديمة39",
     "extends_original_baseline_without_mutation": true
+  },
+  "independent_review_release": {
+    "commit": "53321accbee6b91add8bdb4c6fdc401b57a6b028",
+    "deploy_id": "6aea7916fa8ee531b703fc34",
+    "state": "ready",
+    "error_message": null,
+    "public_bytes_match": true,
+    "CI_run": 41745220795,
+    "CI": "success",
+    "python": 590,
+    "node_chrome": 202,
+    "skipped": 0,
+    "first_deploy_failure": {
+      "id": "6aea78c7449817d4c6954992",
+      "state": "error",
+      "message": "Deploy canceled",
+      "CLI": "Internal Server Error"
+    },
+    "activation": {
+      "workers_restarted": true,
+      "API_models_tunnel_awake_preserved": true,
+      "primary": "qwen3.8:27b-q8_0",
+      "review": "gemma4:31b",
+      "roles_sequential": true
+    }
+  },
+  "vision_remediation": {
+    "status": "private_full_source_audited_orthographic_boundary_fix_in_progress",
+    "strong_reader": "gemma4:31b",
+    "five_blind_cell_seconds": [
+      21.316,
+      12.352,
+      12.847,
+      11.764,
+      23.914
+    ],
+    "five_cells_academically_read": true,
+    "strong_full_source": {
+      "source_rows": 12,
+      "images": 13,
+      "images_reproduced_and_SHA_matched": true,
+      "input_SHA_equals_public_native": true,
+      "model_calls": 17,
+      "seconds": 330.51,
+      "Gemma31_calls": 12,
+      "Qwen_calls": 5,
+      "raw_Gemma31_content_complete": true,
+      "raw_minor_spelling_differences_preserved": true,
+      "merged_status": "uncertain",
+      "remaining_unknown_markers": 4,
+      "remaining_unknown_rows": [
+        "t5",
+        "t7"
+      ],
+      "course_judgment_issued": false,
+      "independent_audit_sha256": "e30ca1ad481f2901fcaf07d3a839e0e6a46fcc55fddd59706f97cc38ca0b5c1d"
+    },
+    "bounded_spelling_changes": {
+      "comparison_only": true,
+      "fathatan_beside_existing_final_plain_alef": true,
+      "Persian_kaf_only": true,
+      "numeric_rows_unchanged": true,
+      "raw_or_primary_rewritten": false
+    },
+    "boundary_case": {
+      "native_and_strong_reader_all_letters_equal": true,
+      "Tesseract_confirms_unique_neighbor_context": true,
+      "Tesseract_cell_seconds": 0.09,
+      "generic_whitespace_equivalence_authorized": false
+    },
+    "private_config_pending": "COURSEMATCH_VISION_MODEL=gemma4:31b"
+  },
+  "pending_mobile_table_fix": {
+    "local_actual_C02_replay_passed": true,
+    "before_table_width": 420,
+    "after_table_width": 322,
+    "retained_target_rows": 10,
+    "report_text_content_unchanged": true,
+    "completed_mobile_unchanged": true,
+    "both_print_states_unchanged": true,
+    "new_academic_trial": false
+  },
+  "native_v9": {
+    "protocol": "native-cell-v9-independent-boundary-witness",
+    "python": 602,
+    "node_chrome": 202,
+    "skipped": 0,
+    "import_PDFs": 448,
+    "domain_guards_unchanged": true,
+    "calculation_unchanged": true,
+    "primary_vision_pending": "gemma4:31b",
+    "review_vision_role_separate_from_Qwen_proposal": true,
+    "unique_primary_and_Tesseract_context_required": true,
+    "Tesseract_identity_binds_binary_language_data_and_version": true,
+    "actual_Tesseract_helper_seconds": 0.089,
+    "actual_helper_original_cell_sha_matched": true,
+    "actual_helper_reuses_prior_blind_reading_only_for_private_diagnostic": true,
+    "fresh_whole_source_verified": false,
+    "new_public_verdict_issued": false,
+    "public_activation_pending": true
   }
 }

@@ -137,6 +137,14 @@ textarea[readonly]{background:#f5f8fa;border-color:#dce6eb;cursor:default}.refer
 .curriculum-details-table .source-quotation{margin:4px 0;white-space:pre-line}.curriculum-details-table .source-quotation+.source-quotation{padding-top:4px}
 .curriculum-accounting{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}.curriculum-account{font-size:9px;padding:3px 6px;border-radius:4px;background:#eef2f5;color:#526b79}.curriculum-account.strict{background:#e6f4f0;color:#076466}.curriculum-account.lenient{background:#fbf2dd;color:#78591a}.witness-pending{display:block;font-size:9px;color:#78591a;margin-bottom:7px}
 @media screen and (max-width:700px){.equivalency-report .details-table.curriculum-details-table{min-width:580px}}
+@media screen and (max-width:700px){
+ .equivalency-report[data-decision="insufficient"] .details-table:not(.curriculum-details-table){min-width:0;display:block}
+ .equivalency-report[data-decision="insufficient"] .details-table:not(.curriculum-details-table) thead{display:none}
+ .equivalency-report[data-decision="insufficient"] .details-table:not(.curriculum-details-table) :is(tbody,tr,td){display:block;width:auto}
+ .equivalency-report[data-decision="insufficient"] .details-table:not(.curriculum-details-table) td{border-left:0}
+ .equivalency-report[data-decision="insufficient"] .details-table:not(.curriculum-details-table) tr:not(:last-child){border-bottom:2px solid #cfdde5}
+ .equivalency-report[data-decision="insufficient"] .details-table:not(.curriculum-details-table) .match-state{max-width:100%;white-space:normal}
+}
 @media print{.curriculum-details-table .source-witness+.source-witness{margin-top:6px;padding-top:6px}.curriculum-accounting{gap:3px;margin-top:6px}.curriculum-account{font-size:7px;padding:2px 4px}.witness-pending{font-size:7px;margin-bottom:5px}}
 @media screen and (max-width:700px){
  .equivalency-report .details-table.curriculum-details-table{min-width:0;display:block}

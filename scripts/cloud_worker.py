@@ -49,7 +49,7 @@ SESSION_ID = re.compile(r'^[a-f0-9]{64}$')
 LEASE_TOKEN = re.compile(r'^[a-f0-9]{48}$')
 PDF_LIMIT = 12 * 1024 * 1024
 JSON_LIMIT = 16 * 1024 * 1024
-ENV_KEYS = {'COURSEMATCH_CLOUD_URL', 'COURSEMATCH_LOCAL_URL', 'COURSEMATCH_WORKER_TOKEN', 'COURSEMATCH_WORKER_ID', 'COURSEMATCH_MODEL', 'COURSEMATCH_REVIEW_MODEL'}
+ENV_KEYS = {'COURSEMATCH_CLOUD_URL', 'COURSEMATCH_LOCAL_URL', 'COURSEMATCH_WORKER_TOKEN', 'COURSEMATCH_WORKER_ID', 'COURSEMATCH_MODEL', 'COURSEMATCH_REVIEW_MODEL', 'COURSEMATCH_VISION_MODEL'}
 
 
 class CloudError(Exception):
@@ -136,6 +136,7 @@ class Config:
     model: str = 'qwen3.8:27b-q8_0'
     local_url: str = ''
     review_model: str = ''
+    vision_model: str = 'gemma4:e4b'
 
     def __post_init__(self):
         parsed = urllib.parse.urlsplit(self.cloud_url)
@@ -152,12 +153,14 @@ class Config:
             raise ValueError('worker_model_must_be_local')
         if not isinstance(self.review_model,str)or (self.review_model and (not self.review_model.strip()or ':cloud'in self.review_model.lower())):
             raise ValueError('worker_review_model_must_be_local')
+        if not isinstance(self.vision_model, str) or not self.vision_model.strip() or ':cloud' in self.vision_model.lower():
+            raise ValueError('worker_vision_model_must_be_local')
 
     @classmethod
     def from_file(cls, path, environ=None):
         values = load_env_file(path)
         values.update({key: value for key, value in (os.environ if environ is None else environ).items() if key in ENV_KEYS})
-        return cls(values.get('COURSEMATCH_CLOUD_URL', '').rstrip('/'), values.get('COURSEMATCH_WORKER_TOKEN', ''), values.get('COURSEMATCH_WORKER_ID', ''), values.get('COURSEMATCH_MODEL', 'qwen3.8:27b-q8_0'), local_url=values.get('COURSEMATCH_LOCAL_URL', ''),review_model=values.get('COURSEMATCH_REVIEW_MODEL', ''))
+        return cls(values.get('COURSEMATCH_CLOUD_URL', '').rstrip('/'), values.get('COURSEMATCH_WORKER_TOKEN', ''), values.get('COURSEMATCH_WORKER_ID', ''), values.get('COURSEMATCH_MODEL', 'qwen3.8:27b-q8_0'), local_url=values.get('COURSEMATCH_LOCAL_URL', ''),review_model=values.get('COURSEMATCH_REVIEW_MODEL', ''), vision_model=values.get('COURSEMATCH_VISION_MODEL', 'gemma4:e4b'))
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -338,11 +341,12 @@ def public_source(value, *, catalog_pdf=None):
 
 
 class Processor:
-    def __init__(self, root=ROOT, runtime=None, model='qwen3.8:27b-q8_0', review_model=None):
+    def __init__(self, root=ROOT, runtime=None, model='qwen3.8:27b-q8_0', review_model=None, vision_model='gemma4:e4b'):
         self.root = Path(root).resolve()
         self.runtime = private_directory(runtime or self.root / 'runtime/cloud-worker').resolve()
         self.model = model
         self.review_model = review_model or None
+        self.vision_model = vision_model
         self.catalog = json.loads((self.root / 'equivalency-pilot/catalog.json').read_text())
         self.courses = {course['id']: course for course in self.catalog['courses']}
         self.sources = {**self.courses, **{course['id']: course for course in self.catalog.get('library_sources', [])}}
@@ -497,7 +501,7 @@ class Processor:
                     from scripts.equivalency.image_input import extract_image_pdf, verify_pdf_topics
                     extraction_cache = private_directory(directory / 'extraction')
                     if payload.get('input_kind') == 'image':
-                        source = extract_image_pdf(path, extraction_cache)
+                        source = extract_image_pdf(path, extraction_cache, model=self.vision_model)
                     else:
                         # A byte-identical, visually approved reference already
                         # has stronger evidence than repeating model OCR.
@@ -520,7 +524,7 @@ class Processor:
                                 # A vision outage must not erase a usable native
                                 # extraction or prevent the bounded verifier.
                                 source = apply_readings(extract_cached(path, extraction_cache, vision=False), self.root)
-                            source = verify_pdf_topics(path, source, extraction_cache)
+                            source = verify_pdf_topics(path, source, extraction_cache, model=self.vision_model)
                 except Exception:
                     raise TaskInputError('تعذرت قراءة محتوى الملف المرفوع.') from None
                 source['extraction_integrity'] = extraction_integrity(source)
@@ -665,7 +669,7 @@ class Worker:
         directory = 'cloud-worker-interactive' if lane == 'interactive' else 'cloud-worker'
         self.runtime = private_directory(runtime or Path(root) / 'runtime' / directory).resolve()
         self.cloud = cloud or CloudClient(config, lane=lane)
-        self.processor = processor or Processor(root, self.runtime, config.model, review_model=config.review_model or None)
+        self.processor = processor or Processor(root, self.runtime, config.model, review_model=config.review_model or None, vision_model=config.vision_model)
         self.checkpoints = Checkpoints(self.runtime / 'checkpoints', config.worker_id)
         self.heartbeat_interval = heartbeat_interval
         self.last_idle_health = float('-inf')

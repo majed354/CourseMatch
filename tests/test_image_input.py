@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 import pymupdf
 from jsonschema import Draft202012Validator
@@ -39,6 +39,10 @@ class ImageInputTests(unittest.TestCase):
         self.root=Path(temporary.name);self.cache=self.root/'private-cache'
         self.digests={'gemma4:e4b':'primary-digest',image.FALLBACK_MODEL:'fallback-digest'}
         self.local=patch.object(image,'local_model',side_effect=lambda m:self.digests[m]).start();self.addCleanup(patch.stopall)
+        self.boundary_identity_function=image._tesseract_identity
+        # CPU tests never invoke an installed OCR process unless explicitly
+        # replacing it with an independent-reader fixture in the boundary tests.
+        patch.object(image,'_tesseract_identity',side_effect=ValueError('not_requested_by_fixture')).start()
         self.regions=[{'id':'r1','bboxpixel':[20,15,220,160],'header_bbox':[20,15,220,30],'method':'fixture_chromatic_geometry'}]
         self.detector=patch.object(image,'_table_regions',side_effect=lambda _:copy.deepcopy(self.regions)).start()
     def raster(self,name='raster.pdf',jpeg=True,blank=False,pages=1,text=False,images=1):
@@ -522,6 +526,208 @@ class ImageInputTests(unittest.TestCase):
                 merged=image._merge_rows([{'id':'t1','text':primary}],[{'id':'t1','text':second}],'native')
                 self.assertEqual(merged,[{'id':'t1','text':primary}])
                 self.assertEqual(image._merge_text(primary,second,native=True),primary)
+
+    def test_native_terminal_fathatan_and_kaf_are_bounded_comparison_variants(self):
+        forms=['صداقا','صداقاً','صداقًا']
+        for first in forms:
+            for second in forms:
+                with self.subTest(first=first,second=second):
+                    self.assertTrue(image._native_readings_agree(first,second,punctuation=True))
+                    self.assertEqual(image._merge_text(first,second,native=True),first)
+        for primary,other in [('حكم نکاح الكتابية','حكم نكاح الكتابية'),('نكاح','نکاح')]:
+            self.assertTrue(image._native_readings_agree(primary,other,punctuation=False))
+            self.assertEqual(image._merge_text(primary,other,native=True),primary)
+            self.assertEqual(image._native_three_way_text(other,primary,other),primary)
+        negatives=[('المُكرِه','المُكرَه'),('المكره','المُكرِه'),
+                   ('أحكام الأيمان','أحكام الإيمان'),('آيات','أيات'),
+                   ('مبتدأُ','مبتدأَ'),('مبتدأ','مبتدأً'),('فاعل','فاعلًا'),
+                   ('صداق','صداقًا'),('صداقا','صداقٌا'),('صِداقا','صَداقاً'),
+                   ('صداقًاهم','صداقاهم'),('صداقاًه','صداقاه'),
+                   ('لا يجوز صداقًا','يجوز صداقا'),('صداقا 3','صداقًا 3'),
+                   ('البقرة 1-3 صداقا','البقرة 1،3 صداقاً'),
+                   ('صداقا','مهرًا'),('بناء','بناءً'),('نكاح','نڪاح'),('في','فی')]
+        for first,second in negatives:
+            with self.subTest(first=first,second=second):
+                self.assertFalse(image._native_readings_agree(first,second,punctuation=False))
+                self.assertIn(image.UNKNOWN,image._merge_text(first,second,native=True))
+        self.assertFalse(image._native_complete_match('صداقا','صداقًا '+image.UNKNOWN))
+        self.assertIn(image.UNKNOWN,image._merge_text('نکاح','نكاح'))
+        self.assertEqual(image._native_agreement_text('صداقاً نکاح',punctuation=False),'صداقاً نکاح')
+
+    def test_actual_full_t5_and_t7_readings_keep_raw_primary_and_unrelated_word_boundary_uncertainty(self):
+        # Immutable real diagnostic strings. Mock replay tests the mechanism;
+        # it is neither a new OCR run nor a correction of that historical source.
+        t5='الصداق وأحكامه الصداق: تعريفه، وبيان ما يصلح أن يكون صداقا، وحكمه، وحكم تأجيله، والحالات التي تستحق فيها المرأة الصداق كله أو نصفه. والمفوضة: تعريفها، وبيان أحكامها. وصداق المثل: المراد به، وكيفية تقديره، والحالات التي يطبق فيها. والصداق في النكاح الفاسد'
+        p5='الصداق وأحكامه\nالصداق: تعريفه، وبيان ما يصلح أن يكون صداقاً، وحكمه، وحكم تأجيله، والحالات التي تستحق فيها المرأة الصداق كله أو نصفه. والمفوضة: تعريفها، وبيان أحكامها. وصداق المثل: المراد به، وكيفية تقديره، والحالات التي يطبق فيها. والصداق في النكاح الفاسد'
+        t7='. أنكحة الكفار حكم نكاح الكتابية، وشروط جوازه. وأنكحة الكفار فيما بينهم، والحكم إذا ترافعوا إلينا، أو إذا أسلم الزوجان معاأو أحدهما.'
+        p7='. أنكحة الكفار\nحكم نکاح الكتابية، وشروط جوازه. وأنكحة الكفار فيما بينهم، والحكم إذا ترافعوا إلينا، أو إذا أسلم الزوجان معاً أو أحدهما.'
+        q7='حكم نكاح الكتابة، وشروط جوازه. وأنكحة الكفار فيما بينهم، والحكم إذا ترافعا إلينا، أو إذا أسلم الزوجان معاً أو أحدهما.'
+        for text in (p5,p5.replace('صداقاً','صداقًا')):
+            self.assertTrue(image._native_complete_match(t5,text))
+            self.assertEqual(image._merge_text(text,t5,native=True),text)
+        self.assertFalse(image._native_complete_match(t7,p7))
+        source={'topics':[{'id':'t5','text':t5,'page':1,'bbox':[10,20,300,90]},
+                          {'id':'t7','text':t7,'page':1,'bbox':[10,100,300,170]}],'warnings':[],'reviewed':False}
+        original=copy.deepcopy(source);replies=[answer({'t5':p5}),answer({'t7':p7}),answer({'t7':q7})]
+        before=copy.deepcopy(replies);caller=VisionCaller(replies)
+        result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual([c[2]for c in caller.chats],[60,60,300])
+        self.assertEqual(result['topics'][0]['corrected_text'],' '.join(p5.split()))
+        self.assertEqual(result['visual_verification_status'],'uncertain')
+        self.assertIn(image.UNKNOWN,result['topics'][1]['corrected_text'])
+        self.assertEqual(source,original);self.assertEqual(replies,before)
+        self.assertEqual([t['text']for t in result['topics']],[t5,t7])
+        self.assertCountEqual([json.loads(p.read_text())for p in self.cache.rglob('raw-response-*.json')],before)
+
+    def test_native_numeric_row_keeps_old_strict_spelling_and_requires_fallback(self):
+        source=self.extracted();source['topics'][0]['text']='صداقا ونكاح ٣'
+        primary=answer({'t1':'صداقاً ونکاح 3'});fallback=answer({'t1':'صداقا ونكاح 3'})
+        caller=VisionCaller([primary,fallback]);result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual([c[2]for c in caller.chats],[60,300])
+        self.assertEqual(result['visual_verification_status'],'uncertain')
+        self.assertIn(image.UNKNOWN,result['topics'][0]['corrected_text'])
+        self.assertEqual(result['visual_verification_proof']['numeric_disagreements'],[])
+
+    def test_native_current_cache_is_separate_from_v7_and_preserves_prior_raw(self):
+        path=self.native();source=self.extracted();source['topics'][0]['text']='حكم نكاح الكتابية'
+        reply=answer({'t1':source['topics'][0]['text']})
+        with patch.object(image,'NATIVE_PROTOCOL_VERSION','native-cell-v7-unlocated-native-binding'):
+            previous=image.verify_pdf_topics(path,source,self.cache,caller=VisionCaller([reply]))
+        old={p:p.read_bytes()for p in self.cache.rglob('*')if p.is_file()}
+        current=VisionCaller([reply]);fresh=image.verify_pdf_topics(path,source,self.cache,caller=current)
+        self.assertNotEqual(previous['visual_verification_cache_key'],fresh['visual_verification_cache_key'])
+        self.assertEqual(len(current.chats),1)
+        self.assertEqual(fresh['visual_verification_proof']['native_protocol_version'],image.NATIVE_PROTOCOL_VERSION)
+        self.assertTrue(all(p.read_bytes()==data for p,data in old.items()))
+        warm=VisionCaller([]);image.verify_pdf_topics(path,source,self.cache,caller=warm)
+        self.assertEqual(warm.chats,[])
+
+    def test_actual_t7_spacing_needs_unique_independent_phrase_and_keeps_primary_raw(self):
+        native='. أنكحة الكفار حكم نكاح الكتابية، وشروط جوازه. وأنكحة الكفار فيما بينهم، والحكم إذا ترافعوا إلينا، أو إذا أسلم الزوجان معاأو أحدهما.'
+        primary='. أنكحة الكفار\nحكم نکاح الكتابية، وشروط جوازه. وأنكحة الكفار فيما بينهم، والحكم إذا ترافعوا إلينا، أو إذا أسلم الزوجان معاً أو أحدهما.'
+        tess='. أنكحة الكفار\nحكم نكاح الكتابية» وشروط جوازه. وأنكحة الكفار فيما بينهم» والحكم إذا ترافعوا إليناء أو إذا\nأسلم الزوجان معاً أو أحدهما.\n'
+        source=self.extracted();source['topics'][0]['text']=native;before=copy.deepcopy(source)
+        raw=answer({'t1':primary});raw_before=copy.deepcopy(raw)
+        identity={'reader':'tesseract','version':'fixture','executable_sha256':'binary','ara_traineddata_sha256':'language','language':'ara','psm':6,'omp_threads':1}
+        with patch.object(image,'_tesseract_identity',return_value=('/fixture/tesseract','/fixture/tessdata',identity)), \
+             patch.object(image.subprocess,'run',return_value=Mock(stdout=tess.encode(),returncode=0)) as process:
+            caller=VisionCaller([raw]);result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+            self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(len(caller.chats),1)
+            self.assertEqual(result['topics'][0]['corrected_text'],' '.join(primary.split()))
+            self.assertEqual(result['topics'][0]['text'],native);self.assertEqual(source,before);self.assertEqual(raw,raw_before)
+            proofs=result['visual_verification_proof'];boundary=proofs['cells'][0]['boundary_corroborations'][0]
+            self.assertEqual(boundary['phrases'][0]['quote'],'الزوجان معاً أو أحدهما')
+            self.assertEqual(boundary['identity'],identity)
+            directory=self.cache/image.VERSION/result['visual_verification_cache_key']
+            for entry in boundary['inputs']+boundary['raws']:
+                self.assertEqual(image._sha((directory/entry['file']).read_bytes()),entry['sha256'])
+            self.assertEqual((directory/boundary['raws'][0]['file']).read_text(),tess)
+            self.assertEqual(process.call_args.kwargs['timeout'],15)
+            self.assertEqual(process.call_args.kwargs['env']['OMP_THREAD_LIMIT'],'1')
+            self.assertEqual(process.call_args.kwargs['env']['OMP_NUM_THREADS'],'1')
+            warm=VisionCaller([]);again=image.verify_pdf_topics(self.root/'native.pdf',source,self.cache,caller=warm)
+            self.assertEqual(again['topics'],result['topics']);self.assertEqual(warm.chats,[]);self.assertEqual(process.call_count,1)
+
+    def test_boundary_edit_is_not_agreement_without_unique_primary_context(self):
+        native='قال إن ما الحكم ثابت هنا';primary='قال إنما الحكم ثابت هنا'
+        phrases=image._boundary_phrases(native,primary)
+        self.assertTrue(phrases)
+        self.assertFalse(image._native_complete_match(native,primary))
+        for independent,expected in [('قال إنما الحكم ثابت هنا',True),
+                                     ('قال إن ما الحكم ثابت هنا',False),
+                                     ('إنما الحكم ثابت',False),
+                                     ('قال إنما الحكم ثابت هنا. قال إنما الحكم ثابت هنا',False),
+                                     ('قال إنما العلم ثابت هنا',False)]:
+            with self.subTest(independent=independent):self.assertEqual(image._boundary_witnesses(phrases,independent),expected)
+        multiple=image._boundary_phrases('قال إن ما الحكم كل ما وضح هنا','قال إنما الحكم كلما وضح هنا')
+        self.assertEqual(len(multiple),2)
+        self.assertTrue(image._boundary_witnesses(multiple,'قال إنما الحكم كلما وضح هنا'))
+        self.assertFalse(image._boundary_witnesses(multiple,'قال إنما الحكم كل ما وضح هنا'))
+        repeated_native='قال إن ما الحكم ثابت. قال إن ما الحكم ثابت'
+        repeated_primary='قال إنما الحكم ثابت. قال إنما الحكم ثابت'
+        single_independent='قال إنما الحكم ثابت'
+        self.assertEqual(single_independent.count('قال إنما الحكم'),1)
+        self.assertIsNone(image._boundary_phrases(repeated_native,repeated_primary))
+        with patch.object(image,'_tesseract_identity')as independent:
+            anchor={'id':'t1','text':repeated_native,'regions':[{'page':1,'bbox':[0,0,1000,1000]}]}
+            self.assertIsNone(image._boundary_corroboration(image._directory(self.cache/'repeated-primary'),[b'image'],anchor,repeated_primary))
+            independent.assert_not_called()
+        for native,primary in [('لا يجوز الحكم','يجوز الحكم'),('إنما الحكم','إما الحكم'),
+                               ('المُكرِه حاضر','المُكرَه حاضر'),('أحكام الأيمان','أحكام الإيمان'),
+                               ('إن ما الحكم 3','إنما الحكم 3'),('إن ما الحكم ١-٣','إنما الحكم 1،3'),
+                               ('C ++ ثابت','C++ ثابت'),('إن ما '+image.UNKNOWN,'إنما '+image.UNKNOWN)]:
+            with self.subTest(native=native,primary=primary):self.assertIsNone(image._boundary_phrases(native,primary))
+
+    def test_boundary_reader_unavailable_failed_or_unsupported_abstains(self):
+        anchor={'id':'t1','text':'قال إن ما الحكم ثابت هنا','regions':[{'page':1,'bbox':[0,0,1000,1000]}]}
+        primary='قال إنما الحكم ثابت هنا';directory=image._directory(self.cache/'boundary-failures')
+        identity=('/fixture/tesseract','/fixture/tessdata',{'reader':'tesseract'})
+        self.assertIsNone(image._boundary_corroboration(directory,[b'image'],anchor,primary))
+        for response in [Mock(stdout=b'',returncode=1),Mock(stdout='قال إن ما الحكم ثابت هنا'.encode(),returncode=0),image.subprocess.TimeoutExpired('tesseract',15)]:
+            with self.subTest(response=type(response).__name__),patch.object(image,'_tesseract_identity',return_value=identity), \
+                 patch.object(image.subprocess,'run',side_effect=response if isinstance(response,Exception) else None,return_value=response):
+                self.assertIsNone(image._boundary_corroboration(directory,[b'image'],anchor,primary))
+        attempts=[json.loads(p.read_text())for p in directory.glob('boundary-attempt-*.json')]
+        self.assertEqual({x['status']for x in attempts},{'unavailable','not_supported'})
+        self.assertTrue(all(x['identity']==identity[2] and x['inputs'][0]['sha256']==image._sha(b'image') for x in attempts))
+
+    def test_boundary_witness_cannot_authorize_unlocated_or_numeric_row(self):
+        for unlocated,numeric in [(True,False),(False,True)]:
+            source=self.extracted();source['topics'][0]['text']='قال إن ما الحكم ثابت'+(' 3'if numeric else '')
+            if unlocated:source['topics'][0].pop('bbox')
+            primary='قال إنما الحكم ثابت'+(' 3'if numeric else '')
+            with self.subTest(unlocated=unlocated,numeric=numeric),patch.object(image,'_tesseract_identity')as independent:
+                fallback=primary if unlocated else source['topics'][0]['text']
+                caller=VisionCaller([answer({'t1':primary}),answer({'t1':fallback})])
+                result=image.verify_pdf_topics(self.native(str(unlocated)+'.pdf'),source,self.cache/str(unlocated),caller=caller)
+                self.assertEqual(len(caller.chats),2);independent.assert_not_called()
+                self.assertEqual(result['visual_verification_status'],'uncertain')
+                self.assertIn(image.UNKNOWN,result['topics'][0]['corrected_text'])
+
+    def test_boundary_cache_rechecks_text_image_raw_uniqueness_and_reader_identity(self):
+        directory=image._directory(self.cache/'boundary-cache');original='قال إن ما الحكم ثابت هنا';primary='قال إنما الحكم ثابت هنا'
+        anchor={'id':'t1','text':original,'pages':[1],'regions':[{'page':1,'bbox':[0,0,1000,1000]}]}
+        identity={'reader':'tesseract','version':'fixture','executable_sha256':'exe','ara_traineddata_sha256':'trained'}
+        with patch.object(image,'_tesseract_identity',return_value=('/fixture/tesseract','/fixture/tessdata',identity)), \
+             patch.object(image.subprocess,'run',return_value=Mock(stdout=primary.encode(),returncode=0)):
+            saved=image._transcribe(directory,'test-key',[b'image'],'native',[anchor],VisionCaller([answer({'t1':primary})]),'gemma4:e4b',60,page_numbers=[1])
+            self.assertEqual(saved['rows'][0]['text'],primary)
+            self.assertIsNotNone(image._cache_load(directory,'test-key','native',['t1'],VisionCaller([]),native_rows=[anchor],images=[b'image']))
+            raw=directory/saved['boundary_corroborations'][0]['raws'][0]['file'];raw_original=raw.read_bytes()
+            inp=directory/saved['boundary_corroborations'][0]['inputs'][0]['file'];input_original=inp.read_bytes()
+            for corruption in ('raw','duplicate_with_updated_sha','image','identity','missing_proof','quote','traversal'):
+                with self.subTest(corruption=corruption):
+                    modified=copy.deepcopy(saved);proof=modified['boundary_corroborations'][0]
+                    if corruption=='raw':raw.write_bytes(b'changed raw')
+                    elif corruption=='duplicate_with_updated_sha':
+                        raw.write_bytes((primary+' '+primary).encode());proof['raws'][0]['sha256']=image._sha(raw.read_bytes())
+                    elif corruption=='image':inp.write_bytes(b'other-image');proof['inputs'][0]['sha256']=image._sha(inp.read_bytes())
+                    elif corruption=='identity':proof['identity']['ara_traineddata_sha256']='changed'
+                    elif corruption=='missing_proof':modified.pop('boundary_corroborations')
+                    elif corruption=='quote':proof['phrases'][0]['quote']='unrelated quote'
+                    else:proof['raws'][0]['file']='../outside.txt'
+                    image._save(directory/'cache.json',modified)
+                    self.assertIsNone(image._cache_load(directory,'test-key','native',['t1'],VisionCaller([]),native_rows=[anchor],images=[b'image']))
+                    raw.write_bytes(raw_original);inp.write_bytes(input_original)
+
+    def test_boundary_identity_binds_language_data_and_finds_homebrew_without_path(self):
+        with tempfile.TemporaryDirectory()as temp:
+            data=Path(temp);(data/'ara.traineddata').write_bytes(b'fixed-language-data')
+            executable=data/'tesseract';executable.write_bytes(b'fixed-executable')
+            replies=[Mock(stdout=b'tesseract test-version\n'),Mock(stdout=('List of available languages in "'+str(data)+'" (1):\nara\n').encode())]
+            # Call the actual function, bypassing only the default no-process fixture.
+            with patch.object(image.shutil,'which',return_value=str(executable)),patch.object(image.subprocess,'run',side_effect=replies):
+                identity=self.boundary_identity_function()[2]
+            self.assertEqual(identity['ara_traineddata_sha256'],image._sha(b'fixed-language-data'))
+            self.assertEqual(identity['executable_sha256'],image._sha(b'fixed-executable'))
+            replies=[Mock(stdout=b'tesseract test-version\n'),Mock(stdout=('List of available languages in "'+str(data)+'" (1):\nara\n').encode())]
+            original_read=Path.read_bytes
+            with patch.object(image.shutil,'which',return_value=None),patch.object(image.os.path,'isfile',side_effect=lambda p:p=='/opt/homebrew/bin/tesseract'), \
+                 patch.object(image.os,'access',return_value=True),patch.object(image.subprocess,'run',side_effect=replies)as process, \
+                 patch.object(Path,'read_bytes',lambda p:b'homebrew-binary'if str(p)=='/opt/homebrew/bin/tesseract'else original_read(p)):
+                resolved=self.boundary_identity_function()
+            self.assertEqual(process.call_args_list[0].args[0][0],'/opt/homebrew/bin/tesseract')
+            self.assertEqual(resolved[2]['executable_sha256'],image._sha(b'homebrew-binary'))
 
     def test_native_orthographic_agreement_does_not_hide_words_negation_unknown_or_numeric_ranges(self):
         pairs=[('حجية الإجماع','حجية القياس'),('تجب النفقة','لا تجب النفقة'),
