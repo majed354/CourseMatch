@@ -146,6 +146,8 @@ class FontRecoveryTests(unittest.TestCase):
         self.assertEqual(result, before)
         self.assertEqual(topics, before)
         self.assertEqual(proof['topics'][0]['reason'], 'effective_text_does_not_match_original_cell')
+        self.assertEqual(norm(proof['topics'][0]['original_layout_text']), 'Topic 6')
+        self.assertNotIn('recovered_layout_text', proof['topics'][0])
         self.assertEqual(proof['changes'], [])
 
     def test_nonembedded_only_font_abstains(self):
@@ -242,6 +244,45 @@ class FontRecoveryTests(unittest.TestCase):
         self.assertEqual(len(proof['changes']), 2)
         self.assertEqual({k: v for k, v in result[0].items() if k != 'corrected_text'}, before[0])
         self.assertEqual(original, before)
+        record = proof['topics'][0]
+        self.assertEqual(record['original_layout_text'], 'Topic 6\nNext 6')
+        self.assertEqual(record['recovered_layout_text'], 'Topic 3\nNext 3')
+        self.assertEqual(norm(record['original_layout_text']), record['before'])
+        self.assertEqual(norm(record['recovered_layout_text']), record['after'])
+
+    def test_layout_binds_real_pdf_lines_in_one_cell_before_flattening(self):
+        _, raw, topics = self.fixture(lines=('1. First topic 3', '2. Second topic 3'))
+        with pdfplumber.open(io.BytesIO(raw)) as pdf:
+            box = [40, 50, 350, 160]
+            literal = logical_region_text(pdf.pages[0], box)
+        original = [{'id': 'whole', 'text': norm(literal), 'page': 1, 'bbox': box}]
+        before = copy.deepcopy(original)
+        result, proof = recovery.recover_topic_texts(raw, original)
+        record = proof['topics'][0]
+        self.assertEqual(record['original_layout_text'], literal)
+        self.assertEqual(record['original_layout_text'].splitlines(),
+                         ['1. First topic 6', '2. Second topic 6'])
+        self.assertEqual(record['recovered_layout_text'].splitlines(),
+                         ['1. First topic 3', '2. Second topic 3'])
+        self.assertEqual(norm(record['original_layout_text']), before[0]['text'])
+        self.assertEqual(norm(record['recovered_layout_text']), result[0]['corrected_text'])
+        self.assertEqual(original, before)
+        self.assertEqual(proof['version'], 'embedded-font-topic-recovery-v2-layout-binding')
+
+    def test_inline_negative_and_decimal_quantities_never_gain_pdf_line_breaks(self):
+        for line in ('Amounts -1 liter -2 liter', 'Amounts .1 liter .2 liter'):
+            with self.subTest(line=line):
+                _, raw, topics = self.fixture(lines=(line,))
+                result, proof = recovery.recover_topic_texts(raw, topics)
+                record = proof['topics'][0]
+                self.assertEqual(result, topics)
+                with pdfplumber.open(io.BytesIO(raw)) as pdf:
+                    literal = logical_region_text(pdf.pages[0], topics[0]['bbox'])
+                self.assertEqual(record['original_layout_text'], literal)
+                self.assertEqual(record['recovered_layout_text'], literal)
+                self.assertNotIn('\n', record['original_layout_text'])
+                self.assertEqual(norm(record['original_layout_text']), record['before'])
+                self.assertEqual(norm(record['recovered_layout_text']), record['after'])
 
     def test_invalid_regions_or_duplicate_ids_abstain_without_mutating_topics(self):
         _, raw, topics = self.fixture()

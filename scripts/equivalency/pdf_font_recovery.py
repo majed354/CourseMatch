@@ -24,7 +24,7 @@ from scripts.extract_course_outcomes import logical_region_text
 from scripts.pdf_font_recovery import _font_key, _is_non_rendering_placeholder
 from .extract import norm
 
-VERSION = 'embedded-font-topic-recovery-v1'
+VERSION = 'embedded-font-topic-recovery-v2-layout-binding'
 ORIGIN_TOLERANCE = 0.1  # PDF points, not pixels.
 MAX_PDF_BYTES = 32 * 1024 * 1024
 MAX_TOPICS = 100
@@ -293,12 +293,18 @@ def recover_topic_texts(pdf, topics):
                 if any(not mu[p-1].rect.contains(pymupdf.Rect(box)) for p, box in rr):
                     record['reason'] = 'region_outside_page'
                     continue
-                before = norm(' '.join(logical_region_text(views[p]['original'], box) for p, box in rr))
+                # Keep physical lines from the very same cells/fragments used
+                # to reconstruct the effective topic. A model's inserted
+                # newline must not turn an inline quantity into a list label.
+                original_layout = '\n'.join(logical_region_text(views[p]['original'], box) for p, box in rr)
+                before = norm(original_layout)
                 record['reconstructed_original'] = before
+                record['original_layout_text'] = original_layout
                 if before != effective:
                     record['reason'] = 'effective_text_does_not_match_original_cell'
                     continue
-                after = norm(' '.join(logical_region_text(views[p]['corrected'], box) for p, box in rr))
+                recovered_layout = '\n'.join(logical_region_text(views[p]['corrected'], box) for p, box in rr)
+                after = norm(recovered_layout)
                 if not after or len(after) > 4000:
                     record['reason'] = 'recovered_text_limits'
                     continue
@@ -314,13 +320,15 @@ def recover_topic_texts(pdf, topics):
                             unresolved[reason] += 1
                 record['unresolved_glyphs'] = dict(sorted(unresolved.items()))
                 if after == before:
+                    record['recovered_layout_text'] = recovered_layout
                     record.update(status='abstained' if unresolved else 'unchanged', reason='no_proven_text_change')
                     continue
                 if not selected:
                     record['reason'] = 'no_proven_glyph_change'
                     continue
                 output[i]['corrected_text'] = after
-                record.update(status='recovered', after=after, changes=selected)
+                record.update(status='recovered', after=after, changes=selected,
+                              recovered_layout_text=recovered_layout)
                 for change in selected:
                     applied[(change['page'], change['character_index'])] = change
             proof['changes'] = [applied[k] for k in sorted(applied)]

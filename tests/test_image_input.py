@@ -5,6 +5,7 @@ These are mechanism tests, not measurements of actual OCR accuracy.
 import base64
 import copy
 import json
+import re
 from pathlib import Path
 import tempfile
 import unittest
@@ -1035,10 +1036,12 @@ class ImageInputTests(unittest.TestCase):
         primary2='الوحدة الثانية: حقيقة عقد البيع وشروطه.\n١- تعريف عقد البيع، وصيغه، وأركانه.\n٢- شروط صحة البيع والمسائل المتفرعة عن كل شرط.\n٣- التطبيقات المعاصرة المتعلقة بأركان البيع وشروطه.\n٤- القبض حقيقته، وصوره .'
         source={'topics':[{'id':tid,'text':text,'page':1,'bbox':[10,20+i*60,300,70+i*60]}for i,(tid,text)in enumerate([('t1',native1),('t2',native2)])],'warnings':[],'reviewed':False}
         before=copy.deepcopy(source);replies=[answer({'t1':primary1}),answer({'t2':primary2})];raw=copy.deepcopy(replies)
-        caller=VisionCaller(replies);path=self.native();result=image.verify_pdf_topics(path,source,self.cache,caller=caller)
+        caller=VisionCaller(replies);path=self.native()
+        with patch('scripts.equivalency.pdf_font_recovery.recover_topic_texts',side_effect=self._font_recovery_fixture):
+            result=image.verify_pdf_topics(path,source,self.cache,caller=caller)
         self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(len(caller.chats),2)
-        self.assertEqual([t['corrected_text']for t in result['topics']],[native1,native2])
-        self.assertTrue(all(t['visual_transcription_origin']=='native_text_with_visual_list_corroboration'for t in result['topics']))
+        self.assertEqual([' '.join(t['corrected_text'].split())for t in result['topics']],[native1,native2])
+        self.assertTrue(all(t['visual_transcription_origin']=='native_numerals_with_corroborated_non_numeric_segments'for t in result['topics']))
         self.assertEqual(source,before);self.assertEqual(replies,raw);self.assertEqual(result['visual_verification_proof']['numeric_disagreements'],[])
         for _,payload,timeout in caller.chats:
             self.assertEqual(timeout,60);self.assertIn('انقل أول سطر ظاهر من عنوان الوحدة أو الموضوع صراحةً',payload['messages'][1]['content'])
@@ -1047,11 +1050,13 @@ class ImageInputTests(unittest.TestCase):
         folder=self.cache/image.VERSION/result['visual_verification_cache_key']
         for cell in result['visual_verification_proof']['cells']:
             proof=cell['native_list_corroborations'][0]
-            self.assertEqual(proof['selection'],'original_native_text');self.assertEqual(proof['layout']['values'],[1,2,3,4])
+            self.assertEqual(proof['selection'],'native_numerals_with_corroborated_non_numeric_segments');self.assertEqual(proof['layout']['values'],[1,2,3,4])
             self.assertEqual(proof['native_text'],next(t['text']for t in source['topics']if t['id']==cell['topic_id']))
             for record in proof['inputs']+[proof['response']]:self.assertEqual(image._sha((folder/record['file']).read_bytes()),record['sha256'])
         self.assertCountEqual([json.loads(p.read_text())for p in self.cache.rglob('raw-response-*.json')],raw)
-        warm=VisionCaller([]);again=image.verify_pdf_topics(path,source,self.cache,caller=warm)
+        warm=VisionCaller([])
+        with patch('scripts.equivalency.pdf_font_recovery.recover_topic_texts',side_effect=self._font_recovery_fixture):
+            again=image.verify_pdf_topics(path,source,self.cache,caller=warm)
         self.assertEqual(warm.chats,[]);self.assertEqual(again['topics'],result['topics'])
 
     def test_native_list_mask_is_positional_and_rejects_every_non_list_numeric_or_text_change(self):
@@ -1084,26 +1089,26 @@ class ImageInputTests(unittest.TestCase):
         self.assertIn(image.UNKNOWN,image._merge_text(original,primary,native=True))
 
     def test_native_list_negative_prefix_markers_are_retained_and_unlocated_does_not_qualify(self):
-        native='عنوان. -1 شاهد ثابت. -2 شاهد آخر.';primary='عنوان. 1- شاهد ثابت. 2- شاهد آخر.'
+        native='عنوان. -1 شاهد ثابت. -2 شاهد آخر.';primary='عنوان.\n1- شاهد ثابت.\n2- شاهد آخر.'
         for located in [True,False]:
             source=self.extracted();source['topics'][0]['text']=native
             if not located:source['topics'][0].pop('bbox')
             caller=VisionCaller([answer({'t1':primary})]if located else[answer({'t1':primary}),answer({'t1':primary})])
-            with self.subTest(located=located):
+            with self.subTest(located=located),patch('scripts.equivalency.pdf_font_recovery.recover_topic_texts',side_effect=self._font_recovery_fixture):
                 result=image.verify_pdf_topics(self.native(str(located)+'.pdf'),source,self.cache/str(located),caller=caller)
                 self.assertEqual(result['topics'][0]['text'],native)
                 if located:
-                    self.assertEqual(result['topics'][0]['corrected_text'],native);self.assertEqual(len(caller.chats),1)
+                    self.assertEqual(' '.join(result['topics'][0]['corrected_text'].split()),native);self.assertEqual(len(caller.chats),1)
                     self.assertIn('-1',result['topics'][0]['corrected_text']);self.assertNotIn('1-',result['topics'][0]['corrected_text'])
                 else:
                     self.assertEqual(result['visual_verification_status'],'uncertain');self.assertIn(image.UNKNOWN,result['topics'][0]['corrected_text'])
                     self.assertEqual(len(caller.chats),2)
 
     def test_native_list_cache_requires_proof_and_rechecks_actual_raw_selected_native_and_image(self):
-        directory=image._directory(self.cache/'list-cache');native='عنوان. -1 شاهد ثابت. -2 شاهد آخر.';primary='عنوان. 1- شاهد ثابت. 2- شاهد آخر.'
-        anchor={'id':'t1','text':native,'pages':[1],'regions':[{'page':1,'bbox':[0,0,1000,1000]}]}
+        directory=image._directory(self.cache/'list-cache');native='عنوان. -1 شاهد ثابت. -2 شاهد آخر.';primary='عنوان.\n1- شاهد ثابت.\n2- شاهد آخر.'
+        anchor={'id':'t1','text':native,'pages':[1],'regions':[{'page':1,'bbox':[0,0,1000,1000]}],'native_layout_text':self._synthetic_list_layout(native),'native_layout_proof_sha256':'fixture-font-lines'}
         raw=answer({'t1':primary});saved=image._transcribe(directory,'list-key',[b'image'],'native',[anchor],VisionCaller([raw]),'gemma4:e4b',60,page_numbers=[1])
-        self.assertEqual(saved['rows'],[{'id':'t1','text':native}]);self.assertEqual(saved['native_list_corroborations'][0]['primary_text'],primary)
+        self.assertEqual(saved['rows'][0]['id'],'t1');self.assertEqual(' '.join(saved['rows'][0]['text'].split()),native);self.assertEqual(saved['native_list_corroborations'][0]['primary_text'],' '.join(primary.split()))
         def loaded():return image._cache_load(directory,'list-key','native',['t1'],VisionCaller([]),native_rows=[anchor],images=[b'image'])
         self.assertIsNotNone(loaded())
         rawfile=directory/saved['responses'][0]['file'];raw_original=rawfile.read_bytes()
@@ -1156,22 +1161,27 @@ class ImageInputTests(unittest.TestCase):
             with self.subTest(changed=changed):self.assertIsNone(image._native_list_layout(native,changed))
         self.assertIsNone(image._native_list_layout('عنوان. -1 حكم (1). -2 بيان.', 'عنوان. 1- حكم (1). 2- بيان.'))
         source=self.extracted();source['topics'][0]['text']=native
-        caller=VisionCaller([answer({'t1':visual})]);result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
-        self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(result['topics'][0]['corrected_text'],native)
+        caller=VisionCaller([answer({'t1':visual.replace('١-','\n١-').replace('٢-','\n٢-')})])
+        with patch('scripts.equivalency.pdf_font_recovery.recover_topic_texts',side_effect=self._font_recovery_fixture):
+            result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(' '.join(result['topics'][0]['corrected_text'].split()),native)
         self.assertEqual(len(caller.chats),1)
 
     def test_native_title_integer_is_revalidated_in_selected_native_cache_proof(self):
         native='عنوان الوحدة (1). -1 حكم موثق. -2 بيان واضح.'
-        primary='عنوان الوحدة (١). ١- حكم موثق. ٢- بيان واضح.'
+        primary='عنوان الوحدة (١).\n١- حكم موثق.\n٢- بيان واضح.'
         directory=image._directory(self.cache/'header-cache')
-        anchor={'id':'t1','text':native,'pages':[1],'regions':[{'page':1,'bbox':[0,0,1000,1000]}]}
+        anchor={'id':'t1','text':native,'pages':[1],'regions':[{'page':1,'bbox':[0,0,1000,1000]}],'native_layout_text':self._synthetic_list_layout(native),'native_layout_proof_sha256':'fixture-font-lines'}
         saved=image._transcribe(directory,'header-key',[b'image'],'native',[anchor],VisionCaller([answer({'t1':primary})]),'gemma4:e4b',60,page_numbers=[1])
-        self.assertEqual(saved['rows'],[{'id':'t1','text':native}])
+        self.assertEqual(saved['rows'][0]['id'],'t1');self.assertEqual(' '.join(saved['rows'][0]['text'].split()),native)
         self.assertEqual(saved['native_list_corroborations'][0]['layout']['title_integer']['native']['digits'],'1')
         self.assertIsNotNone(image._cache_load(directory,'header-key','native',['t1'],VisionCaller([]),native_rows=[anchor],images=[b'image']))
         saved['native_list_corroborations'][0]['layout']['title_integer']['primary']['canonical_digits']='2'
         image._save(directory/'cache.json',saved)
         self.assertIsNone(image._cache_load(directory,'header-key','native',['t1'],VisionCaller([]),native_rows=[anchor],images=[b'image']))
+
+    def _synthetic_list_layout(self,text):
+        return re.sub(r' +(?=[.\-]\d+\s)','\n',text)
 
     def _font_recovery_fixture(self,raw,topics,*,font='fixture-font-A'):
         # Adapter fixture only. The separate font module's tests establish
@@ -1181,7 +1191,8 @@ class ImageInputTests(unittest.TestCase):
             before=item.get('corrected_text')or item['text'];after=before.replace('(6)','(3)')
             if before!=after:item['corrected_text']=after
             edits=[{'page':item['page'],'font_xref':7,'font_sha256':font,'gid':764,'origin':[30,40],'old':'6','new':'3','old_codepoints':[54],'new_codepoints':[51]}]if before!=after else[]
-            changes.extend(edits);records.append({'id':item['id'],'status':'recovered'if edits else'unchanged','before':before,'after':after,'changes':edits})
+            changes.extend(edits);records.append({'id':item['id'],'status':'recovered'if edits else'unchanged','before':before,'after':after,'changes':edits,
+                                                  'original_layout_text':self._synthetic_list_layout(before),'recovered_layout_text':self._synthetic_list_layout(after)})
         return recovered,{'version':'fixture-font-recovery-v1','source_sha256':image._sha(raw),'input_topics_sha256':image._json_sha(topics),
                           'output_topics_sha256':image._json_sha(recovered),'fonts':[{'xref':7,'sha256':font}],'topics':records}
 
@@ -1194,7 +1205,7 @@ class ImageInputTests(unittest.TestCase):
         self.assertIsInstance(recovery.call_args.args[0],bytes);self.assertEqual(recovery.call_args.args[0],path.read_bytes())
         self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(len(caller.chats),1)
         self.assertEqual(result['topics'][0]['text'],original)
-        self.assertEqual(result['topics'][0]['corrected_text'],original.replace('(6)','(3)'))
+        self.assertEqual(' '.join(result['topics'][0]['corrected_text'].split()),original.replace('(6)','(3)'))
         self.assertEqual(source,before)
         prompt=caller.chats[0][1]['messages'][1]['content']
         for private_text in ('عنوان الوحدة (6)','عنوان الوحدة (3)','حكم موثق','بيان واضح'):
@@ -1225,7 +1236,7 @@ class ImageInputTests(unittest.TestCase):
 
     def test_native_font_provenance_separates_cache_and_retains_recovery_on_visual_failure(self):
         source=self.extracted();source['topics'][0]['text']='عنوان الوحدة (6). -1 حكم. -2 بيان.';path=self.native()
-        visual='عنوان الوحدة (3). 1- حكم. 2- بيان.'
+        visual='عنوان الوحدة (3).\n1- حكم.\n2- بيان.'
         with patch('scripts.equivalency.pdf_font_recovery.recover_topic_texts',side_effect=self._font_recovery_fixture):
             first=image.verify_pdf_topics(path,source,self.cache,caller=VisionCaller([answer({'t1':visual})]))
             stored={p:p.read_bytes()for p in self.cache.rglob('*')if p.is_file()}
@@ -1241,3 +1252,189 @@ class ImageInputTests(unittest.TestCase):
         self.assertEqual(failed['topics'][0]['text'],source['topics'][0]['text'])
         self.assertEqual(failed['topics'][0]['corrected_text'],source['topics'][0]['text'].replace('(6)','(3)'))
         self.assertIn('native_font_recovery',failed['visual_verification_proof'])
+
+    def test_v12_dot_markers_require_pdf_native_lines_and_raw_primary_lines(self):
+        native='عنوان القائمة .1 حكم موثق. .2 بيان واضح.'
+        primary='عنوان القائمة\n١. حكم موثق.\n٢. بيان واضح.'
+        layout=self._synthetic_list_layout(native)
+        result=image._compose_native_list_text(native,primary,located=True,native_layout=layout)
+        self.assertEqual(result['status'],'corroborated');self.assertEqual(' '.join(result['output'].split()),native)
+        for geometry,reading in [(None,primary),(native,primary),(layout,primary.replace('\n',' '))]:
+            with self.subTest(geometry=geometry,reading=reading):
+                self.assertNotEqual(image._compose_native_list_text(native,reading,located=True,native_layout=geometry)['status'],'corroborated')
+        for native,primary in [('قيمتان -1 لتر -2 لتر','قيمتان\n1- لتر\n2- لتر'),
+                               ('قيمتان. -1 لتر. -2 لتر.','قيمتان.\n1- لتر.\n2- لتر.'),
+                               ('قيمتان .1 لتر .2 لتر','قيمتان\n1. لتر\n2. لتر'),
+                               ('قيمتان. .1 لتر. .2 لتر.','قيمتان.\n1. لتر.\n2. لتر.')]:
+            with self.subTest(native=native):
+                self.assertNotEqual(image._compose_native_list_text(native,primary,located=True,native_layout=native)['status'],'corroborated')
+        self.assertNotEqual(image._compose_native_list_text('عنوان. .1 تفسير1-3. .2 تفسير2-4.','عنوان\n1. تفسير1،3.\n2. تفسير2،4.',located=True,native_layout='عنوان\n.1 تفسير1-3.\n.2 تفسير2-4.')['status'],'corroborated')
+
+    def test_v12_segment_three_way_never_votes_on_numbers_and_keeps_printed_words(self):
+        native='عنوان .1 والأبسة المحرمة. .2 وحد عورة الرجل.'
+        primary='عنوان\n1. والألبسة المحرمة.\n2. حد عورة الرجل.'
+        secondary='عنوان\n1. والأبسة المحرمة.\n2. وحد عورة الرجل.'
+        layout=self._synthetic_list_layout(native)
+        self.assertNotEqual(image._compose_native_list_text(native,primary,located=True,native_layout=layout)['status'],'corroborated')
+        result=image._compose_native_list_text(native,primary,secondary,located=True,native_layout=layout)
+        self.assertEqual(result['status'],'corroborated');self.assertIn('والأبسة',result['output']);self.assertIn('وحد عورة',result['output']);self.assertNotIn('والألبسة',result['output'])
+        for bad in [secondary.replace('2.','3.'),secondary.replace('1.','1-'),secondary+' 7']:
+            self.assertNotEqual(image._compose_native_list_text(native,primary,bad,located=True,native_layout=layout)['status'],'corroborated')
+        for native_word,primary_word in [('الأيمان','الإيمان'),('المُكرِه','المُكرَه'),('لا يجب الحكم','يجب الحكم')]:
+            n=f'عنوان .1 {native_word} ثابت. .2 بيان واضح.';p=f'عنوان\n1. {primary_word} ثابت.\n2. بيان واضح.';q=f'عنوان\n1. {native_word} ثابت.\n2. بيان واضح.'
+            self.assertNotEqual(image._compose_native_list_text(n,p,q,located=True,native_layout=self._synthetic_list_layout(n))['status'],'corroborated')
+
+    def test_v12_pdf_bound_vowels_survive_bare_extraction_in_list_and_plain_cells(self):
+        # The native extractor's norm loses marks. The independent embedded-font
+        # record supplies the actual PDF marks without changing raw topic input.
+        for listed in (False,True):
+            native='عنوان .1 المكره حاضر. .2 بيان واضح.' if listed else 'المكره حاضر وبيان واضح.'
+            layout='عنوان\n.1 المُكرِه حاضر.\n.2 بيان واضح.' if listed else 'المُكرِه حاضر وبيان واضح.'
+            matching='عنوان\n1. المُكرِه حاضر.\n2. بيان واضح.' if listed else layout
+            source=self.extracted();source['topics'][0]['text']=native;original=copy.deepcopy(source);path=self.native(f'role-{listed}.pdf')
+            def recovered(raw,topics):
+                copied,proof=self._font_recovery_fixture(raw,topics)
+                proof['topics'][0]['original_layout_text']=layout
+                proof['topics'][0]['recovered_layout_text']=layout
+                self.assertEqual(image.norm(layout),proof['topics'][0]['after'])
+                return copied,proof
+            with patch('scripts.equivalency.pdf_font_recovery.recover_topic_texts',side_effect=recovered):
+                for wrong in (False,True):
+                    reading=matching.replace('المُكرِه','المُكرَه') if wrong else matching
+                    caller=VisionCaller([answer({'t1':reading}),answer({'t1':reading})])
+                    with self.subTest(listed=listed,wrong_role=wrong):
+                        result=image.verify_pdf_topics(path,source,self.cache/f'{listed}-{wrong}',caller=caller)
+                        text=result['topics'][0]['corrected_text']
+                        self.assertEqual(result['visual_verification_status'],'uncertain' if wrong else 'completed')
+                        self.assertEqual(len(caller.chats),2 if wrong else 1)
+                        self.assertIn(image.UNKNOWN,text) if wrong else self.assertIn('المُكرِه',text)
+                        self.assertNotIn('المُكرَه',text)
+                        self.assertEqual(result['topics'][0]['text'],native)
+                        proof=result['visual_verification_proof'];derivation=proof['cells'][0]['anchor_derivation']
+                        self.assertIn('المُكرِه',derivation['text'])
+                        self.assertEqual(derivation['font_proof_sha256'],image._json_sha(proof['native_font_recovery']))
+                        self.assertEqual(derivation['layout_sha256'],image._sha(layout.encode()))
+                        self.assertEqual(proof['original_input_sha256'],image._json_sha(source['topics']))
+                        for _,request,_ in caller.chats:
+                            self.assertNotIn('المُكرِه',request['messages'][1]['content'])
+                            self.assertNotIn('native_layout_text',request['messages'][1]['content'])
+            self.assertEqual(source,original)
+
+    def test_v12_pdf_explicit_alef_conflict_cannot_be_bridged_by_two_readers(self):
+        native='عنوان .1 الأيمان ثابت. .2 بيان واضح.'
+        layout='عنوان\n.1 الأيمان ثابت.\n.2 بيان واضح.'
+        passive='عنوان\n1. الإيمان ثابت.\n2. بيان واضح.'
+        self.assertNotEqual(image._compose_native_list_text(native,passive,passive,located=True,native_layout=layout)['status'],'corroborated')
+        actual='عنوان\n1. الأيمان ثابت.\n2. بيان واضح.'
+        result=image._compose_native_list_text(native,actual,located=True,native_layout=layout)
+        self.assertEqual(result['status'],'corroborated');self.assertIn('الأيمان',result['output'])
+
+    def test_v12_cache_two_genuine_passive_readers_cannot_override_bound_pdf_active(self):
+        active='المُكرِه حاضر وبيان واضح.';passive='المُكرَه حاضر وبيان واضح.'
+        anchor={'id':'t1','text':active,'pages':[1],'regions':[{'page':1,'bbox':[0,0,1000,1000]}],
+                'native_layout_text':active,'native_layout_proof_sha256':'verified-font-layout'}
+        directory=image._directory(self.cache/'pdf-vowel-cache')
+        caller=VisionCaller([answer({'t1':passive}),answer({'t1':passive})])
+        saved=image._transcribe(directory,'active-pdf',[b'image'],'native',[anchor],caller,'gemma4:e4b',60,page_numbers=[1])
+        self.assertIn(image.UNKNOWN,saved['rows'][0]['text'])
+        self.assertIsNotNone(image._cache_load(directory,'active-pdf','native',['t1'],VisionCaller([]),native_rows=[anchor],images=[b'image']))
+        # Keep both authentic immutable raw responses and their valid hashes.
+        # Replacing only the saved row/hash must not turn their conflict into proof.
+        tampered=copy.deepcopy(saved);tampered['rows'][0]['text']=passive;tampered['rows_sha256']=image._json_sha(tampered['rows'])
+        image._save(directory/'cache.json',tampered)
+        self.assertIsNone(image._cache_load(directory,'active-pdf','native',['t1'],VisionCaller([]),native_rows=[anchor],images=[b'image']))
+
+    def test_v12_alternative_boundary_context_is_literal_unique_full_row_and_raw_offset_bound(self):
+        native='عنوان .1 تم شرح حكمكل نوع بأمان. .2 بيان موثق صحيح.'
+        primary='عنوان\n1. تم شرح حكم كل نوع بأمان.\n2. بيان موثق صحيح.'
+        layout=self._synthetic_list_layout(native);ocr='تم شرخ حكم كل نوع بأمان'
+        result=image._compose_native_list_text(native,primary,ocr=ocr,located=True,native_layout=layout)
+        self.assertEqual(result['status'],'corroborated')
+        witness=result['segments'][1]['witnesses'][0]
+        self.assertGreaterEqual(witness['word_count'],3);self.assertLessEqual(witness['word_count'],6)
+        self.assertEqual(primary[witness['primary_start']:witness['primary_end']],witness['quote']);self.assertNotIn('شرح',witness['quote'])
+        for bad in [None,ocr+' '+ocr,'حكم زائد كل نوع']:
+            self.assertNotEqual(image._compose_native_list_text(native,primary,ocr=bad,located=True,native_layout=layout)['status'],'corroborated')
+        native='عنوان .1 تم شرح حكمكل نوع بأمان. .2 تم شرح حكمكل نوع بأمان.'
+        primary='عنوان\n1. تم شرح حكم كل نوع بأمان.\n2. تم شرح حكم كل نوع بأمان.'
+        self.assertNotEqual(image._compose_native_list_text(native,primary,ocr='تم شرح حكم كل نوع بأمان',located=True,native_layout=self._synthetic_list_layout(native))['status'],'corroborated')
+        raw='عنوان (12) حكم كل نوع.\n1. بيان واضح.\n2. دليل ثابت.'
+        frame=image._native_parse_list_pair(raw,raw);segment=image._native_list_segments(raw,frame['primary_markers'],frame['title_integer']['primary'])[0]
+        self.assertEqual(segment['offset_map'][segment['text'].index('حكم')],raw.index('حكم'))
+
+    def test_v12_two_reader_cache_rederives_body_and_frame_and_never_leaks_local_layout(self):
+        native='عنوان (12) LOCAL_LAYOUT_SECRET .1 لفظ صحيح. .2 بيان واضح.'
+        primary='عنوان (12) LOCAL_LAYOUT_SECRET\n1. لفظ خاطئ.\n2. بيان واضح.'
+        secondary='عنوان (12) LOCAL_LAYOUT_SECRET\n1. لفظ صحيح.\n2. بيان واضح.'
+        anchor={'id':'t1','text':native,'pages':[1],'regions':[{'page':1,'bbox':[0,0,1000,1000]}],
+                'native_layout_text':self._synthetic_list_layout(native),'native_layout_proof_sha256':'FONT_PROVENANCE_SECRET'}
+        directory=image._directory(self.cache/'two-reader-v12');caller=VisionCaller([answer({'t1':primary}),answer({'t1':secondary})])
+        saved=image._transcribe(directory,'two-readers',[b'image'],'native',[anchor],caller,'gemma4:e4b',60,page_numbers=[1],fallback_timeout=300)
+        self.assertEqual(len(caller.chats),2);self.assertNotIn(image.UNKNOWN,saved['rows'][0]['text']);self.assertIn('لفظ صحيح',saved['rows'][0]['text'])
+        for _,request,_ in caller.chats:
+            content=request['messages'][1]['content'];self.assertNotIn('LOCAL_LAYOUT_SECRET',content);self.assertNotIn('FONT_PROVENANCE_SECRET',content)
+            self.assertEqual(set(native_anchors(content)[0]),{'id','pages','regions'})
+        def load(a=anchor):return image._cache_load(directory,'two-readers','native',['t1'],VisionCaller([]),native_rows=[a],images=[b'image'])
+        self.assertIsNotNone(load())
+        for corruption in ('missing_proof','geometry','font_binding','body_mode','output','primary_frame','secondary_raw'):
+            value=copy.deepcopy(saved);proof=value['native_list_corroborations'][0];files={directory/r['file']:(directory/r['file']).read_bytes() for r in value['responses']}
+            current_anchor=copy.deepcopy(anchor)
+            if corruption=='missing_proof':value.pop('native_list_corroborations')
+            elif corruption=='geometry':current_anchor['native_layout_text']=native
+            elif corruption=='font_binding':current_anchor['native_layout_proof_sha256']='changed'
+            elif corruption=='body_mode':proof['composition']['segments'][1]['mode']='native_primary_agreement'
+            elif corruption=='output':value['rows'][0]['text']=value['rows'][0]['text'].replace('صحيح','خاطئ');value['rows_sha256']=image._json_sha(value['rows'])
+            else:
+                index=0 if corruption=='primary_frame'else 1;record=value['responses'][index];path=directory/record['file'];raw=json.loads(path.read_text())
+                content=json.loads(raw['message']['content']);content['rows']['t1']=content['rows']['t1'].replace('\n',' ')if index==0 else content['rows']['t1'].replace('صحيح','خاطئ')
+                raw['message']['content']=json.dumps(content,ensure_ascii=False);image._save(path,raw);record['sha256']=image._sha(path.read_bytes());proof['responses'][index]=copy.deepcopy(record)
+                if index==0:proof['response']=copy.deepcopy(record)
+            image._save(directory/'cache.json',value)
+            with self.subTest(corruption=corruption):self.assertIsNone(load(current_anchor))
+            for path,content in files.items():path.write_bytes(content)
+        # Deleting the proof and replacing the cached result by the ordinary
+        # two-reader merge must not bypass a PDF-bound list-frame validation.
+        same_directory=image._directory(self.cache/'two-equal-readers-v12')
+        same=image._transcribe(same_directory,'equal-readers',[b'image'],'native',[anchor],VisionCaller([answer({'t1':primary}),answer({'t1':primary})]),'gemma4:e4b',60,page_numbers=[1])
+        self.assertIn('native_list_corroborations',same)
+        same.pop('native_list_corroborations')
+        same['rows']=image._merge_rows(image._rows(answer({'t1':primary}),'native',['t1']),image._rows(answer({'t1':primary}),'native',['t1']),'native')
+        same['rows_sha256']=image._json_sha(same['rows']);image._save(same_directory/'cache.json',same)
+        self.assertIsNone(image._cache_load(same_directory,'equal-readers','native',['t1'],VisionCaller([]),native_rows=[anchor],images=[b'image']))
+
+    def test_v12_tesseract_is_once_per_cell_and_exact_raw_witness_is_revalidated(self):
+        native='عنوان .1 تم شرح حكمكل نوع بأمان. .2 تم بيان حكمكل فرع بحذر.'
+        primary='عنوان\n1. تم شرح حكم كل نوع بأمان.\n2. تم بيان حكم كل فرع بحذر.'
+        ocr='تم شرخ حكم كل نوع بأمان. تم بين حكم كل فرع بحذر.'
+        anchor={'id':'t1','text':native,'pages':[1],'regions':[{'page':1,'bbox':[0,0,1000,1000]}],
+                'native_layout_text':self._synthetic_list_layout(native),'native_layout_proof_sha256':'fixture-font-v2'}
+        identity={'reader':'tesseract','version':'fixture','executable_sha256':'exe','ara_traineddata_sha256':'ara','language':'ara','psm':6,'omp_threads':1}
+        directory=image._directory(self.cache/'ocr-v12')
+        with patch.object(image,'_tesseract_identity',return_value=('/fixture/tesseract','/fixture/tessdata',identity)),patch.object(image.subprocess,'run',return_value=Mock(stdout=ocr.encode(),returncode=0))as process:
+            caller=VisionCaller([answer({'t1':primary})]);saved=image._transcribe(directory,'ocr-key',[b'image'],'native',[anchor],caller,'gemma4:e4b',60,page_numbers=[1])
+            self.assertEqual(len(caller.chats),1);self.assertEqual(process.call_count,1);self.assertEqual(process.call_args.kwargs['timeout'],15)
+            self.assertEqual(process.call_args.kwargs['env']['OMP_THREAD_LIMIT'],'1')
+            warm=VisionCaller([]);self.assertEqual(image._transcribe(directory,'ocr-key',[b'image'],'native',[anchor],warm,'gemma4:e4b',60,page_numbers=[1])['rows'],saved['rows'])
+            self.assertEqual(warm.chats,[]);self.assertEqual(process.call_count,1)
+            proof=saved['native_list_corroborations'][0];reader=proof['independent_reading'];rawfile=directory/reader['raws'][0]['file']
+            rawfile.write_text(ocr+' '+ocr);reader['raws'][0]['sha256']=image._sha(rawfile.read_bytes());image._save(directory/'cache.json',saved)
+            self.assertIsNone(image._cache_load(directory,'ocr-key','native',['t1'],VisionCaller([]),native_rows=[anchor],images=[b'image']))
+
+    def test_v12_single_reader_raw_row_cannot_replace_missing_pdf_list_proof(self):
+        native='عنوان .1 حكم موثق. .2 بيان واضح.'
+        for same_marker_form in (False,True):
+            visual=self._synthetic_list_layout(native) if same_marker_form else 'عنوان\n1. حكم موثق.\n2. بيان واضح.'
+            anchor={'id':'t1','text':native,'pages':[1],'regions':[{'page':1,'bbox':[0,0,1000,1000]}],
+                    'native_layout_text':self._synthetic_list_layout(native),'native_layout_proof_sha256':'verified-font-layout'}
+            directory=image._directory(self.cache/f'single-frame-{same_marker_form}')
+            caller=VisionCaller([answer({'t1':visual})]);saved=image._transcribe(directory,'single-frame',[b'image'],'native',[anchor],caller,'gemma4:e4b',60,page_numbers=[1])
+            with self.subTest(same_marker_form=same_marker_form):
+                self.assertEqual(len(caller.chats),1);self.assertIn('native_list_corroborations',saved)
+                warm=VisionCaller([])
+                self.assertEqual(image._transcribe(directory,'single-frame',[b'image'],'native',[anchor],warm,'gemma4:e4b',60,page_numbers=[1])['rows'],saved['rows'])
+                self.assertEqual(warm.chats,[])
+                # Both immutable raw response and its true SHA remain genuine.
+                tampered=copy.deepcopy(saved);tampered.pop('native_list_corroborations')
+                tampered['rows']=image._rows(answer({'t1':visual}),'native',['t1']);tampered['rows_sha256']=image._json_sha(tampered['rows'])
+                image._save(directory/'cache.json',tampered)
+                self.assertIsNone(image._cache_load(directory,'single-frame','native',['t1'],VisionCaller([]),native_rows=[anchor],images=[b'image']))

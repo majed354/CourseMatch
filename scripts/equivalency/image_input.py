@@ -32,7 +32,7 @@ from .engine import local_model, post_ollama
 from .extract import norm
 
 VERSION = 'image-input-local-vision-v6-independent-reading'
-NATIVE_PROTOCOL_VERSION = 'native-cell-v11-font-grounded-native-corroboration'
+NATIVE_PROTOCOL_VERSION = 'native-cell-v12-geometry-bound-list-segments'
 FALLBACK_MODEL = 'qwen3.8:27b-q8_0'
 MAX_PIXELS = 32_000_000
 MAX_DIMENSION = 12_000
@@ -260,6 +260,24 @@ def _native_complete_match(original,reading):
     return _native_readings_agree(original,reading,punctuation=not any(c.isdigit() for c in original+reading))
 
 
+def _native_pdf_marks_conflict(anchor,reading):
+    """A bound PDF mark cannot be erased by agreement of two visual readers.
+
+    Align only equal lexical words to locate explicit vowel/alef conflicts;
+    this is neither a lexical correction nor a full-source equality test.
+    """
+    layout=anchor.get('native_layout_text')
+    if not isinstance(layout,str) or not anchor.get('native_layout_proof_sha256'):return False
+    words=[[_native_comparison_key(m.group(),punctuation=False) for m in _NATIVE_WORDS.finditer(text)]
+           for text in (layout,reading)]
+    def letters(word):
+        return re.sub('[أإآٱ]','ا',''.join(c for c in word if not unicodedata.category(c).startswith('M')))
+    a,b=([letters(word) for word in row] for row in words)
+    for first,second,length in SequenceMatcher(a=a,b=b,autojunk=False).get_matching_blocks():
+        if any(_native_explicit_marks_conflict([words[0][first+i],words[1][second+i]]) for i in range(length)):return True
+    return False
+
+
 def _native_list_layout(original, primary):
     """Corroborate list layout without changing any original numeric data.
 
@@ -308,45 +326,264 @@ def _native_list_layout(original, primary):
             'title_integer':{'native':first[2],'primary':second[2]} if first[2] is not None else None}
 
 
-def _native_list_corroboration(directory, images, anchor, primary, response):
-    if not images or anchor.get('unlocated_pages') or not anchor.get('regions'):return None
-    layout=_native_list_layout(anchor['text'],primary)
-    if layout is None:return None
+def _native_parse_list_pair(original, primary):
+    """Parse matching consecutive dot/dash frames, never alter numeric data.
+
+    Every number must belong to a standalone marker or matching title integer.
+    The caller separately requires PDF-native and raw-reader physical line
+    starts; syntactic punctuation alone does not establish list geometry.
+    """
+    if UNKNOWN in original+primary or any(c in original+primary for c in ('\ue000','\ue001')) or any(unicodedata.category(c).startswith('S') for c in original+primary):return None
+    pattern=re.compile(r'(?<![\w.\-–—])(?:(?P<left>[-–—.])\s*(?P<prefix>\d+)|(?P<suffix>\d+)\s*(?P<right>[-–—.]))(?=\s|$)')
+    def parse(text):
+        matches=list(pattern.finditer(text));markers=[];covered=[];replacements=[]
+        if len(matches)<2:return None
+        prefix=text[:matches[0].start()]
+        headers=list(re.finditer(r'\((\d+)\)',prefix));header=None
+        if headers:
+            if len(headers)!=1 or not any(c.isalpha() for c in prefix[:headers[0].start()]):return None
+            match=headers[0];digits=match.group(1)
+            header={'start':match.start(1),'end':match.end(1),'digits':digits,
+                    'canonical_digits':''.join(str(unicodedata.decimal(c)) for c in digits)}
+            covered.append(match.span(1));replacements.append((match.start(1),match.end(1),'\ue001'))
+        for match in matches:
+            group='prefix' if match.group('prefix') is not None else 'suffix'
+            digits=match.group(group);value=int(digits)
+            if ''.join(str(unicodedata.decimal(c)) for c in digits)!=str(value):return None
+            after=text[match.end():].lstrip()
+            if not after or not unicodedata.category(after[0]).startswith('L'):return None
+            markers.append({'start':match.start(),'end':match.end(),'value':value,'digits':digits,
+                            'dash':match.group('left') or match.group('right'),'placement':group,'family':'dot'if(match.group('left')or match.group('right'))=='.'else'dash'})
+            covered.append(match.span(group));replacements.append((match.start(),match.end(),' \ue000 '))
+        if covered!=[m.span() for m in re.finditer(r'\d+',text)]:return None
+        if any(c.isnumeric() and not any(start<=i<end for start,end in covered) for i,c in enumerate(text)):return None
+        if [m['value'] for m in markers]!=list(range(1,len(markers)+1)):return None
+        masked=[];cursor=0
+        for start,end,replacement in sorted(replacements):masked.extend((text[cursor:start],replacement));cursor=end
+        masked.append(text[cursor:]);return ''.join(masked),markers,header
+    first,second=parse(original),parse(primary)
+    if first is None or second is None or [m['value'] for m in first[1]]!=[m['value'] for m in second[1]]:return None
+    if (first[2] is None)!=(second[2] is None):return None
+    if first[2] is not None and first[2]['canonical_digits']!=second[2]['canonical_digits']:return None
+    if [m['family']for m in first[1]]!=[m['family']for m in second[1]]:return None
+    return {'values':[m['value'] for m in first[1]],'native_markers':first[1],'primary_markers':second[1],
+            'title_integer':{'native':first[2],'primary':second[2]} if first[2] is not None else None,'native_masked':first[0],'primary_masked':second[0]}
+
+
+_NATIVE_WORDS=re.compile(r'[^\W\d_]+(?:[\u0300-\u036f\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed]+[^\W\d_]*)*')
+
+def _phrase_occurrences(text,quote):return len(list(re.finditer(r'(?<!\S)'+re.escape(quote)+r'(?!\S)',text)))
+
+def _native_list_frames(native,primary,native_layout=None):
+ frame=_native_parse_list_pair(native,primary)
+ if frame is None:return None
+ def line_initial(text,marker):return not text[:marker['start']].rsplit('\n',1)[-1].strip()
+ if native_layout is None or norm(native_layout)!=norm(native):return None
+ geometry=_native_parse_list_pair(native,native_layout)
+ if geometry is None or not all(line_initial(native_layout,m)for m in geometry['primary_markers']):return None
+ if not all(line_initial(primary,m)for m in frame['primary_markers']):return None
+ frame['position_basis']='PDF_derived_native_layout_and_raw_primary_lines'
+ frame['native_layout_markers']=geometry['primary_markers']
+ frame['native_layout_title_integer']=geometry['title_integer']['primary'] if geometry['title_integer'] else None
+ frame['native_layout_text']=native_layout
+ return frame
+
+def _native_list_segments(text,markers,header):
+ starts=[0]+[m['end']for m in markers];ends=[m['start']for m in markers]+[len(text)];result=[]
+ for i,(start,end)in enumerate(zip(starts,ends)):
+  value=text[start:end];mapping=list(range(start,end+1))
+  if i==0 and header:
+   lo,hi=header['start'],header['end'];value=value[:lo]+'\ue001'+value[hi:]
+   mapping=mapping[:lo+1]+mapping[hi:]
+  result.append({'start':start,'end':end,'text':value,'offset_map':mapping})
+ return result
+
+def _boundary_context_options(native,primary,full_primary,base_offset=0,offset_map=None,raw_primary=None):
+ if UNKNOWN in native+primary or any(c.isdigit()or unicodedata.category(c).startswith('S')for c in native+primary):return None
+ a,b=(_native_comparison_key(t,punctuation=True)for t in (native,primary))
+ if a==b or a.replace(' ','')!=b.replace(' ',''):return None
+ words=b.split();tokens=list(_NATIVE_WORDS.finditer(primary))
+ if [_native_comparison_key(t.group(),punctuation=True)for t in tokens]!=words:return None
+ def points(text):
+  result=[];offset=0
+  for word in text.split()[:-1]:offset+=len(word);result.append(offset)
+  return set(result)
+ spans=[];offset=0
+ for word in words:spans.append((offset,offset+len(word)));offset+=len(word)
+ fullkey=_native_comparison_key(full_primary,punctuation=True);edits=[]
+ for point in sorted(points(a)^points(b)):
+  touched=[i for i,(lo,hi)in enumerate(spans)if lo<=point<=hi];options=[]
+  for width in range(3,7):
+   for start in range(len(words)-width+1):
+    end=start+width
+    if start>min(touched)or end<=max(touched):continue
+    key=' '.join(words[start:end]);lo=tokens[start].start();hi=tokens[end-1].end()
+    if _phrase_occurrences(fullkey,key)!=1:continue
+    raw_lo=offset_map[lo]if offset_map is not None else base_offset+lo;raw_hi=offset_map[hi]if offset_map is not None else base_offset+hi
+    quote=primary[lo:hi]
+    if raw_primary is not None and raw_primary[raw_lo:raw_hi]!=quote:continue
+    options.append({'quote':quote,'comparison_key':key,'primary_start':raw_lo,'primary_end':raw_hi,'word_count':width})
+  if not options:return None
+  edits.append({'boundary_offset':point,'options':options})
+ return edits or None
+
+def _select_boundary_contexts(edits,ocr):
+ if not edits or ocr is None:return None
+ key=_native_comparison_key(ocr,punctuation=True);proof=[]
+ for edit in edits:
+  selected=next((v for v in edit['options']if _phrase_occurrences(key,v['comparison_key'])==1),None)
+  if selected is None:return None
+  proof.append({'boundary_offset':edit['boundary_offset'],**selected})
+ return proof
+
+def _compose_native_list_text(native,primary,secondary=None,ocr=None,*,located=False,native_layout=None):
+ if not located:return {'status':'ineligible','reason':'unlocated','output':None}
+ frame=_native_list_frames(native,primary,native_layout)
+ if frame is None:return {'status':'ineligible','reason':'strict_numeric_frame_or_marker_position','output':None}
+ header=frame['title_integer'];nsegments=_native_list_segments(native_layout,frame['native_layout_markers'],frame['native_layout_title_integer']);psegments=_native_list_segments(primary,frame['primary_markers'],header['primary']if header else None)
+ second_frame=_native_list_frames(native,secondary,native_layout)if secondary is not None else None
+ qsegments=_native_list_segments(secondary,second_frame['primary_markers'],second_frame['title_integer']['primary']if second_frame['title_integer']else None)if second_frame else None
+ results=[]
+ for i,(n,p)in enumerate(zip(nsegments,psegments)):
+  if _native_readings_agree(n['text'],p['text'],punctuation=True):
+   # Current selector's exact path continues to retain native literally.
+   record={'mode':'native_primary_agreement','output':n['text']}
+  else:
+   alternatives=_boundary_context_options(n['text'],p['text'],frame['primary_masked'],p['start'],p['offset_map'],primary);witness=_select_boundary_contexts(alternatives,ocr)
+   if witness is not None:
+    record={'mode':'independent_boundary','output':p['text'],'witnesses':witness}
+   elif qsegments is not None:
+    merged=_native_three_way_text(n['text'],p['text'],qsegments[i]['text'])
+    if merged is None or UNKNOWN in merged:return {'status':'unresolved','reason':'nonnumeric_segment_unconfirmed','segment':i,'output':None,'segments':results}
+    record={'mode':'existing_three_way','output':merged}
+   else:return {'status':'unresolved','reason':'independent_boundary_or_second_frame_missing','segment':i,'output':None,'segments':results}
+  results.append(record)
+ output=[]
+ for i,record in enumerate(results):
+  text=record['output']
+  if i==0 and header:text=text.replace('\ue001',header['native']['digits'])
+  output.append(text)
+  if i<len(frame['native_markers']):
+   marker=frame['native_markers'][i];output.append(native[marker['start']:marker['end']])
+ output=''.join(output)
+ assert re.findall(r'\d+',output)==re.findall(r'\d+',native)
+ assert '\ue001'not in output and '\ue000'not in output
+ return {'status':'corroborated','selection':'native_numerals_with_corroborated_non_numeric_segments','output':output,'numeric_frame':frame,'segments':results,'secondary_frame_valid':second_frame is not None,'source_raw_retained':True}
+
+def _raw_native_reading(directory, response, topic_id):
+    name=response['file']
+    if not isinstance(name,str) or Path(name).name!=name:raise ValueError('invalid_native_reading_path')
+    content=(directory/name).read_bytes()
+    if _sha(content)!=response['sha256']:raise ValueError('stale_native_reading')
+    value=json.loads(content);parsed=_rows(value,'native',[topic_id])[0]['text']
+    rows=json.loads(value['message']['content'])['rows']
+    raw=rows[topic_id] if isinstance(rows,dict) else next(r['text'] for r in rows if r['id']==topic_id)
+    return parsed,raw
+
+
+def _read_independent_boundary(directory, images):
+    identity=None;inputs=[];raws=[]
+    def record(status):
+        proof={'identity':identity,'inputs':inputs,'raws':raws,'status':status}
+        _save(directory/f'list-boundary-attempt-{time.time_ns()}.json',proof)
+        return proof
+    try:
+        executable,data,identity=_tesseract_identity();texts=[]
+        for i,content in enumerate(images):
+            name=f'list-boundary-input-{i+1}.png';_save(directory/name,content,binary=True)
+            inputs.append({'file':name,'sha256':_sha(content)})
+            result=subprocess.run([executable,str(directory/name),'stdout','--tessdata-dir',data,'-l','ara','--psm','6'],capture_output=True,check=False,timeout=15,env={**os.environ,'OMP_THREAD_LIMIT':'1','OMP_NUM_THREADS':'1'})
+            raw=f'list-boundary-raw-{time.time_ns()}.txt';_save(directory/raw,result.stdout,binary=True);raws.append({'file':raw,'sha256':_sha(result.stdout)})
+            if result.returncode or len(result.stdout)>1024*1024:raise ValueError('independent_boundary_reading_failed')
+            texts.append(result.stdout.decode('utf-8'))
+        return record('completed'),'\n'.join(texts)
+    except (OSError,ValueError,subprocess.SubprocessError):
+        if identity is not None:
+            try:record('unavailable')
+            except OSError:pass
+        return None
+
+
+def _validate_independent_boundary(directory, proof, images):
+    if proof['status']!='completed' or _tesseract_identity()[2]!=proof['identity']:raise ValueError('stale_list_boundary_reader')
+    if len(proof['inputs'])!=len(images) or len(proof['raws'])!=len(images):raise ValueError('stale_list_boundary_image_count')
+    def read(record):
+        name=record['file']
+        if not isinstance(name,str) or Path(name).name!=name:raise ValueError('invalid_list_boundary_path')
+        content=(directory/name).read_bytes()
+        if _sha(content)!=record['sha256']:raise ValueError('stale_list_boundary_file')
+        return content
+    for record,content in zip(proof['inputs'],images):
+        if read(record)!=content:raise ValueError('stale_list_boundary_image')
+    return '\n'.join(read(record).decode('utf-8') for record in proof['raws'])
+
+
+def _native_list_corroboration(directory, images, anchor, primary, response, *, secondary_response=None, state=None):
+    if not images or anchor.get('unlocated_pages') or not anchor.get('regions') or not anchor.get('native_layout_text'):return None
+    parsed,raw_primary=_raw_native_reading(directory,response,anchor['id'])
+    if parsed!=primary:raise ValueError('native_primary_raw_binding')
+    secondary=None;secondary_parsed=None
+    if secondary_response is not None:secondary_parsed,secondary=_raw_native_reading(directory,secondary_response,anchor['id'])
+    frame=_native_list_frames(anchor['text'],raw_primary,anchor['native_layout_text'])
+    if frame is None:return None
+    state={} if state is None else state
+    state['frame_valid']=True
+    header=frame['title_integer']
+    ns=_native_list_segments(anchor['text'],frame['native_markers'],header['native'] if header else None)
+    ps=_native_list_segments(raw_primary,frame['primary_markers'],header['primary'] if header else None)
+    needs_boundary=any(not _native_readings_agree(n['text'],p['text'],punctuation=True) and
+                       _boundary_context_options(n['text'],p['text'],frame['primary_masked'],p['start'],p['offset_map'],raw_primary)
+                       for n,p in zip(ns,ps))
+    if needs_boundary and 'independent' not in state:state['independent']=_read_independent_boundary(directory,images)
+    independent=state.get('independent');ocr=independent[1] if independent else None
+    composed=_compose_native_list_text(anchor['text'],raw_primary,secondary,ocr,located=True,native_layout=anchor['native_layout_text'])
+    if composed['status']!='corroborated':return None
     inputs=[]
     for i,content in enumerate(images):
-        name=f'native-list-input-{i+1}.png';_save(directory/name,content,binary=True)
-        inputs.append({'file':name,'sha256':_sha(content)})
-    return {'topic_id':anchor['id'],'selection':'original_native_text','native_text':anchor['text'],'primary_text':primary,
+        name=f'native-list-input-{i+1}.png';_save(directory/name,content,binary=True);inputs.append({'file':name,'sha256':_sha(content)})
+    used_boundary=any(r['mode']=='independent_boundary' for r in composed['segments'])
+    return {'topic_id':anchor['id'],'selection':composed['selection'],'native_text':anchor['text'],'primary_text':primary,
+            'primary_raw_text':raw_primary,'secondary_text':secondary_parsed,'secondary_raw_text':secondary,
+            'native_layout_text':anchor['native_layout_text'],'native_layout_proof_sha256':anchor.get('native_layout_proof_sha256'),
             'native_sha256':_sha(anchor['text'].encode()),'primary_sha256':_sha(primary.encode()),
-            'selected_sha256':_sha(anchor['text'].encode()),'layout':layout,'inputs':inputs,'response':copy.deepcopy(response)}
+            'selected_sha256':_sha(composed['output'].encode()),'output_text':composed['output'],'layout':composed['numeric_frame'],
+            'composition':composed,'inputs':inputs,'response':copy.deepcopy(response),
+            'responses':[copy.deepcopy(r) for r in (response,secondary_response) if r is not None],
+            'independent_reading':copy.deepcopy(independent[0]) if used_boundary else None}
 
 
 def _validate_native_list_proofs(directory, saved, native_rows, images):
     proofs=saved.get('native_list_corroborations',[])
-    single=len(saved['identities'])==1 and len(saved['responses'])==1
-    parsed=None
-    if single:
-        response=saved['responses'][0];name=response['file']
-        if not isinstance(name,str) or Path(name).name!=name:raise ValueError('invalid_native_list_response_path')
-        parsed=_rows(json.loads((directory/name).read_text()),'native',[r['id'] for r in saved['rows']])
     if not proofs:
-        # A successful selected-native output must never pass after its proof
-        # has been removed. Explicitly uncertain fallback results stay unchanged.
-        if single and all(UNKNOWN not in r['text'] for r in saved['rows']) and parsed!=saved['rows']:raise ValueError('missing_native_list_proof')
+        if len(saved['responses'])==1 and all(UNKNOWN not in r['text'] for r in saved['rows']):
+            raw=json.loads((directory/saved['responses'][0]['file']).read_text())
+            if len(native_rows or [])==1:
+                anchor=native_rows[0];_,raw_primary=_raw_native_reading(directory,saved['responses'][0],anchor['id'])
+                if _native_list_frames(anchor['text'],raw_primary,anchor.get('native_layout_text')) is not None:raise ValueError('missing_native_list_proof')
+            if _rows(raw,'native',[r['id'] for r in saved['rows']])!=saved['rows']:raise ValueError('missing_native_list_proof')
+        elif len(saved['responses'])==2 and len(native_rows or [])==1 and all(UNKNOWN not in r['text'] for r in saved['rows']) and any(c.isdigit() for c in native_rows[0]['text']):
+            anchor=native_rows[0];tid=anchor['id'];first,raw_primary=_raw_native_reading(directory,saved['responses'][0],tid);second,_=_raw_native_reading(directory,saved['responses'][1],tid)
+            if _native_list_frames(anchor['text'],raw_primary,anchor.get('native_layout_text')) is not None:raise ValueError('missing_composed_native_list_proof')
+            if not native_rows[0].get('unlocated_pages') and _merge_rows([{'id':tid,'text':first}],[{'id':tid,'text':second}],'native')!=saved['rows']:raise ValueError('missing_composed_native_list_proof')
         return
-    if not single or len(proofs)!=1 or len(native_rows or [])!=1 or len(saved['rows'])!=1:raise ValueError('invalid_native_list_proofs')
-    proof=proofs[0];anchor=native_rows[0];primary=parsed[0]['text']
-    if anchor.get('unlocated_pages') or not anchor.get('regions'):raise ValueError('unlocated_native_list_proof')
-    if saved['rows'][0]!={'id':anchor['id'],'text':anchor['text']}:raise ValueError('native_list_output_not_original')
-    if proof['topic_id']!=anchor['id'] or proof['selection']!='original_native_text' or proof['native_text']!=anchor['text'] or proof['primary_text']!=primary or proof['response']!=saved['responses'][0]:raise ValueError('stale_native_list_text')
-    if proof['native_sha256']!=_sha(anchor['text'].encode()) or proof['primary_sha256']!=_sha(primary.encode()) or proof['selected_sha256']!=_sha(saved['rows'][0]['text'].encode()):raise ValueError('stale_native_list_hash')
-    if proof['layout']!=_native_list_layout(anchor['text'],primary) or proof['layout'] is None:raise ValueError('stale_native_list_layout')
+    if len(proofs)!=1 or len(native_rows or [])!=1 or len(saved['rows'])!=1:raise ValueError('invalid_native_list_proofs')
+    proof=proofs[0];anchor=native_rows[0];tid=anchor['id']
+    if anchor.get('unlocated_pages') or not anchor.get('regions') or not anchor.get('native_layout_text'):raise ValueError('unlocated_native_list_proof')
+    if proof['responses']!=saved['responses'] or proof['response']!=saved['responses'][0] or not 1<=len(saved['responses'])<=2:raise ValueError('stale_list_readers')
+    primary,raw_primary=_raw_native_reading(directory,saved['responses'][0],tid)
+    secondary,raw_secondary=_raw_native_reading(directory,saved['responses'][1],tid) if len(saved['responses'])==2 else (None,None)
+    if proof['topic_id']!=tid or proof['native_text']!=anchor['text'] or proof['primary_text']!=primary or proof['primary_raw_text']!=raw_primary or proof['secondary_text']!=secondary or proof['secondary_raw_text']!=raw_secondary:raise ValueError('stale_native_list_text')
+    if proof['native_layout_text']!=anchor['native_layout_text'] or proof['native_layout_proof_sha256']!=anchor.get('native_layout_proof_sha256'):raise ValueError('stale_native_line_geometry')
     if not images or len(proof['inputs'])!=len(images):raise ValueError('stale_native_list_images')
     for record,content in zip(proof['inputs'],images):
         name=record['file']
         if not isinstance(name,str) or Path(name).name!=name:raise ValueError('invalid_native_list_image_path')
         stored=(directory/name).read_bytes()
         if stored!=content or _sha(stored)!=record['sha256']:raise ValueError('stale_native_list_image')
+    independent=proof.get('independent_reading');ocr=_validate_independent_boundary(directory,independent,images) if independent else None
+    composed=_compose_native_list_text(anchor['text'],raw_primary,raw_secondary,ocr,located=True,native_layout=anchor['native_layout_text'])
+    if composed['status']!='corroborated' or proof['composition']!=composed or proof['layout']!=composed['numeric_frame'] or proof['selection']!=composed['selection'] or proof['output_text']!=composed['output'] or saved['rows'][0]!={'id':tid,'text':composed['output']}:raise ValueError('stale_native_list_derivation')
+    if proof['native_sha256']!=_sha(anchor['text'].encode()) or proof['primary_sha256']!=_sha(primary.encode()) or proof['selected_sha256']!=_sha(composed['output'].encode()):raise ValueError('stale_native_list_hash')
 
 
 def _boundary_phrases(original, primary):
@@ -530,6 +767,8 @@ def _cache_load(directory, key, mode, expected_ids, caller, *, native_rows=None,
         if mode=='native':
             _validate_boundary_proofs(directory,saved,native_rows,images)
             _validate_native_list_proofs(directory,saved,native_rows,images)
+            anchors={row['id']:row for row in native_rows or []}
+            if any(_native_pdf_marks_conflict(anchors[row['id']],row['text']) for row in saved['rows']):raise ValueError('cached_pdf_explicit_mark_conflict')
         # Revalidate cached merged rows as strictly as fresh rows.
         _rows({'done_reason':'stop','message':{'content':json.dumps({'rows':saved['rows']},ensure_ascii=False)}},mode,expected_ids)
         return saved
@@ -541,7 +780,7 @@ def _transcribe(directory,key,images,mode,native_rows,caller,model,timeout,page_
     protocol={'native_protocol_version':NATIVE_PROTOCOL_VERSION} if mode=='native' else {}
     cached=_cache_load(directory,key,mode,ids,caller,native_rows=native_rows,images=images)
     if cached is not None:return cached
-    identities=[];responses=[];first=None;failure=None;boundary_proofs={};list_proofs={}
+    identities=[];responses=[];first=None;failure=None;boundary_proofs={};list_proofs={};list_state={}
     try:
         identity=_identity(model,caller);identities.append(identity)
         first,proof=_chat(caller,directory,identity,images,mode,native_rows,timeout,responses)
@@ -555,13 +794,13 @@ def _transcribe(directory,key,images,mode,native_rows,caller,model,timeout,page_
                     if boundary_proofs[n['id']] is not None:return False
                 return True
             changed=_native_agreement_text(r['text'],punctuation=False)!=_native_agreement_text(text,punctuation=False)
-            if changed and mode=='native' and len(native_rows)==1:
-                if n['id'] not in list_proofs:list_proofs[n['id']]=_native_list_corroboration(directory,images,n,r['text'],responses[0])
+            if mode=='native' and len(native_rows)==1:
+                if n['id'] not in list_proofs:list_proofs[n['id']]=_native_list_corroboration(directory,images,n,r['text'],responses[0],state=list_state)
                 if list_proofs[n['id']] is not None:return False
             return changed
         changed=mode=='native' and any(changed_row(r,n) for r,n in zip(first,native_rows))
         if not uncertain and not changed:
-            rows=[{'id':r['id'],'text':list_proofs[r['id']]['native_text']} if list_proofs.get(r['id']) else r for r in first]
+            rows=[{'id':r['id'],'text':list_proofs[r['id']]['output_text']} if list_proofs.get(r['id']) else r for r in first]
             result={'version':VERSION,**protocol,'key':key,'rows':rows,'rows_sha256':_json_sha(rows),'identities':identities,'responses':responses}
             if any(boundary_proofs.values()):result['boundary_corroborations']=[proof for proof in boundary_proofs.values() if proof is not None]
             if any(list_proofs.values()):result['native_list_corroborations']=[proof for proof in list_proofs.values() if proof is not None]
@@ -586,7 +825,15 @@ def _transcribe(directory,key,images,mode,native_rows,caller,model,timeout,page_
         identity=_identity(FALLBACK_MODEL,caller);identities.append(identity)
         second,proof=_chat(caller,directory,identity,selected_images,mode,selected_rows,
                            timeout if fallback_timeout is None else fallback_timeout,responses)
-        if first is None:rows=second
+        composed_proof=None
+        if first is not None and mode=='native' and len(native_rows)==1:
+            composed_proof=_native_list_corroboration(directory,images,native_rows[0],first[0]['text'],responses[0],secondary_response=responses[-1],state=list_state)
+        if composed_proof is not None:rows=[{'id':native_rows[0]['id'],'text':composed_proof['output_text']}]
+        elif mode=='native' and len(native_rows)==1 and list_state.get('frame_valid'):
+            # A rejected segment proof (including explicit PDF role/vowel
+            # conflict) cannot be bypassed by flattening the two model rows.
+            original=native_rows[0]['text'];rows=[{'id':native_rows[0]['id'],'text':original if UNKNOWN in original else original+' '+UNKNOWN}]
+        elif first is None:rows=second
         elif mode=='native' and affected_ids is not None:
             alternate={r['id']:r for r in second};rows=[]
             for row in first:
@@ -601,11 +848,15 @@ def _transcribe(directory,key,images,mode,native_rows,caller,model,timeout,page_
             actual_readers=[{r['id']:r['text'] for r in reading}for reading in (first or [],second)]
             for row in rows:
                 anchor=originals[row['id']]
+                if _native_pdf_marks_conflict(anchor,row['text']):
+                    original=anchor['text'];row['text']=original if UNKNOWN in original else original+' '+UNKNOWN
                 if not anchor.get('unlocated_pages'):continue
                 original=anchor['text']
                 matching=next((reader[row['id']]for reader in actual_readers if row['id']in reader and _native_complete_match(original,reader[row['id']])),None)
                 row['text']=matching if matching is not None else original if UNKNOWN in original else original+' '+UNKNOWN
-        result={'version':VERSION,**protocol,'key':key,'rows':rows,'rows_sha256':_json_sha(rows),'identities':identities,'responses':responses};_save(directory/'cache.json',result);return result
+        result={'version':VERSION,**protocol,'key':key,'rows':rows,'rows_sha256':_json_sha(rows),'identities':identities,'responses':responses}
+        if composed_proof is not None:result['native_list_corroborations']=[composed_proof]
+        _save(directory/'cache.json',result);return result
     except Exception as error:
         # Retain a valid primary transcription with explicit uncertainty. Native
         # disagreement that cannot be checked stays with the original reading.
@@ -883,6 +1134,15 @@ def verify_pdf_topics(path,extracted,cache_dir,model='gemma4:e4b',*,caller=None)
             if doc.needs_pass or pages[-1]>len(doc):raise ValueError('native_pages_unresolved')
             for topic,anchor in zip(topics,native):
                 anchor=copy.deepcopy(anchor);images=[];cell_pages=[]
+                font_record=next((r for r in font_recovery['topics'] if r['id']==topic['id']),{})
+                native_layout=font_record.get('recovered_layout_text')
+                if isinstance(native_layout,str) and norm(native_layout)==font_record.get('after')==anchor['text']:
+                    anchor['native_layout_text']=native_layout
+                    anchor['native_layout_proof_sha256']=font_binding
+                    # extract.norm intentionally loses vowels. The verification
+                    # anchor instead retains marks proven by the same font/glyph
+                    # reconstruction; original topics/input hashes stay intact.
+                    anchor['text']=_native_agreement_text(native_layout,punctuation=False)
                 for number in anchor['pages']:
                     page=doc[number-1];clip=page.rect;valid=[]
                     candidates=([topic.get('bbox')] if topic.get('page')==number else [])+[f.get('bbox') for f in topic.get('fragments',[]) if f.get('page')==number]
@@ -908,7 +1168,12 @@ def verify_pdf_topics(path,extracted,cache_dir,model='gemma4:e4b',*,caller=None)
                 cellkey=_json_sha([VERSION,NATIVE_PROTOCOL_VERSION,sha,original_input_sha,input_sha,font_binding,topic,anchor,cell_pages,model,FALLBACK_MODEL,NATIVE_SYSTEM,native_schema([topic['id']])])
                 cell_directory=_directory(directory/'cells'/cellkey)
                 for image,pageproof in zip(images,cell_pages):_save(cell_directory/f"page-{pageproof['page']}.png",image,binary=True)
-                cell={'topic_id':topic['id'],'key':cellkey,'pages':cell_pages,'status':'reading'};cells.append(cell)
+                cell={'topic_id':topic['id'],'key':cellkey,'pages':cell_pages,'status':'reading'}
+                if anchor.get('native_layout_text'):
+                    cell['anchor_derivation']={'method':'font_bound_layout','source_sha256':sha,'font_proof_sha256':font_binding,
+                                               'text':anchor['text'],'text_sha256':_sha(anchor['text'].encode()),
+                                               'layout_sha256':_sha(anchor['native_layout_text'].encode())}
+                cells.append(cell)
                 try:
                     value=_transcribe(cell_directory,cellkey,images,'native',[anchor],caller,model,NATIVE_PRIMARY_TIMEOUT,page_numbers=anchor['pages'],fallback_timeout=NATIVE_FALLBACK_TIMEOUT)
                 except Exception:
@@ -928,7 +1193,8 @@ def verify_pdf_topics(path,extracted,cache_dir,model='gemma4:e4b',*,caller=None)
                 if value.get('native_list_corroborations'):
                     cell['native_list_corroborations']=copy.deepcopy(value['native_list_corroborations'])
                     for corroboration in cell['native_list_corroborations']:
-                        for entry in corroboration['inputs']+[corroboration['response']]:
+                        independent=corroboration.get('independent_reading') or {'inputs':[],'raws':[]}
+                        for entry in corroboration['inputs']+corroboration['responses']+[corroboration['response']]+independent['inputs']+independent['raws']:
                             entry['file']=str((cell_directory/entry['file']).relative_to(directory))
                 for identity in value['identities']:
                     if identity not in reading['identities']:reading['identities'].append(identity)
@@ -938,7 +1204,7 @@ def verify_pdf_topics(path,extracted,cache_dir,model='gemma4:e4b',*,caller=None)
         for topic,row in zip(topics,reading['rows']):
             record=copy.deepcopy(topic);record['corrected_text']=row['text'];record['visual_transcription_origin']='local_vision_transcription'
             if next(c for c in cells if c['topic_id']==topic['id']).get('native_list_corroborations'):
-                record['visual_transcription_origin']='native_text_with_visual_list_corroboration'
+                record['visual_transcription_origin']='native_numerals_with_corroborated_non_numeric_segments'
             original=topic.get('corrected_text') or topic['text']
             original_numbers,visual_numbers=_numeric_sequence(original),_numeric_sequence(row['text'])
             if original_numbers!=visual_numbers:

@@ -13,8 +13,9 @@ def response(value, **extra):
 
 
 def answer(payload, status='possible'):
-    ts = {t['id']: t['text'] for t in payload['target']}
-    ss = {s['id']: s['text'] for s in payload['source']}
+    text=lambda row:row.get('text') if 'text'in row else ''.join(a['quote']for a in row['anchors'])
+    ts = {t['id']: text(t) for t in payload['target']}
+    ss = {s['id']: text(s) for s in payload['source']}
     scan = {}
     for pair in payload['requested_pairs']:
         tid, sid = pair['target_id'], pair['source_id']
@@ -23,6 +24,24 @@ def answer(payload, status='possible'):
             row.update(reason='مرشح للفحص دون حكم توافق.', target_quote=ts[tid], source_quote=ss[sid])
         scan.setdefault(tid, []).append(row)
     return {'scan': [{'target_id': tid, 'sources': rows} for tid, rows in scan.items()], 'groups': []}
+
+
+def wire_answer(value, payload):
+    """Synthetic callers select references; production never accepts literals."""
+    if not payload['source'] or 'anchors'not in payload['source'][0]:return value
+    result=copy.deepcopy(value)
+    refs={side:{row['id']:{**{a['quote']:a['ref']for a in row['anchors']},
+                         ''.join(a['quote']for a in row['anchors']):row['whole_ref']}
+                for row in payload[side]}for side in ('source','target')}
+    def anchor(row,tid):
+        for side,owner in [('source',row.get('source_id')),('target',tid)]:
+            key=side+'_quote'
+            if key in row:row[side+'_ref']=refs[side].get(owner,{}).get(row.pop(key),side+':INVALID_LITERAL_FIXTURE')
+    for row in result.get('scan',[]):
+        for pair in row.get('sources',[]):anchor(pair,row.get('target_id'))
+    for group in result.get('groups',[]):
+        for proof in group.get('evidence',[]):anchor(proof,group.get('target_id'))
+    return result
 
 
 def group(tid, ids, targets, sources):
@@ -42,7 +61,11 @@ class Caller:
         parsed = json.loads(payload['messages'][1]['content'])
         self.calls.append(copy.deepcopy(payload))
         value = self.fn(parsed, len(self.calls))
-        return value if 'message' in value else response(value)
+        if 'message'in value:
+            value=copy.deepcopy(value)
+            value['message']['content']=json.dumps(wire_answer(json.loads(value['message']['content']),parsed),ensure_ascii=False)
+            return value
+        return response(wire_answer(value,parsed))
 
 
 class CandidateDiscoveryTests(unittest.TestCase):
@@ -126,6 +149,27 @@ class CandidateDiscoveryTests(unittest.TestCase):
         self.assertEqual(len(caller.calls), 2)
         self.assertEqual(result['scan'][0]['sources'][0], original)
 
+    def test_cross_identity_wire_ref_repairs_only_that_pair_and_preserves_all_other_reasons(self):
+        original={}
+        def fake(payload,n):
+            value=wire_answer(answer(payload),payload)
+            if n==1:
+                for row in value['scan']:
+                    for pair in row['sources']:pair['reason']='سبب محفوظ '+row['target_id']+pair['source_id']
+                original.update({(row['target_id'],p['source_id']):p['reason']for row in value['scan']for p in row['sources']})
+                value['scan'][0]['sources'][0]['source_ref']='source:s2:whole'
+            else:
+                self.assertTrue(payload['repair_only'])
+                self.assertEqual(payload['requested_pairs'],[{'target_id':'t1','source_id':'s1'}])
+                self.assertEqual(len(payload['retained_pairs']),7)
+            return value
+        caller=Caller(fake);found=self.discover(caller)
+        self.assertEqual(len(caller.calls),2);self.assertEqual(found['coverage']['pairs'],8)
+        for row in found['scan']:
+            for pair in row['sources']:
+                if (row['target_id'],pair['source_id'])!=('t1','s1'):
+                    self.assertEqual(pair['reason'],original[(row['target_id'],pair['source_id'])])
+
     def test_duplicate_pairs_require_repair_and_do_not_choose_favorable_one(self):
         def fake(payload, n):
             value = answer(payload)
@@ -176,7 +220,9 @@ class CandidateDiscoveryTests(unittest.TestCase):
         targets = copy.deepcopy(self.targets);targets[0].update(text='نص قديم', corrected_text='النص الفعال الصحيح', score=100)
         caller = Caller();found = self.discover(caller, targets)
         payload = json.loads(caller.calls[0]['messages'][1]['content'])
-        self.assertEqual(payload['target'][0], {'id': 't1', 'text': 'النص الفعال الصحيح'})
+        self.assertEqual(payload['target'][0]['id'],'t1')
+        self.assertEqual(''.join(a['quote']for a in payload['target'][0]['anchors']),'النص الفعال الصحيح')
+        self.assertNotIn('text',payload['target'][0])
         self.assertNotIn('score', payload['target'][0])
         targets[0]['score'] = 1
         again = self.discover(Caller(lambda *_: self.fail('score-only mutation must use cache')), targets)
@@ -249,7 +295,9 @@ class CandidateDiscoveryTests(unittest.TestCase):
                     caller=lambda *_: self.fail('101 must fail before inference'), cache_dir=self.tmp.name)
 
     def test_100_source_curriculum_stays_whole_and_group_can_cross_old96_boundary(self):
-        sources = [{'id': f's{i}', 'text': f'موضوع مستقل من المنهج {i}'} for i in range(100)]
+        # Short synthetic titles fit the conservative32k budget; the separate
+        # overflow test requires long100-source curricula to fail without I/O.
+        sources = [{'id': f's{i}', 'text': f'موضوع {i}'} for i in range(100)]
         def fake(payload, _):
             self.assertEqual(len(payload['source']), 100)
             self.assertLessEqual(len(payload['requested_pairs']), 100)
@@ -347,6 +395,50 @@ class CandidateDiscoveryTests(unittest.TestCase):
             self.assertEqual(new['identity']['ordered_initial_request_sha256'],[hashlib.sha256(json.dumps(second.calls[0]).encode()).hexdigest()])
             cached=self.discover(Caller(lambda *_:self.fail('ordered cache should be reused')))
             self.assertTrue(cached['cache_hit'])
+
+    def test_capacity_splits_only_whole_targets_preserves_all_sources_and_reserves_output(self):
+        targets=[{'id':f't{i}','text':f'عنوان{i} '+('A'*(10000-i))}for i in range(3)]
+        caller=Caller(lambda payload,_:answer(payload,'unrelated'))
+        found=self.discover(caller,targets)
+        self.assertGreater(len(caller.calls),1)
+        sent=[]
+        for request in caller.calls:
+            payload=json.loads(request['messages'][1]['content']);sent.extend(t['id']for t in payload['target'])
+            self.assertEqual([s['id']for s in payload['source']],[s['id']for s in self.sources])
+            self.assertEqual([''.join(a['quote']for a in row['anchors'])for row in payload['source']],[s['text']for s in self.sources])
+            for row in payload['target']:
+                self.assertEqual(''.join(a['quote']for a in row['anchors']),next(t['text']for t in targets if t['id']==row['id']))
+            content,budget=c._discovery_budget(payload)
+            self.assertEqual(content,request['messages'][1]['content'])
+            self.assertFalse(budget['format_schema_counted_as_prompt'])
+            self.assertEqual(budget['system_utf8_bytes'],len(request['messages'][0]['content'].encode()))
+            self.assertEqual(budget['user_utf8_bytes'],len(content.encode()))
+            self.assertGreaterEqual(request['options']['num_predict'],budget['output_required'])
+            self.assertLessEqual(request['options']['num_predict'],budget['available_output'])
+            self.assertEqual(request['model'],'test-local:1');self.assertFalse(request['think'])
+        self.assertEqual(sent,[t['id']for t in targets]);self.assertEqual(found['coverage']['pairs'],12)
+        self.assertTrue(any(b['target_split_depth']>0 for b in found['batches']))
+
+    def test_100_long_sources_fail_closed_before_caller_with_full_input_trace(self):
+        sources=[{'id':f's{i}','text':'م'*12000}for i in range(100)]
+        caller=Caller(lambda *_:self.fail('overfull input must never reach a model'))
+        with self.assertRaises(c.CandidateDiscoveryError)as caught:self.discover(caller,sources=sources)
+        self.assertEqual(caller.calls,[])
+        trace=json.loads(Path(caught.exception.trace_path).read_text())
+        self.assertEqual(trace['failure_kind'],'context_capacity');self.assertFalse(trace['model_called'])
+        self.assertEqual(len(trace['request_payload']['source']),100)
+        self.assertTrue(all(''.join(a['quote']for a in row['anchors'])=='م'*12000 for row in trace['request_payload']['source']))
+        self.assertFalse(trace['capacity']['format_schema_counted_as_prompt'])
+        self.assertGreater(trace['input_upper_bound']+trace['output_required'],32768)
+        self.assertEqual(list((Path(self.tmp.name)/'candidate-discovery').glob('*.json')),[])
+
+    def test_all_batches_preflight_before_any_call_when_later_single_target_cannot_fit(self):
+        sources=[{'id':f's{i}','text':'X'*3500}for i in range(4)]
+        targets=[{'id':f't{i}','text':'موضوع قصير'}for i in range(3)]+[{'id':'oversize','text':'Y'*12000}]
+        caller=Caller(lambda *_:self.fail('later overflow must be detected before earlier model call'))
+        with self.assertRaises(c.CandidateDiscoveryError)as caught:self.discover(caller,targets,sources)
+        self.assertEqual(caller.calls,[])
+        self.assertTrue(all(tid=='oversize'for tid,_ in caught.exception.missing_pairs))
 
 if __name__ == '__main__':
     unittest.main()

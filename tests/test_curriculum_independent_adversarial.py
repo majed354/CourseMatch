@@ -304,14 +304,17 @@ class IndependentCurriculumAdversarialTests(unittest.TestCase):
             self.assertEqual({p['source_id'] for p in payload['requested_pairs']},{s['id'] for s in source})
             self.assertNotIn('score',json.dumps(payload))
             items=[{'source_id':s['id'],'status':'unrelated'}for s in source]
-            for i in (0,3):items[i].update(status='candidate',reason='جزء صريح مكمل.',source_quote=source[i]['text'],target_quote=target[0]['text'])
+            for i in (0,3):items[i].update(status='candidate',reason='جزء صريح مكمل.',source_ref='source:'+source[i]['id']+':whole',target_ref='target:t:whole')
             return {'done':True,'done_reason':'stop','message':{'content':json.dumps({'scan':[{'target_id':'t','sources':items}],
                 'groups':[{'target_id':'t','source_ids':['s1','s4'],'reason':'الأركان والشروط أدلة متكاملة غير متجاورة.',
-                           'evidence':[{'source_id':source[i]['id'],'source_quote':source[i]['text'],'target_quote':target[0]['text']}for i in (0,3)]}]},ensure_ascii=False)}}
+                           'evidence':[{'source_id':source[i]['id'],'source_ref':'source:'+source[i]['id']+':whole','target_ref':'target:t:whole'}for i in (0,3)]}]},ensure_ascii=False)}}
         with tempfile.TemporaryDirectory() as directory:
             result=candidates.discover_candidates(target,source,model='cpu-only',model_digest='cpu-only',caller=caller,cache_dir=directory)
         self.assertEqual(len(calls),1);self.assertEqual(result['coverage']['pairs'],4)
         self.assertEqual(result['groups'][0]['source_ids'],['s1','s4'])
+        self.assertEqual(result['groups'][0]['evidence'],[
+            {'source_id':source[i]['id'],'source_quote':source[i]['text'],'target_quote':target[0]['text']}
+            for i in (0,3)])
         self.assertEqual(result['coverage']['complete'],True)
 
 

@@ -839,15 +839,15 @@ test('repository uploads retain the source role and automatic retrieval contract
  const calls=JSON.parse(JSON.stringify(state.context.requests));assert.deepEqual(calls.map(x=>x.route),['/api/sources','/api/search']);assert.equal(calls[0].body.intake_role,'source');assert.equal(calls[0].body.input_kind,undefined);assert.equal(calls[1].body.all_contexts,true);assert.equal(calls[1].body.limit,8);
 });
 
-test('report polling recovers one transient GET 500 HTML or JSON and renders the same completed job',async()=>{
-  for(const errorFormat of ['html','json']) {
+test('report polling recovers transient GET 500, 520 or 530 HTML or JSON and renders the same completed job',async()=>{
+  for(const proxyStatus of [500,520,530])for(const errorFormat of ['html','json']) {
     const {context,element}=ui();context.setTimeout=callback=>{callback();return 0;};
-    const id='a'.repeat(32);context.jobId=id;context.errorFormat=errorFormat;context.calls=[];context.urls=[];context.errorBodyReads=0;
+    const id='a'.repeat(32);context.jobId=id;context.errorFormat=errorFormat;context.proxyStatus=proxyStatus;context.calls=[];context.urls=[];context.errorBodyReads=0;
     context.completedReport={...reportFixture({beneficiary:{name:'مستفيد الاسترداد',number:'٠٠١500'}}),id};
     vm.runInContext(`history.replaceState=(_state,_title,url)=>urls.push(url);
       fetch=async(route,options)=>{
         calls.push({route,options});
-        if(calls.length===1)return {ok:false,status:500,headers:{get:()=>null},json:async()=>{
+        if(calls.length===1)return {ok:false,status:proxyStatus,headers:{get:()=>null},json:async()=>{
           errorBodyReads++;if(errorFormat==='html')throw SyntaxError('HTML500');
           return {error:'temporary 500',id:'f'.repeat(32),operation_id:'f'.repeat(32),status:'done'};
         }};
@@ -863,11 +863,11 @@ test('report polling recovers one transient GET 500 HTML or JSON and renders the
   }
 });
 
-test('permanent GET 500 HTML or JSON stops after seven attempts without creating or resubmitting a job',async()=>{
-  for(const errorFormat of ['html','json']) {
+test('permanent GET 500, 520 or 530 stops after seven attempts without creating or resubmitting a job',async()=>{
+  for(const proxyStatus of [500,520,530])for(const errorFormat of ['html','json']) {
     const {context,element}=ui();context.setTimeout=callback=>{callback();return 0;};
-    context.jobId='b'.repeat(32);context.errorFormat=errorFormat;context.calls=[];
-    vm.runInContext(`fetch=async(route,options)=>{calls.push({route,options});return {ok:false,status:500,headers:{get:()=>null},json:async()=>{
+    context.jobId='b'.repeat(32);context.errorFormat=errorFormat;context.proxyStatus=proxyStatus;context.calls=[];
+    vm.runInContext(`fetch=async(route,options)=>{calls.push({route,options});return {ok:false,status:proxyStatus,headers:{get:()=>null},json:async()=>{
       if(errorFormat==='html')throw SyntaxError('HTML500');return {error:'permanent fixture500'};
     }};};`,context);
     await assert.rejects(vm.runInContext('waitForReport(jobId)',context),/تعذر تنفيذ الطلب|permanent fixture500/);
@@ -878,11 +878,11 @@ test('permanent GET 500 HTML or JSON stops after seven attempts without creating
   }
 });
 
-test('adding GET 500 resilience never retries a POST source, search or comparison automatically',async()=>{
-  for(const route of ['/api/sources','/api/search','/api/jobs'])for(const errorFormat of ['html','json']) {
+test('GET proxy resilience never retries a POST source, search or comparison automatically',async()=>{
+  for(const proxyStatus of [500,520,530])for(const route of ['/api/sources','/api/search','/api/jobs'])for(const errorFormat of ['html','json']) {
     const {context}=ui();context.setTimeout=callback=>{callback();return 0;};
-    context.route=route;context.errorFormat=errorFormat;context.calls=[];context.bodyInput={source_id:'c'.repeat(32),target_id:'d'.repeat(20)};
-    vm.runInContext(`requestRecovery=false;token='fixture-csrf';fetch=async(route,options)=>{calls.push({route,options});return {ok:false,status:500,json:async()=>{
+    context.route=route;context.errorFormat=errorFormat;context.proxyStatus=proxyStatus;context.calls=[];context.bodyInput={source_id:'c'.repeat(32),target_id:'d'.repeat(20)};
+    vm.runInContext(`requestRecovery=false;token='fixture-csrf';fetch=async(route,options)=>{calls.push({route,options});return {ok:false,status:proxyStatus,json:async()=>{
       if(errorFormat==='html')throw SyntaxError('HTML500');return {error:'POST fixture500'};
     }};};`,context);
     await assert.rejects(vm.runInContext('api(route,bodyInput)',context),/تعذر تنفيذ الطلب|POST fixture500/);

@@ -20,7 +20,7 @@ async function sendApi(route, body, attempt=0) {
     await new Promise(resolve=>setTimeout(resolve,Math.min(3000*2**attempt,30000)));
     return api(route,undefined,attempt+1);
   }
-  if(!body&&[429,500,502,503,504,530].includes(r.status)&&attempt<6) {
+  if(!body&&[429,500,502,503,504,520,530].includes(r.status)&&attempt<6) {
     const retry=Number(r.headers?.get?.('retry-after'));
     const delay=Number.isFinite(retry)&&retry>0?Math.min(retry*1000,30000):Math.min(3000*2**attempt,30000);
     notice('الخدمة مشغولة مؤقتًا؛ سنواصل متابعة طلبك تلقائيًا.',false,true);
