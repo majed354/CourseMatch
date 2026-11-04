@@ -331,5 +331,22 @@ class CandidateDiscoveryTests(unittest.TestCase):
         self.assertEqual(len(caught.exception.missing_pairs),7)
 
 
+    def test_ordered_discovery_schema_gets_new_cache_without_overwriting_old_raw(self):
+        import hashlib
+        first=Caller();old=self.discover(first)
+        saved={p:hashlib.sha256(p.read_bytes()).hexdigest()for p in Path(self.tmp.name).rglob('*.json')}
+        changed=copy.deepcopy(c.SCHEMA)
+        changed['properties']={key:changed['properties'][key]for key in reversed(list(changed['properties']))}
+        with patch.object(c,'SCHEMA',changed):
+            second=Caller();new=self.discover(second)
+            self.assertEqual(len(second.calls),1);self.assertNotEqual(old['cache_key'],new['cache_key'])
+            self.assertEqual(old['scan'],new['scan']);self.assertEqual(old['groups'],new['groups'])
+            self.assertTrue(all(hashlib.sha256(p.read_bytes()).hexdigest()==sha for p,sha in saved.items()))
+            self.assertFalse(new['identity']['think'])
+            self.assertEqual(new['identity']['initial_user_contents'],[second.calls[0]['messages'][1]['content']])
+            self.assertEqual(new['identity']['ordered_initial_request_sha256'],[hashlib.sha256(json.dumps(second.calls[0]).encode()).hexdigest()])
+            cached=self.discover(Caller(lambda *_:self.fail('ordered cache should be reused')))
+            self.assertTrue(cached['cache_hit'])
+
 if __name__ == '__main__':
     unittest.main()

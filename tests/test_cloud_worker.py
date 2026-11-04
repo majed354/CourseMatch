@@ -74,6 +74,17 @@ class TransportTests(unittest.TestCase):
                 worker.Config(origin, TOKEN, 'mac')
         self.assertNotIn(TOKEN, repr(CONFIG))
 
+    def test_optional_review_model_config_is_local_and_defaults_to_primary_setting(self):
+        self.assertEqual(CONFIG.review_model,'')
+        configured=worker.Config(CONFIG.cloud_url,TOKEN,'mac',review_model='gemma4:31b')
+        self.assertEqual(configured.review_model,'gemma4:31b');self.assertNotIn(TOKEN,repr(configured))
+        for model in [None,False,' ',':cloud','remote:CLOUD']:
+            with self.subTest(model=model),self.assertRaisesRegex(ValueError,'review_model_must_be_local'):
+                worker.Config(CONFIG.cloud_url,TOKEN,'mac',review_model=model)
+        with tempfile.TemporaryDirectory()as directory:
+            path=Path(directory)/'worker.env';path.write_text('COURSEMATCH_CLOUD_URL='+CONFIG.cloud_url+'\nCOURSEMATCH_WORKER_TOKEN='+TOKEN+'\nCOURSEMATCH_WORKER_ID=mac\nCOURSEMATCH_REVIEW_MODEL=gemma4:31b\n');path.chmod(0o600)
+            self.assertEqual(worker.Config.from_file(path,environ={}).review_model,'gemma4:31b')
+
     def test_local_destination_is_an_exact_optional_loopback_exception(self):
         self.assertEqual(CONFIG.local_url, '')
         self.assertEqual(LOCAL_CONFIG.local_url, 'http://127.0.0.1:8800')
@@ -211,6 +222,18 @@ class ProcessorTests(WorkerFixture):
         with patch('scripts.cloud_worker.compare',return_value=self.exact_evidence()):
             report=self.processor.process(self.compare_task(review_mode='automatic'),Mock())
         self.assertEqual(report['reviewed_by'],'automated_pipeline');self.assertFalse(report['human_reviewed'])
+
+    def test_worker_passes_optional_reviewer_from_private_config_not_student_payload(self):
+        config=worker.Config(CONFIG.cloud_url,TOKEN,'mac',review_model='gemma4:31b')
+        configured=worker.Worker(config,self.root,cloud=Mock())
+        self.assertEqual(configured.processor.review_model,'gemma4:31b')
+        with patch('scripts.cloud_worker.compare',return_value=self.exact_evidence())as comparison:
+            configured.processor.process(self.compare_task(review_model='attacker:cloud'),Mock())
+        self.assertEqual(comparison.call_args.kwargs['review_model'],'gemma4:31b')
+        self.assertEqual(comparison.call_args.kwargs['model'],config.model)
+        with patch('scripts.cloud_worker.compare',return_value=self.exact_evidence())as comparison:
+            self.processor.process(self.compare_task(),Mock())
+        self.assertNotIn('review_model',comparison.call_args.kwargs)
 
     def test_invalid_ids_ownership_and_input_paths_are_rejected_before_file_access(self):
         for key, replacement in (('id', '../outside'), ('session_id', '../outside'), ('lease_token', 'invalid')):

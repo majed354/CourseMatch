@@ -49,7 +49,7 @@ SESSION_ID = re.compile(r'^[a-f0-9]{64}$')
 LEASE_TOKEN = re.compile(r'^[a-f0-9]{48}$')
 PDF_LIMIT = 12 * 1024 * 1024
 JSON_LIMIT = 16 * 1024 * 1024
-ENV_KEYS = {'COURSEMATCH_CLOUD_URL', 'COURSEMATCH_LOCAL_URL', 'COURSEMATCH_WORKER_TOKEN', 'COURSEMATCH_WORKER_ID', 'COURSEMATCH_MODEL'}
+ENV_KEYS = {'COURSEMATCH_CLOUD_URL', 'COURSEMATCH_LOCAL_URL', 'COURSEMATCH_WORKER_TOKEN', 'COURSEMATCH_WORKER_ID', 'COURSEMATCH_MODEL', 'COURSEMATCH_REVIEW_MODEL'}
 
 
 class CloudError(Exception):
@@ -135,6 +135,7 @@ class Config:
     worker_id: str
     model: str = 'qwen3.8:27b-q8_0'
     local_url: str = ''
+    review_model: str = ''
 
     def __post_init__(self):
         parsed = urllib.parse.urlsplit(self.cloud_url)
@@ -149,12 +150,14 @@ class Config:
             raise ValueError('invalid_worker_id')
         if not self.model or ':cloud' in self.model:
             raise ValueError('worker_model_must_be_local')
+        if not isinstance(self.review_model,str)or (self.review_model and (not self.review_model.strip()or ':cloud'in self.review_model.lower())):
+            raise ValueError('worker_review_model_must_be_local')
 
     @classmethod
     def from_file(cls, path, environ=None):
         values = load_env_file(path)
         values.update({key: value for key, value in (os.environ if environ is None else environ).items() if key in ENV_KEYS})
-        return cls(values.get('COURSEMATCH_CLOUD_URL', '').rstrip('/'), values.get('COURSEMATCH_WORKER_TOKEN', ''), values.get('COURSEMATCH_WORKER_ID', ''), values.get('COURSEMATCH_MODEL', 'qwen3.8:27b-q8_0'), local_url=values.get('COURSEMATCH_LOCAL_URL', ''))
+        return cls(values.get('COURSEMATCH_CLOUD_URL', '').rstrip('/'), values.get('COURSEMATCH_WORKER_TOKEN', ''), values.get('COURSEMATCH_WORKER_ID', ''), values.get('COURSEMATCH_MODEL', 'qwen3.8:27b-q8_0'), local_url=values.get('COURSEMATCH_LOCAL_URL', ''),review_model=values.get('COURSEMATCH_REVIEW_MODEL', ''))
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -335,10 +338,11 @@ def public_source(value, *, catalog_pdf=None):
 
 
 class Processor:
-    def __init__(self, root=ROOT, runtime=None, model='qwen3.8:27b-q8_0'):
+    def __init__(self, root=ROOT, runtime=None, model='qwen3.8:27b-q8_0', review_model=None):
         self.root = Path(root).resolve()
         self.runtime = private_directory(runtime or self.root / 'runtime/cloud-worker').resolve()
         self.model = model
+        self.review_model = review_model or None
         self.catalog = json.loads((self.root / 'equivalency-pilot/catalog.json').read_text())
         self.courses = {course['id']: course for course in self.catalog['courses']}
         self.sources = {**self.courses, **{course['id']: course for course in self.catalog.get('library_sources', [])}}
@@ -556,7 +560,9 @@ class Processor:
                 evidence = self.comparison_hold(target, trusted_source or source, uploaded=payload.get('target_mode') == 'uploaded')
                 if evidence is None:
                     try:
-                        evidence = compare(target, source, model=self.model, cache_dir=private_directory(directory / 'comparisons'))
+                        comparison_options={'model':self.model,'cache_dir':private_directory(directory/'comparisons')}
+                        if self.review_model is not None:comparison_options['review_model']=self.review_model
+                        evidence = compare(target,source,**comparison_options)
                     except EvidenceValidationError as error:
                         evidence = audit_incomplete(error,RUBRIC_VERSION)
                 if evidence['pairs']:
@@ -659,7 +665,7 @@ class Worker:
         directory = 'cloud-worker-interactive' if lane == 'interactive' else 'cloud-worker'
         self.runtime = private_directory(runtime or Path(root) / 'runtime' / directory).resolve()
         self.cloud = cloud or CloudClient(config, lane=lane)
-        self.processor = processor or Processor(root, self.runtime, config.model)
+        self.processor = processor or Processor(root, self.runtime, config.model, review_model=config.review_model or None)
         self.checkpoints = Checkpoints(self.runtime / 'checkpoints', config.worker_id)
         self.heartbeat_interval = heartbeat_interval
         self.last_idle_health = float('-inf')

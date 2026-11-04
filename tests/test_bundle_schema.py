@@ -139,5 +139,29 @@ class BundleSchemaTests(unittest.TestCase):
             self.assertFalse(self.valid(stage,row))
 
 
+    def test_every_model_facet_is_evidence_first_with_unchanged_schema_meaning(self):
+        # Restore only the old ordering to compare complete schema semantics.
+        def normalized(value,key=None):
+            if isinstance(value,dict):return {k:normalized(v,k)for k,v in value.items()}
+            if isinstance(value,list):
+                values=[normalized(v)for v in value]
+                return sorted(values)if key=='required'else values
+            return value
+        for schema in self.schemas.values():
+            previous=copy.deepcopy(schema);seen=[]
+            def visit(value):
+                if isinstance(value,dict):
+                    if value.get('type')=='object'and set(value.get('properties',{}))=={'part_id','source_quotes','reason','support'}:
+                        self.assertEqual(list(value['properties']),['part_id','source_quotes','reason','support'])
+                        self.assertEqual(value['required'],['part_id','source_quotes','reason','support']);seen.append(value)
+                        order=['part_id','support','source_quotes','reason']
+                        value['properties']={k:value['properties'][k]for k in order};value['required']=order
+                    for v in value.values():visit(v)
+                elif isinstance(value,list):
+                    for v in value:visit(v)
+            visit(previous);self.assertGreater(len(seen),0)
+            self.assertEqual(normalized(schema),normalized(previous))
+
+
 if __name__=='__main__':
     unittest.main()

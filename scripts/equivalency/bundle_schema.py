@@ -48,7 +48,11 @@ def model_schema(stage, base_schema):
         value['minItems'] = max(value.get('minItems', 1), minimum)
         if maximum is not None:
             value['maxItems'] = min(value.get('maxItems', maximum), maximum)
-        value['items']['properties']['support']['enum'] = [s for s in _SUPPORTS if s in supports]
+        item=value['items']
+        order=('part_id','source_quotes','reason','support')
+        item['properties']={name:item['properties'][name] for name in order}
+        item['required']=list(order)
+        item['properties']['support']['enum'] = [s for s in _SUPPORTS if s in supports]
         return value
 
     branches = []

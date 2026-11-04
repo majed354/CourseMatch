@@ -1,5 +1,5 @@
 {
-  "status": "native_v6_public_source_verified_C01_comparison_starting",
+  "status": "semantic_evidence_and_independent_model_release_preparation",
   "baseline_commit": "6f4025e",
   "policy": {
     "course_coverage": 80,
@@ -44,8 +44,8 @@
     "grade_inferred_from_facet_count": false
   },
   "verification_so_far": {
-    "python_last_full": 554,
-    "node_chrome_last_full": 201,
+    "python_last_full": 590,
+    "node_chrome_last_full": 202,
     "final_full_checks_pending": false
   },
   "private_evidence_root": "runtime/service/qa/compound-calibration-20261103/",
@@ -153,7 +153,7 @@
     },
     "new_cases_C02_through_C08_started": 0,
     "C01_cell_regression": {
-      "status": "semantic_comparison_running",
+      "status": "completed_diagnostic_academic_limits_preserved",
       "original_PDF": true,
       "source_POSTs": 1,
       "search_POSTs": 1,
@@ -169,7 +169,22 @@
       "proposal_targets_audited": 8,
       "unit_location_downgrades_resolved_in_proposals": true,
       "remaining_unrequested_subfacet_claims_in_t1": true,
-      "course_verdict_not_yet_issued": true
+      "course_verdict_not_yet_issued": false,
+      "decision": "lenient",
+      "strict_count": 11,
+      "lenient_count": 14,
+      "target_topics": 14,
+      "seconds": 1385.51,
+      "model_calls": 11,
+      "PDF_pages": 3,
+      "PDF_all_pages_viewed": true,
+      "whole_course_tolerance_academically_defensible": true,
+      "accepted_as_accuracy_demonstration": false,
+      "remaining_reasoning_issues": [
+        "unrequested_depth_in_t1",
+        "old_valid_witnesses_lost_in_completion",
+        "history_used_for_derivation_in_final_t3"
+      ]
     }
   },
   "independent_CPU_audit": {
@@ -319,5 +334,45 @@
     "parts_per_topic_max": 74,
     "unique_topics_over_12_parts": 163,
     "academic_judgments_verified_by_this_audit": false
+  },
+  "new_diagnostic": {
+    "kind": "known_four_targets_full_curricula_not_new_course_test",
+    "model_roles": {
+      "proposal": "qwen3.8:27b-q8_0",
+      "review": "gemma4:31b"
+    },
+    "course_report_issued": false,
+    "targets": 4,
+    "full_targets": 14,
+    "source_topics": 12,
+    "seconds": 280.55,
+    "evidence_first_fixed_t1": true,
+    "t2_common_tolerance_defensible": true,
+    "t3_strict_not_yet_academically_endorsed": true,
+    "inference_intervals_overlap_proves_parallel_execution": false
+  },
+  "pending_release": {
+    "source_unlocated_guard": "native-cell-v7-unlocated-native-binding",
+    "evidence_first_facet_order": true,
+    "cache_binds_actual_ordered_request": true,
+    "completion_retains_each_readers_own_quotes_only": true,
+    "academic_terms_clarified_without_external_syllabus_injection": true,
+    "independent_review_model_optional": true,
+    "full_checks_pending": false,
+    "public_activation_pending": true,
+    "python": 590,
+    "node_chrome": 202,
+    "skipped": 0,
+    "independent_focused": 184,
+    "domain_guards_unchanged": true
+  },
+  "additional_C09": {
+    "baseline_sha256": "e350137a74f6f1bd04a10d2eec830a9959ba8cca67c44ec79dd85e444904288f",
+    "plan_sha256": "d1a76f42f0c0937e32ecbeca2086af68f60dd8eec382cd327544e38334e9fa07",
+    "source_previously_exposed": true,
+    "prior_judgments_read": false,
+    "new_model_calls": 0,
+    "target_context": "القرآن وعلومه / بكالوريوس / قديمة39",
+    "extends_original_baseline_without_mutation": true
   }
 }

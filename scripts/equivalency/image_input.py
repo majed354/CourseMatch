@@ -30,7 +30,7 @@ from .engine import local_model, post_ollama
 from .extract import norm
 
 VERSION = 'image-input-local-vision-v6-independent-reading'
-NATIVE_PROTOCOL_VERSION = 'native-cell-v6-blind-three-way-reading'
+NATIVE_PROTOCOL_VERSION = 'native-cell-v7-unlocated-native-binding'
 FALLBACK_MODEL = 'qwen3.8:27b-q8_0'
 MAX_PIXELS = 32_000_000
 MAX_DIMENSION = 12_000
@@ -233,6 +233,12 @@ def _native_three_way_text(native,first,second):
     result.append(first[cursor:]);return ''.join(result)
 
 
+def _native_complete_match(original,reading):
+    """An unlocated cell needs an actual reader corroborating its full native text."""
+    if UNKNOWN in original or UNKNOWN in reading:return False
+    return _native_readings_agree(original,reading,punctuation=not any(c.isdigit() for c in original+reading))
+
+
 def _merge_rows(first,second,mode):
     label='id' if mode=='native' else 'number'
     if len(first)!=len(second):raise ValueError('vision_row_count_disagreement')
@@ -356,6 +362,15 @@ def _transcribe(directory,key,images,mode,native_rows,caller,model,timeout,page_
                     rows.append({'id':row['id'],'text':voted} if voted is not None else _merge_rows([row],[other],mode)[0])
                 else:rows.append(row)
         else:rows=_merge_rows(first,second,mode)
+        if mode=='native':
+            originals={n['id']:n for n in native_rows}
+            actual_readers=[{r['id']:r['text'] for r in reading}for reading in (first or [],second)]
+            for row in rows:
+                anchor=originals[row['id']]
+                if not anchor.get('unlocated_pages'):continue
+                original=anchor['text']
+                matching=next((reader[row['id']]for reader in actual_readers if row['id']in reader and _native_complete_match(original,reader[row['id']])),None)
+                row['text']=matching if matching is not None else original if UNKNOWN in original else original+' '+UNKNOWN
         result={'version':VERSION,**protocol,'key':key,'rows':rows,'rows_sha256':_json_sha(rows),'identities':identities,'responses':responses};_save(directory/'cache.json',result);return result
     except Exception as error:
         # Retain a valid primary transcription with explicit uncertainty. Native

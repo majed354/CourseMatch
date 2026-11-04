@@ -611,7 +611,8 @@ class ImageInputTests(unittest.TestCase):
             fragments=[{'page':2,'bbox':[40,20,300,70]}])
         caller=VisionCaller([answer({'t1':'قراءة مستقلة كاملة'}),answer({'t1':'قراءة مستقلة كاملة'})])
         result=image.verify_pdf_topics(self.native(pages=3),source,self.cache,caller=caller)
-        self.assertEqual(result['visual_verification_status'],'completed')
+        self.assertEqual(result['visual_verification_status'],'uncertain')
+        self.assertEqual(result['topics'][0]['corrected_text'],source['topics'][0]['text']+' '+image.UNKNOWN)
         for _,payload,_ in caller.chats:
             content=payload['messages'][1]['content'];self.assertNotIn('نص سري',content)
             anchor=json.loads(content.split('\n')[-1])[0]
@@ -681,3 +682,56 @@ class ImageInputTests(unittest.TestCase):
         self.assertEqual(result['topics'][0]['text'],'المكره ٣')
         self.assertEqual(result['visual_verification_proof']['numeric_disagreements'],[])
         self.assertEqual(image._native_agreement_text('المكره ٣',punctuation=False),'المكره 3')
+
+
+    def test_native_unlocated_matching_wrong_readers_cannot_replace_native_cell(self):
+        source=self.extracted();source['topics'][0].update(text='أحكام البيع وشروطه');source['topics'][0].pop('bbox')
+        wrong=answer({'t1':'أحكام الوقف وشروطه'});caller=VisionCaller([wrong,wrong]);before=copy.deepcopy(source)
+        result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'uncertain')
+        self.assertEqual(result['topics'][0]['corrected_text'],'أحكام البيع وشروطه '+image.UNKNOWN)
+        self.assertEqual(source,before);self.assertEqual(len(caller.chats),2)
+        self.assertEqual(json.loads(caller.chats[0][1]['messages'][1]['content'].split('\n')[-1])[0]['unlocated_pages'],[1])
+        self.assertTrue(all(json.loads(p.read_text())==wrong for p in self.cache.rglob('raw-response-*.json')))
+
+    def test_native_unlocated_fallback_only_requires_complete_native_agreement(self):
+        for agrees in (False,True):
+            with self.subTest(agrees=agrees):
+                source=self.extracted();source['topics'][0].update(text='أحكام البيع وشروطه');source['topics'][0].pop('bbox')
+                visual='أحكام البيع وشروطه'if agrees else'أحكام الوقف وشروطه'
+                caller=VisionCaller([TimeoutError(),answer({'t1':visual})])
+                result=image.verify_pdf_topics(self.native('fallback-'+str(agrees)+'.pdf'),source,self.cache/str(agrees),caller=caller)
+                self.assertEqual(result['visual_verification_status'],'completed'if agrees else'uncertain')
+                self.assertEqual(result['topics'][0]['corrected_text'],visual if agrees else source['topics'][0]['text']+' '+image.UNKNOWN)
+                self.assertEqual(len(caller.chats),2)
+
+    def test_native_unlocated_early_primary_native_agreement_stays_valid(self):
+        source=self.extracted();source['topics'][0].update(text='حجية الاجماع .');source['topics'][0].pop('bbox')
+        visual='حجية الإجماع.';caller=VisionCaller([answer({'t1':visual})])
+        result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(len(caller.chats),1)
+        self.assertEqual(result['topics'][0]['corrected_text'],visual)
+
+    def test_native_located_cell_still_allows_corroborated_visual_correction(self):
+        source=self.extracted();source['topics'][0]['text']='أحكام البيع وشروطه'
+        visual='أحكام الوقف وشروطه';raw=answer({'t1':visual});caller=VisionCaller([raw,raw])
+        result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(result['topics'][0]['corrected_text'],visual)
+        self.assertTrue(result['visual_verification_proof']['pages'][0]['cropped_from_topic_bboxes'])
+        self.assertEqual(result['topics'][0]['text'],source['topics'][0]['text'])
+
+    def test_native_unlocated_match_respects_diacritics_unknown_numbers_and_ranges(self):
+        for original,visual in [('المكره','المُكرِه'),('أحكام الأيمان','أحكام الإيمان'),('نص واضح',image.UNKNOWN),
+                                ('تفسير 1-3','تفسير 1،3'),('تفسير 1-3','تفسير 13')]:
+            self.assertFalse(image._native_complete_match(original,visual))
+        self.assertTrue(image._native_complete_match('تفسير ١-٣','تفسير 1-3'))
+        self.assertTrue(image._native_complete_match('طرق التاليف فيه .','طرق التأليف فيه.'))
+
+
+    def test_native_unlocated_uses_the_actual_matching_fallback_reading_not_a_voted_rewrite(self):
+        source=self.extracted();source['topics'][0]['text']='حجية الإجماع.';source['topics'][0].pop('bbox')
+        primary=answer({'t1':'حجية القياس.'});fallback=answer({'t1':'حجية الاجماع .'})
+        caller=VisionCaller([primary,fallback]);result=image.verify_pdf_topics(self.native(),source,self.cache,caller=caller)
+        self.assertEqual(result['visual_verification_status'],'completed');self.assertEqual(len(caller.chats),2)
+        self.assertEqual(result['topics'][0]['corrected_text'],'حجية الاجماع .')
+        self.assertCountEqual([json.loads(p.read_text())for p in self.cache.rglob('raw-response-*.json')],[primary,fallback])

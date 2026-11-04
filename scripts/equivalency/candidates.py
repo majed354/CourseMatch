@@ -18,6 +18,8 @@ import tempfile
 import time
 import unicodedata
 
+from .academic_terms import ACADEMIC_TERMS
+
 VERSION = 'source-complete-candidate-discovery-v1'
 MAX_TOPICS = 100
 MAX_TARGETS_PER_BATCH = 3
@@ -33,6 +35,7 @@ SYSTEM = '''أنت باحث عن أدلة موضوعية بديلة بين مف�
 اقترح groups جادة من2إلى4source_ids عندما تقدم صفوف مختلفة أدلة مكملة لمفردة الهدف المركبة. يمكن أن تكون الصفوف غير متجاورة. لا تجمع درجات ولا تعتبر اتحاد كلمات أو تكرار الجزء نفسه تغطية إضافية. لا تنقل مضمون مصدر إلى معرف آخر. لكل مصدر في المجموعة دليل مستقل حرفي مع الجزء ذي الصلة من الهدف؛ لا يلزم إثبات اكتمال الهدف لأن هذه مرحلة ترشيح فقط.
 يجوز استعمال المصدر المركب في أكثر من هدف إذا احتوى مادتهما فعلا؛ لا تطبق قيد مصدر واحد لهدف واحد. لا تفترض تساوي أوزان الأجزاء. لا تخترع تقسيمًا رسميًا جديدًا للمفردات.
 إذا repair_only=true فأعد المقابلات في requested_pairs والمجموعات في required_groups فقط مع أي بديل جديد جدي؛ retained_pairs وretained_groups محفوظة خارج ردك ولا تعاد. لا تحذف بديلًا مطلوبًا بسبب تفضيل بديل آخر. أعد JSON فقط.'''
+SYSTEM += '\n' + ACADEMIC_TERMS
 PAIR = {'type': 'object', 'properties': {
     'source_id': {'type': 'string'}, 'status': {'type': 'string', 'enum': sorted(STATUSES)},
     'reason': {'type': 'string', 'minLength': 1, 'maxLength': 1600},
@@ -271,6 +274,13 @@ def _write(file, value):
     temporary.replace(file)
 
 
+def _candidate_request(model,payload):
+    return {'model':model,'stream':False,'think':False,'format':SCHEMA,
+            'messages':[{'role':'system','content':SYSTEM},{'role':'user','content':_json(payload)}],
+            'options':{'temperature':0,'seed':109,'num_ctx':32768,
+                       'num_predict':min(24000,max(4000,len(payload['requested_pairs'])*200))}}
+
+
 def discover_candidates(targets, sources, *, model, model_digest, caller, cache_dir):
     """Complete blinded scan, <=2 attempts per batch, with private bound caches.
 
@@ -281,8 +291,18 @@ def discover_candidates(targets, sources, *, model, model_digest, caller, cache_
     ts, ss = _topics(targets), _topics(sources)
     if not isinstance(model, str) or not model.strip() or ':cloud' in model or not isinstance(model_digest, str) or not model_digest.strip():
         raise ValueError('يلزم اسم نموذج محلي وبصمة مثبتة')
+    size = max(1, min(MAX_TARGETS_PER_BATCH, MAX_PAIRS_PER_BATCH // len(ss)))
+    initial_requests=[]
+    for offset in range(0,len(ts),size):
+        batch=ts[offset:offset+size]
+        required=sorted((t['id'],s['id'])for t in batch for s in ss)
+        initial_requests.append(_candidate_request(model,{'target':batch,'source':ss,
+            'requested_pairs':[{'target_id':t,'source_id':s}for t,s in required]}))
     identity = {'version': VERSION, 'system': SYSTEM, 'schema': SCHEMA,
-                'model': model, 'model_digest': model_digest, 'target': ts, 'source': ss}
+                'model': model, 'model_digest': model_digest, 'target': ts, 'source': ss,
+                'think':False,'ordered_schema_sha256':hashlib.sha256(json.dumps(SCHEMA).encode()).hexdigest(),
+                'initial_user_contents':[r['messages'][1]['content']for r in initial_requests],
+                'ordered_initial_request_sha256':[hashlib.sha256(json.dumps(r).encode()).hexdigest()for r in initial_requests]}
     key = _sha(identity)
     directory = Path(cache_dir) / 'candidate-discovery'
     cache = directory / (key + '.json')
@@ -301,7 +321,6 @@ def discover_candidates(targets, sources, *, model, model_digest, caller, cache_
         except (ValueError, KeyError, TypeError) as error:
             cache_rejection = type(error).__name__
     retained, groups, records = {}, {}, []
-    size = max(1, min(MAX_TARGETS_PER_BATCH, MAX_PAIRS_PER_BATCH // len(ss)))
     for offset in range(0, len(ts), size):
         batch = ts[offset:offset + size]
         required = {(t['id'], s['id']) for t in batch for s in ss}
@@ -316,11 +335,10 @@ def discover_candidates(targets, sources, *, model, model_digest, caller, cache_
                     retained_pairs=[{'target_id': t, 'source_id': s} for t, s in sorted(retained) if t in {b['id'] for b in batch}],
                     retained_groups=[{'target_id': t, 'source_ids': list(ids)} for t, ids in sorted(groups) if t in {b['id'] for b in batch}],
                     required_groups=[{'target_id': t, 'source_ids': list(ids)} for t, ids in sorted(required_groups)])
-            request = {'model': model, 'stream': False, 'think': False, 'format': SCHEMA,
-                'messages': [{'role': 'system', 'content': SYSTEM}, {'role': 'user', 'content': _json(payload)}],
-                'options': {'temperature': 0, 'seed': 109, 'num_ctx': 32768,
-                            'num_predict': min(24000, max(4000, len(required) * 200))}}
-            record = {'request_payload': payload, 'started_at': time.time()}
+            request = _candidate_request(model,payload)
+            record = {'request_payload':payload,'user_content':request['messages'][1]['content'],
+                      'think':request['think'],'ordered_request_sha256':hashlib.sha256(json.dumps(request).encode()).hexdigest(),
+                      'started_at':time.time()}
             attempts.append(record)
             _write(trace, {'version': VERSION, 'cache_key': key, 'model_digest': model_digest,
                            'cache_rejection': cache_rejection, 'attempts': attempts})
