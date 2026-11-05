@@ -1,5 +1,5 @@
 {
-  "status": "verified_local_pending_activation",
+  "status": "live_ready_five_remaining_rows_resolved_both_original_files_completed",
   "native_protocol": "native-cell-v14-contextual-visual-adjudication",
   "scope": "Only the five remaining uncertain source rows from the same C06/C08 PDFs",
   "method": {
@@ -108,5 +108,18 @@
     "Both correction text and its observations are preserved from actual local-model responses",
     "Source extraction succeeded; no acceptance/tolerance/rejection comparison was run in this task"
   ],
-  "private_evidence_root": "runtime/service/qa/contextual-five-20261105/"
+  "private_evidence_root": "runtime/service/qa/contextual-five-20261105/",
+  "release": {
+    "commit": "72fa9b4dcbd862653ddcc08b0e9fc60834c39ad2",
+    "deploy_id": "6aec1d7d9ae3e35ee23dfb9b",
+    "state": "ready",
+    "error_message": null,
+    "CI_run": 41978424056,
+    "CI": "success",
+    "public_four_files_byte_identical": true,
+    "healthz_public_tunnel_loopback": 200,
+    "only_own_two_workers_restarted": true,
+    "other_service_PIDs_and_env_preserved": true,
+    "new_uploads_use_improvement": true
+  }
 }
