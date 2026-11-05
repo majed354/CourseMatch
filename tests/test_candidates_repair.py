@@ -38,6 +38,7 @@ class CandidateGroupRepairTests(unittest.TestCase):
             self.assertEqual(len(caller.calls),2);self.assertEqual(result['coverage']['pairs'],2);self.assertEqual(result['groups'],[])
             self.assertEqual(result['scan'][0]['sources'][1],{'source_id':'s2','status':'unrelated'})
             self.assertEqual(caller.calls[1]['format']['properties']['scan']['maxItems'],0)
+            self.assertEqual(caller.calls[1]['format']['properties']['groups']['maxItems'],0)
             again=c.discover_candidates(self.targets,self.sources,model='local:test',model_digest='digest',caller=lambda *x:self.fail('warm inference'),cache_dir=path)
             self.assertTrue(again['cache_hit']);self.assertEqual(result['scan'],again['scan'])
 

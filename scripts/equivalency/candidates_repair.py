@@ -9,7 +9,7 @@ import copy
 VERSION='candidate-repair-v1-explicit-group-withdrawal'
 
 
-def schema(base, requested, required_groups):
+def schema(base, requested, required_groups, retained_pairs=None, allowed_targets=None):
     value=copy.deepcopy(base);by_target={}
     for target,source in sorted(requested):by_target.setdefault(target,[]).append(source)
     scan=value['properties']['scan']
@@ -27,6 +27,21 @@ def schema(base, requested, required_groups):
                     for child in node:bind(child)
             bind(row['properties']['sources']);variants.append(row)
         scan['items']={'anyOf':variants}
+    if retained_pairs is not None:
+        eligible={}
+        for (tid,sid),pair in retained_pairs.items():
+            if pair['status']!='unrelated' and (allowed_targets is None or tid in allowed_targets):eligible.setdefault(tid,set()).add(sid)
+        for tid,sid in requested:eligible.setdefault(tid,set()).add(sid)
+        variants=[]
+        for tid,sids in sorted(eligible.items()):
+            if len(sids)<2:continue
+            item=copy.deepcopy(value['properties']['groups']['items'])
+            item['properties']['target_id']={'type':'string','enum':[tid]}
+            item['properties']['source_ids']['items']={'type':'string','enum':sorted(sids)}
+            item['properties']['evidence']['items']['properties']['source_id']={'type':'string','enum':sorted(sids)}
+            variants.append(item)
+        if variants:value['properties']['groups']['items']={'anyOf':variants}
+        else:value['properties']['groups']['maxItems']=0
     choices=[]
     for tid,sids in sorted(required_groups):
         choices.append({'type':'object','properties':{'target_id':{'type':'string','enum':[tid]},

@@ -396,7 +396,7 @@ def discover_candidates(targets, sources, *, model, model_digest, caller, cache_
                 payload['group_repair_options']='المجموعات المطلوبة مقترحات سابقة غير صالحة: أصلح دليل المجموعة أو اسحب اقتراحها صراحة في withdrawn_groups مع سبب. لا تعد كتابة retained_pairs أو retained_groups، ولا تغير تصنيفًا محفوظًا. سحب اقتراح غير مثبت لا يثبت غياب مضمونه ولا يمنح حكمًا أكاديميًا.'
             try:
                 from . import candidates_repair
-                actual_schema=candidates_repair.schema(schema,required,required_groups)if attempt else schema
+                actual_schema=candidates_repair.schema(schema,required,required_groups,retained,{b['id']for b in batch})if attempt else schema
                 request = _candidate_request(model,payload,actual_schema)
             except _DiscoveryCapacityError as error:
                 attempts.append({'request_payload':payload,'failure_kind':'context_capacity','model_called':False,
