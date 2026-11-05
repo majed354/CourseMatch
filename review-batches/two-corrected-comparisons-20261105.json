@@ -1,5 +1,5 @@
 {
-  "status": "two_original_cases_running_C06_bounded_recovery_pending",
+  "status": "bounded_trial_complete_C08_validated_C06_rejection_not_endorsed",
   "scope": [
     "C06",
     "C08"
@@ -22,7 +22,76 @@
     "python_tests": 689,
     "focused_tests": 48,
     "independent_checks": 12,
-    "independent_audit_sha256": "cecbb9fc169846978c6758ace830a94473e4a747a3cd643e2739ddfac90c81cd"
+    "independent_audit_sha256": "cecbb9fc169846978c6758ace830a94473e4a747a3cd643e2739ddfac90c81cd",
+    "final_python_tests": 689,
+    "node_chrome_tests": 202,
+    "skipped": 0,
+    "live_commit": "6fc79f868ed56220948f3a465105422c93153c0b",
+    "deploy_id": "6aeca0cee4ef9167e23e4de9",
+    "deploy_state": "ready",
+    "CI_run": 42054512556,
+    "CI": "success",
+    "public_four_files_equal": true,
+    "healthz_public_tunnel_loopback": 200
   },
-  "private_evidence_root": "runtime/service/qa/two-corrected-comparisons-20261105/"
+  "private_evidence_root": "runtime/service/qa/two-corrected-comparisons-20261105/",
+  "deliverables": [
+    {
+      "case": "C08",
+      "report_id": "3b576dcb181c524be5cc571af423a1d5",
+      "PDF": "output/equivalency-two-corrected-20261105/تقرير_مقارنة_أصول_التفسير_بالفقه_4.pdf",
+      "PDF_sha256": "3aaea59164cd2da03754498a5bba3254f54f3ca016b3670f5be2944561152df1",
+      "PDF_pages": 3,
+      "target_rows": 12,
+      "root_viewed_all_final_pages": true,
+      "no_clipping_or_overlap": true,
+      "academic_validation": "defensible",
+      "academic_hold_overlay": null
+    },
+    {
+      "case": "C06",
+      "report_id": "1c18e596f3d82c27b4ff0acd34e31644",
+      "PDF": "output/equivalency-two-corrected-20261105/تقرير_تدقيق_معادلة_القانون_الإداري.pdf",
+      "PDF_sha256": "a909b7c23c2e5e6bfd3dc23ab44e7b31e51aac3ea3efad1dcd7000615e369199",
+      "PDF_pages": 3,
+      "target_rows": 15,
+      "root_viewed_all_final_pages": true,
+      "no_clipping_or_overlap": true,
+      "academic_validation": "withheld",
+      "academic_hold_overlay": "classification_not_endorsed_due_to_60_threshold_reasoning"
+    }
+  ],
+  "source_extraction_complete_both": true,
+  "new_case_count": 0,
+  "C08": {
+    "target_id": "57853be46683cbc40c21",
+    "mode": "uploaded",
+    "context": "الشريعة/بكالوريوس/قديمة38",
+    "decision": "not_equivalent",
+    "strict_count": 0,
+    "lenient_count": 0,
+    "target_topics": 12,
+    "academic_validation": "defensible",
+    "optional_discovery_used_as_absence_proof": false,
+    "final_completion_from_valid_six_reader_caches": true,
+    "new_model_calls_in_completion": 0,
+    "independent_audit_sha256": "dbfceae469ab4e5812c48ae187568555d166b2eb0bd11512ab3f0654a6ac9943"
+  },
+  "C06": {
+    "target_id": "df811309c0c38c851b47",
+    "context": "الأنظمة/بكالوريوس/جديدة47",
+    "last_automated_decision": "not_equivalent",
+    "strict_count": 2,
+    "lenient_count": 5,
+    "target_topics": 15,
+    "required_count": 12,
+    "academic_validation": "withheld_due_to_unresolved_60_percent_scope_calibration",
+    "last_bounded_recheck_model_calls": 2,
+    "further_calls": 0,
+    "previous_reports_preserved": true,
+    "source_evidence_and_calculation_unchanged": true,
+    "PDF_approved_stamp_removed_and_hold_visible": true,
+    "independent_audit_sha256": "b43d5a2d007215e78a33c69774066270b5566c31b4954d34ef0b55d39cb4b5f0",
+    "remaining_issue": "Weak tiers justified only by missing detail under explicitly named subjects; rejection and its possible upper bound not academically endorsed."
+  }
 }
