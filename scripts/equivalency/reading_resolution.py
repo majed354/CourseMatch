@@ -1,6 +1,7 @@
-"""One image-only enlarged reread, corroborated at every disputed span by OCR.
+"""Bounded enlarged reread with OCR witnesses or a distinct local visual audit.
 
-No text alternatives are shown to the model. Never changes numerals, source
+The enlarged reader is blind; the distinct contextual auditor sees candidates.
+Never changes numerals, source
 files, topic identities, or grades. Evidence is replayable without inference.
 """
 from __future__ import annotations
@@ -15,7 +16,7 @@ import time
 import unicodedata
 from PIL import Image
 
-VERSION = 'focused-reading-v1-independent-context-witnesses'
+VERSION = 'focused-reading-v2-contextual-visual-adjudication'
 
 
 def enlarged(images):
@@ -153,6 +154,13 @@ def resolve(directory, images, anchor, first, second, baseline, caller, model):
         proof['status']='resolved'
     except Exception as error:
         proof['failure']=str(error) if isinstance(error,ValueError)else type(error).__name__
+    if proof['status']=='unresolved' and proof.get('candidate') and proof['responses']:
+        from .contextual_reading import run
+        review=run(directory,images,anchor,first,second,proof,caller,model)
+        proof['contextual_review']=review
+        if review and review['status']=='resolved':
+            proof.update(status='resolved',selected_text=review['selected_text'],
+                         resolution_method='candidate_aware_distinct_local_visual_review')
     m._save(directory/'focused-attempt.json',proof)
     return proof
 
@@ -165,7 +173,7 @@ def validate(directory, proof, images, anchor, first, second, rows, caller):
         if rows!=proof['baseline_rows']:raise ValueError('unresolved_focused_rows_changed')
         return
     if _numeric(anchor['text']+first+second):raise ValueError('numeric_focused_proof')
-    if len(proof['inputs'])!=len(images)or len(proof['zooms'])!=len(images)or len(proof['ocr_raws'])!=len(images):raise ValueError('focused_image_count')
+    if len(proof['inputs'])!=len(images)or len(proof['zooms'])!=len(images):raise ValueError('focused_image_count')
     for original,zoom,irec,zrec in zip(images,enlarged(images),proof['inputs'],proof['zooms']):
         if _read(directory,irec)!=original or _read(directory,zrec)!=zoom:raise ValueError('stale_focused_pixels')
     if len(proof['responses'])!=1 or len(proof['identities'])!=1:raise ValueError('focused_reader_count')
@@ -174,7 +182,16 @@ def validate(directory, proof, images, anchor, first, second, rows, caller):
     response=proof['responses'][0]
     if response['model']!=identity['model']or response['digest']!=identity['digest']:raise ValueError('focused_model_binding')
     candidate=m._rows(json.loads(_read(directory,response)),'native',[anchor['id']])[0]['text']
-    if candidate!=proof['candidate'] or m.UNKNOWN in candidate or _numeric(candidate)or m._native_pdf_marks_conflict(anchor,candidate):raise ValueError('stale_focused_candidate')
+    if candidate!=proof['candidate']:raise ValueError('stale_focused_candidate')
+    review=proof.get('contextual_review')
+    if review and review['status']=='resolved':
+        from .contextual_reading import validate as validate_review
+        selected=validate_review(directory,review,images,anchor,first,second,proof,caller,identity)
+        if proof.get('resolution_method')!='candidate_aware_distinct_local_visual_review' or proof.get('selected_text')!=selected or rows!=[{'id':anchor['id'],'text':selected}]:raise ValueError('stale_contextual_rows')
+        return
+    if proof.get('resolution_method')=='candidate_aware_distinct_local_visual_review':raise ValueError('missing_contextual_proof')
+    if m.UNKNOWN in candidate or _numeric(candidate)or m._native_pdf_marks_conflict(anchor,candidate):raise ValueError('stale_focused_candidate')
+    if len(proof['ocr_raws'])!=len(images):raise ValueError('focused_ocr_count')
     if m._tesseract_identity()[2]!=proof['ocr_identity']:raise ValueError('stale_focused_ocr')
     ocr='\n'.join(_read(directory,r).decode('utf-8')for r in proof['ocr_raws'])
     witnesses=contexts(candidate,[first,second],ocr)

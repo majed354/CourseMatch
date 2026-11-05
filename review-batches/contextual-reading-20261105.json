@@ -1,0 +1,112 @@
+{
+  "status": "verified_local_pending_activation",
+  "native_protocol": "native-cell-v14-contextual-visual-adjudication",
+  "scope": "Only the five remaining uncertain source rows from the same C06/C08 PDFs",
+  "method": {
+    "extractor": "existing Gemma visual readings",
+    "reviewer": "different local Qwen model with original cell images and candidate text",
+    "kind": "candidate-aware visual review, not blind independent OCR",
+    "bounded_attempts_per_affected_row": {
+      "visual_review": 1,
+      "mark_correction_only_after_rejection": 1
+    },
+    "scope_guards": [
+      "Complete original words/order/negations must match a Gemma reading",
+      "Every disputed span requires an image-bound quoted observation",
+      "Mark corrections retain actual visual model text; no global removal of output vowels",
+      "Explicit PDF-bound vowel conflicts and all numeral/symbol changes remain blocked",
+      "Model/image/request/raw hashes and the complete derivation are revalidated on cache load"
+    ]
+  },
+  "result": {
+    "previously_unresolved_rows": 5,
+    "now_resolved_rows": 5,
+    "remaining_uncertain_rows": 0,
+    "whole_files": [
+      {
+        "case": "C06",
+        "source_sha256": "5f625e1c422509a10fd060918d764b86bbf12443af3608b0086a69d78886ad55",
+        "native_protocol": "native-cell-v14-contextual-visual-adjudication",
+        "source_original_bytes_unchanged": true,
+        "topics": 9,
+        "original_IDs_order_text_geometry_unchanged": true,
+        "status": "completed",
+        "remaining_unknown_rows": [],
+        "resolved_rows": [
+          "t1",
+          "t2",
+          "t3"
+        ],
+        "warm_result_exact": true,
+        "warm_inference_calls": 0,
+        "historical_baseline_replays": 18,
+        "fresh_focused_reading_replays": 3,
+        "new_model_calls": 0,
+        "fresh_context_review_replays": 1,
+        "fresh_context_correction_replays": 0
+      },
+      {
+        "case": "C08",
+        "source_sha256": "6e3ac515ca1411a10972c230884d80cdfa112cad83114b5e53354892a57c8cb4",
+        "native_protocol": "native-cell-v14-contextual-visual-adjudication",
+        "source_original_bytes_unchanged": true,
+        "topics": 15,
+        "original_IDs_order_text_geometry_unchanged": true,
+        "status": "completed",
+        "remaining_unknown_rows": [],
+        "resolved_rows": [
+          "t11",
+          "t12",
+          "t13",
+          "t14",
+          "t15"
+        ],
+        "warm_result_exact": true,
+        "warm_inference_calls": 0,
+        "historical_baseline_replays": 24,
+        "fresh_focused_reading_replays": 5,
+        "new_model_calls": 0,
+        "fresh_context_review_replays": 4,
+        "fresh_context_correction_replays": 3
+      }
+    ],
+    "source_PDF_IDs_raw_topics_order_geometry_unchanged": true,
+    "original_source_records_not_modified": true,
+    "warm_model_calls": 0,
+    "production_reading_integrity_gates_passed": true,
+    "human_review_flags_used": false
+  },
+  "actual_experiment": {
+    "new_contextual_model_requests": 8,
+    "initial_reviews": 5,
+    "bounded_mark_corrections": 3,
+    "new_model": "qwen3.8:27b-q8_0",
+    "fresh_model_seconds": 597.964,
+    "previous_baseline_reads_replayed": 42,
+    "previous_focused_Gemma_reads_replayed": 8,
+    "additional_inference_in_full_source_CPU_replay": 0,
+    "new_uploads": 0,
+    "new_searches": 0,
+    "new_course_comparisons": 0,
+    "new_cases": 0,
+    "historical_rejections_and_raw_outputs_preserved": true
+  },
+  "validation": {
+    "python_tests": 686,
+    "node_chrome_tests": 202,
+    "node_chrome_skips": 0,
+    "verified_PDFs": 448,
+    "verified_appearances": 993,
+    "verified_contexts": 21,
+    "independent_audit_sha256": "79dc0e362eff1a52c3c817aad6bd50c15c17908e766ede1ae7526434b7081d80",
+    "independent_tamper_checks": 11,
+    "independent_raw_request_image_checks_all_five": true
+  },
+  "limits": [
+    "This is a diagnostic regression on five already inspected rows, not a general accuracy estimate",
+    "The contextual reviewer sees candidates; no claim of blind OCR independence",
+    "Both correction text and its observations are preserved from actual local-model responses",
+    "Source extraction succeeded; no acceptance/tolerance/rejection comparison was run in this task"
+  ],
+  "private_evidence_root": "runtime/service/qa/contextual-five-20261105/"
+}

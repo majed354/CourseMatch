@@ -33,7 +33,7 @@ from .engine import local_model, post_ollama
 from .extract import norm
 
 VERSION = 'image-input-local-vision-v6-independent-reading'
-NATIVE_PROTOCOL_VERSION = 'native-cell-v13-focused-disagreement-resolution'
+NATIVE_PROTOCOL_VERSION = 'native-cell-v14-contextual-visual-adjudication'
 FALLBACK_MODEL = 'qwen3.8:27b-q8_0'
 MAX_PIXELS = 32_000_000
 MAX_DIMENSION = 12_000
@@ -889,7 +889,7 @@ def _transcribe(directory,key,images,mode,native_rows,caller,model,timeout,page_
             focused=resolve(directory,images,native_rows[0],first[0]['text'],second[0]['text'],rows,caller,model)
             result['focused_resolution']=focused
             if focused and focused['status']=='resolved':
-                result['rows']=[{'id':native_rows[0]['id'],'text':focused['candidate']}]
+                result['rows']=[{'id':native_rows[0]['id'],'text':focused.get('selected_text',focused['candidate'])}]
                 result['rows_sha256']=_json_sha(result['rows'])
         _save(directory/'cache.json',result);return result
     except Exception as error:
@@ -1244,6 +1244,19 @@ def verify_pdf_topics(path,extracted,cache_dir,model='gemma4:e4b',*,caller=None)
                     for identity in focused['identities']:
                         if identity not in reading['identities']:reading['identities'].append(identity)
                     reading['responses'].extend(copy.deepcopy(cell['focused_resolution']['responses']))
+                    review=cell['focused_resolution'].get('contextual_review')
+                    if review:
+                        for field in ('inputs','responses'):
+                            for record in review[field]:
+                                record['file']=str((cell_directory/record['file']).relative_to(directory))
+                        for identity in review['identities']:
+                            if identity not in reading['identities']:reading['identities'].append(identity)
+                        reading['responses'].extend(copy.deepcopy(review['responses']))
+                        correction=review.get('correction_review')
+                        if correction:
+                            for record in correction['responses']:
+                                record['file']=str((cell_directory/record['file']).relative_to(directory))
+                            reading['responses'].extend(copy.deepcopy(correction['responses']))
         previous_excluded=result.setdefault('excluded_rows',[]);checked=[];numeric_disagreements=[]
         for topic,row in zip(topics,reading['rows']):
             record=copy.deepcopy(topic);record['corrected_text']=row['text'];record['visual_transcription_origin']='local_vision_transcription'
