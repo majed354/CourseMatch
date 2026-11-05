@@ -1,0 +1,28 @@
+{
+  "status": "two_original_cases_running_C06_bounded_recovery_pending",
+  "scope": [
+    "C06",
+    "C08"
+  ],
+  "source_extraction_reused": true,
+  "new_uploads": 0,
+  "new_searches": 0,
+  "academic_policy_changed": false,
+  "initial_C06": {
+    "provider": "audit_incomplete",
+    "decision": "insufficient",
+    "coverages": null,
+    "model_calls": 12,
+    "raw_and_report_preserved": true
+  },
+  "repair": {
+    "kind": "explicit_invalid_group_withdrawal_without_mutating_valid_scan",
+    "max_attempts_per_batch": 2,
+    "initial_generation_requests_unchanged": true,
+    "python_tests": 689,
+    "focused_tests": 48,
+    "independent_checks": 12,
+    "independent_audit_sha256": "cecbb9fc169846978c6758ace830a94473e4a747a3cd643e2739ddfac90c81cd"
+  },
+  "private_evidence_root": "runtime/service/qa/two-corrected-comparisons-20261105/"
+}

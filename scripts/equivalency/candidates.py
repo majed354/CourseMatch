@@ -21,7 +21,7 @@ import unicodedata
 from .academic_terms import ACADEMIC_TERMS
 from . import candidates_wire
 
-VERSION = 'source-complete-candidate-discovery-v2-literal-refs'
+VERSION = 'source-complete-candidate-discovery-v3-bounded-group-repair'
 MAX_TOPICS = 100
 MAX_TARGETS_PER_BATCH = 3
 MAX_PAIRS_PER_BATCH = 100
@@ -393,8 +393,11 @@ def discover_candidates(targets, sources, *, model, model_digest, caller, cache_
                     retained_pairs=[{'target_id': t, 'source_id': s} for t, s in sorted(retained) if t in {b['id'] for b in batch}],
                     retained_groups=[{'target_id': t, 'source_ids': list(ids)} for t, ids in sorted(groups) if t in {b['id'] for b in batch}],
                     required_groups=[{'target_id': t, 'source_ids': list(ids)} for t, ids in sorted(required_groups)])
+                payload['group_repair_options']='المجموعات المطلوبة مقترحات سابقة غير صالحة: أصلح دليل المجموعة أو اسحب اقتراحها صراحة في withdrawn_groups مع سبب. لا تعد كتابة retained_pairs أو retained_groups، ولا تغير تصنيفًا محفوظًا. سحب اقتراح غير مثبت لا يثبت غياب مضمونه ولا يمنح حكمًا أكاديميًا.'
             try:
-                request = _candidate_request(model,payload,schema)
+                from . import candidates_repair
+                actual_schema=candidates_repair.schema(schema,required,required_groups)if attempt else schema
+                request = _candidate_request(model,payload,actual_schema)
             except _DiscoveryCapacityError as error:
                 attempts.append({'request_payload':payload,'failure_kind':'context_capacity','model_called':False,
                                  'input_upper_bound':error.input_upper,'output_required':error.output_required,'capacity':error.budget})
@@ -423,9 +426,13 @@ def discover_candidates(targets, sources, *, model, model_digest, caller, cache_
                 if response.get('done_reason') == 'length' or response.get('done') is False:
                     raise ValueError('مسح البدائل مبتور أو غير مكتمل')
                 value = json.loads(response['message']['content'])
+                withdrawn=set()
+                if attempt:
+                    value,withdrawn,withdrawals=candidates_repair.response(value,required_groups,groups)
+                    record['group_withdrawals']=withdrawals
                 next_pairs, next_groups, issues = _checked(value, ts, ss, required, retained, groups, {b['id'] for b in batch}, wire=True)
                 retained, groups = next_pairs, next_groups
-                outstanding_groups = required_groups - set(groups)
+                outstanding_groups = required_groups - set(groups) - withdrawn
                 issues.extend({'target_id': t, 'source_ids': list(ids), 'error': 'لم تُستكمل مجموعة الترشيح المطلوبة'} for t, ids in sorted(outstanding_groups))
                 required = {(i['target_id'], i['source_id']) for i in issues if 'source_id' in i}
                 required_groups = {(i['target_id'], tuple(sorted(i['source_ids']))) for i in issues if 'source_ids' in i}
